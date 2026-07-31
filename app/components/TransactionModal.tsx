@@ -19,6 +19,9 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
   const [budgetPosId, setBudgetPosId] = useState(existing?.budgetPosId || '');
   const [goalId, setGoalId] = useState(existing?.goalId || '');
   const [amount, setAmount] = useState(existing?.amount?.toString() || '');
+  const [amountDisplay, setAmountDisplay] = useState(
+    existing?.amount ? new Intl.NumberFormat('id-ID').format(existing.amount) : ''
+  );
   const [note, setNote] = useState(existing?.note || '');
   const [date, setDate] = useState(existing?.date || toInputDate());
   const [categories, setCategories] = useState<Category[]>([]);
@@ -33,16 +36,28 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
 
   const filteredCats = categories.filter(c => c.type === type || c.type === 'both');
 
+  // Format number with thousand separators as user types
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, ''); // digits only
+    setAmount(raw);
+    if (raw) {
+      setAmountDisplay(new Intl.NumberFormat('id-ID').format(Number(raw)));
+    } else {
+      setAmountDisplay('');
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!category || !amount || !date) return;
+    const numAmount = Number(amount);
+    if (!category || !amount || !date || numAmount <= 0) return;
     onSave({
       type,
       category,
       subCategory: category === 'Pengeluaran' ? subCategory : undefined,
       budgetPosId: budgetPosId || undefined,
       goalId: goalId || undefined,
-      amount: parseFloat(amount),
+      amount: numAmount,
       note,
       date,
     });
@@ -79,14 +94,19 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
                 <label className="form-label">Jumlah (Rp) *</label>
                 <input
                   className="form-input"
-                  type="number"
-                  min="0"
-                  step="1000"
+                  type="text"
+                  inputMode="numeric"
                   placeholder="0"
-                  value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  value={amountDisplay}
+                  onChange={handleAmountChange}
                   required
+                  autoComplete="off"
                 />
+                {amountDisplay && (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Rp {amountDisplay}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal *</label>
