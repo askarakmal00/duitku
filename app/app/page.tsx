@@ -7,9 +7,10 @@ import MoneyFlowChart from '@/components/MoneyFlowChart';
 import BudgetDonut from '@/components/BudgetDonut';
 import RecentTransactions from '@/components/RecentTransactions';
 import SavingGoalsList from '@/components/SavingGoalsList';
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import TransactionModal from '@/components/TransactionModal';
 import {
-  getTransactions, addTransaction, getTotalBalance,
+  getTransactions, addTransaction, updateTransaction, deleteTransaction, getTotalBalance,
   getMonthlyIncome, getMonthlyExpense, getTotalSavings,
   getBudgetPos, getBudgetUsed, getSavingGoals,
 } from '@/lib/store';
@@ -21,6 +22,9 @@ export default function DashboardPage() {
   const [budgetPos, setBudgetPos] = useState<BudgetPos[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [showModal, setShowModal] = useState(false);
+  const [editTarget, setEditTarget] = useState<Transaction | undefined>();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [refresh, setRefresh] = useState(0);
 
   const { year, month } = getCurrentMonth();
@@ -45,10 +49,36 @@ export default function DashboardPage() {
     used: getBudgetUsed(p.id, year, month),
   }));
 
-  const handleAddTransaction = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
-    await addTransaction(data);
+  const handleSaveTransaction = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
+    if (editTarget) {
+      await updateTransaction(editTarget.id, data);
+    } else {
+      await addTransaction(data);
+    }
     setShowModal(false);
+    setEditTarget(undefined);
     setRefresh(r => r + 1);
+  };
+
+  const handleEdit = (t: Transaction) => {
+    setEditTarget(t);
+    setShowModal(true);
+  };
+
+  const handleDeleteRequest = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteTransaction(deleteId);
+      setRefresh(r => r + 1);
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
+    }
   };
 
   return (
@@ -84,12 +114,17 @@ export default function DashboardPage() {
               <div className="card-header">
                 <span className="card-title">Transaksi Terbaru</span>
                 <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                  <button className="btn btn-primary btn-sm" onClick={() => setShowModal(true)}>
+                  <button className="btn btn-primary btn-sm" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
                     <Plus size={14} /> Tambah
                   </button>
                 </div>
               </div>
-              <RecentTransactions transactions={transactions} limit={5} />
+              <RecentTransactions
+                transactions={transactions}
+                limit={5}
+                onEdit={handleEdit}
+                onDelete={handleDeleteRequest}
+              />
             </div>
           </div>
 
@@ -118,8 +153,19 @@ export default function DashboardPage() {
 
       {showModal && (
         <TransactionModal
-          onSave={handleAddTransaction}
-          onClose={() => setShowModal(false)}
+          existing={editTarget}
+          onSave={handleSaveTransaction}
+          onClose={() => { setShowModal(false); setEditTarget(undefined); }}
+        />
+      )}
+
+      {deleteId && (
+        <ConfirmDeleteModal
+          title="Hapus Transaksi"
+          message="Apakah Anda yakin ingin menghapus transaksi ini? Data yang dihapus tidak dapat dikembalikan."
+          isLoading={isDeleting}
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeleteId(null)}
         />
       )}
     </>

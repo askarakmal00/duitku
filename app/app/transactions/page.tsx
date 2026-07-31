@@ -10,6 +10,8 @@ import {
 import { Transaction } from '@/lib/types';
 import { formatCurrency, getCurrentMonth } from '@/lib/helpers';
 
+import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+
 type Filter = 'semua' | 'masuk' | 'keluar' | 'bulan-ini';
 
 export default function TransactionsPage() {
@@ -18,6 +20,8 @@ export default function TransactionsPage() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Transaction | undefined>();
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const load = () => setTransactions(getTransactions());
   useEffect(() => { load(); }, []);
@@ -57,10 +61,19 @@ export default function TransactionsPage() {
     setShowModal(true);
   };
 
-  const handleDelete = async (id: string) => {
-    if (confirm('Hapus transaksi ini?')) {
-      await deleteTransaction(id);
+  const handleDeleteRequest = (id: string) => {
+    setDeleteId(id);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteId) return;
+    setIsDeleting(true);
+    try {
+      await deleteTransaction(deleteId);
       load();
+    } finally {
+      setIsDeleting(false);
+      setDeleteId(null);
     }
   };
 
@@ -127,7 +140,7 @@ export default function TransactionsPage() {
             transactions={filtered}
             showAll
             onEdit={handleEdit}
-            onDelete={handleDelete}
+            onDelete={handleDeleteRequest}
           />
         </div>
       </div>
@@ -137,6 +150,16 @@ export default function TransactionsPage() {
           existing={editTarget}
           onSave={handleSave}
           onClose={() => { setShowModal(false); setEditTarget(undefined); }}
+        />
+      )}
+
+      {deleteId && (
+        <ConfirmDeleteModal
+          title="Hapus Transaksi"
+          message="Apakah Anda yakin ingin menghapus transaksi ini? Data yang dihapus tidak dapat dikembalikan."
+          isLoading={isDeleting}
+          onConfirm={handleConfirmDelete}
+          onClose={() => setDeleteId(null)}
         />
       )}
     </>

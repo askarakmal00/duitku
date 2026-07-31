@@ -1,6 +1,5 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import './globals.css';
-import Sidebar from '@/components/Sidebar';
 import SupabaseProvider from '@/components/SupabaseProvider';
 
 export const metadata: Metadata = {
@@ -8,17 +7,19 @@ export const metadata: Metadata = {
   description: 'Kelola keuangan pribadi Anda dengan mudah: transaksi, anggaran, hutang, tabungan, dan analitik.',
 };
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id">
       <body>
         <SupabaseProvider>
-          <div className="app-layout">
-            <Sidebar />
-            <main className="main-content">
-              {children}
-            </main>
-          </div>
+          {children}
         </SupabaseProvider>
       </body>
     </html>

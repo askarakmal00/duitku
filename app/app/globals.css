@@ -242,6 +242,12 @@ body {
   z-index: 50;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .header-left h1 {
   font-size: 22px;
   font-weight: 700;
@@ -949,17 +955,251 @@ tr:hover td { background: var(--primary-50); }
 
 .loading { animation: pulse 1.5s ease infinite; }
 
-/* ─── Responsive ──────────────────────────────────────────── */
+/* ─── Hamburger Button ────────────────────────────────────── */
+.hamburger-btn {
+  display: none; /* hidden on desktop */
+}
+
+/* ─── Sidebar Close Button ────────────────────────────────── */
+.sidebar-close-btn {
+  display: none;
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: var(--primary-50);
+  border-radius: var(--radius-xs);
+  color: var(--text-secondary);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  flex-shrink: 0;
+}
+.sidebar-close-btn:hover { background: var(--danger-bg); color: var(--danger); }
+
+/* ─── Sidebar Overlay (mobile) ────────────────────────────── */
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 7, 32, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 99;
+  animation: fadeIn 0.2s ease;
+}
+
+/* ─── Bottom Navigation (mobile only) ────────────────────── */
+.bottom-nav {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: var(--card);
+  border-top: 1px solid var(--border);
+  z-index: 90;
+  box-shadow: 0 -4px 20px rgba(124,58,237,0.08);
+  padding: 0 4px;
+  align-items: stretch;
+  justify-content: space-around;
+}
+
+.bottom-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex: 1;
+  padding: 8px 4px;
+  color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all var(--transition);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.bottom-nav-item.active {
+  color: var(--primary);
+}
+
+.bottom-nav-item.active svg {
+  background: var(--primary-100);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.bottom-nav-item svg {
+  flex-shrink: 0;
+}
+
+/* ─── modal-backdrop alias (used in ConfirmDeleteModal) ───── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15,7,32,0.6);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fadeIn 0.15s ease;
+}
+
+/* ─── Responsive: Large Tablet ────────────────────────────── */
 @media (max-width: 1200px) {
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
   .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; }
+  .grid-4 { grid-template-columns: repeat(2, 1fr); }
 }
 
-@media (max-width: 768px) {
-  :root { --sidebar-width: 0px; }
-  .sidebar { transform: translateX(-100%); }
-  .main-content { margin-left: 0; }
-  .summary-grid { grid-template-columns: 1fr; }
-  .page-container { padding: 16px; }
-  .form-row { grid-template-columns: 1fr; }
+/* ─── Responsive: Tablet ──────────────────────────────────── */
+@media (max-width: 900px) {
+  :root { --sidebar-width: 260px; }
+
+  /* Sidebar hidden by default on tablet, slides in */
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 200;
+  }
+
+  .sidebar.sidebar-open {
+    transform: translateX(0);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+
+  .hamburger-btn {
+    display: flex;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  .header-left {
+    gap: 10px;
+  }
+
+  .summary-grid { grid-template-columns: repeat(2, 1fr); }
+  .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: repeat(2, 1fr); }
+
+  .page-container { padding: 20px 16px; }
 }
+
+/* ─── Responsive: Mobile ──────────────────────────────────── */
+@media (max-width: 640px) {
+  :root { --sidebar-width: 280px; }
+
+  /* Show bottom navigation on mobile */
+  .bottom-nav {
+    display: flex;
+  }
+
+  /* Add bottom padding so content isn't hidden behind bottom nav */
+  .main-content {
+    padding-bottom: 64px;
+  }
+
+  /* Sidebar overlay visible on mobile */
+  .sidebar-overlay {
+    display: block;
+  }
+
+  /* Show hamburger */
+  .hamburger-btn {
+    display: flex;
+  }
+
+  /* Sidebar close button visible */
+  .sidebar-close-btn {
+    display: flex;
+  }
+
+  /* Main content fills width */
+  .main-content {
+    margin-left: 0 !important;
+  }
+
+  /* Page container */
+  .page-container { padding: 12px; }
+
+  /* Header */
+  .page-header { padding: 14px 12px; }
+  .header-left h1 { font-size: 18px; }
+  .header-left p { font-size: 12px; }
+
+  /* Grids collapse to single column */
+  .summary-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; }
+  .grid-2 { grid-template-columns: 1fr; }
+  .grid-3 { grid-template-columns: 1fr; }
+  .grid-4 { grid-template-columns: 1fr 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+
+  /* Summary cards smaller text */
+  .summary-card-value { font-size: 20px; }
+  .summary-card { padding: 16px; }
+
+  /* Card padding reduced */
+  .card { padding: 16px; }
+  .card-header { margin-bottom: 14px; }
+  .card-title { font-size: 15px; }
+
+  /* Table — horizontal scroll */
+  .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: var(--radius-sm); }
+  table { font-size: 13px; min-width: 480px; }
+  td, th { padding: 10px 12px; }
+
+  /* Stats row in transactions page */
+  .stats-row-3 { grid-template-columns: 1fr !important; gap: 10px !important; }
+
+  /* Budget card */
+  .budget-pos-list { gap: 12px; }
+  .budget-pos-card { padding: 12px; }
+
+  /* Filter chips smaller */
+  .filter-chip { padding: 5px 12px; font-size: 12px; }
+
+  /* Modal full screen on mobile */
+  .modal-backdrop { padding: 0; align-items: flex-end; }
+  .modal {
+    max-width: 100% !important;
+    border-radius: var(--radius) var(--radius) 0 0;
+    max-height: 95vh;
+  }
+
+  /* Buttons */
+  .btn { font-size: 13px; padding: 9px 14px; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+  /* Debt page */
+  .debt-party-card { padding: 14px; }
+
+  /* Goals */
+  .goal-item { gap: 4px; }
+}
+
+/* ─── Responsive: Very Small Mobile ──────────────────────── */
+@media (max-width: 380px) {
+  .summary-grid { grid-template-columns: 1fr; }
+  .summary-card-value { font-size: 18px; }
+  .page-header { padding: 12px 10px; }
+  .header-left h1 { font-size: 16px; }
+  .header-right .header-btn:first-child { display: none; } /* hide search on very small screens */
+}
+

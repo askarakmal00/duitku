@@ -195,8 +195,17 @@ export async function updateTransaction(id: string, data: Partial<Omit<Transacti
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  save(KEYS.transactions, getTransactions().filter(t => t.id !== id));
-  await supabase.from('transactions').delete().eq('id', id);
+  const current = getTransactions();
+  const updated = current.filter(t => t.id !== id);
+  save(KEYS.transactions, updated);
+  try {
+    const { error } = await supabase.from('transactions').delete().eq('id', id);
+    if (error) {
+      console.warn('Supabase transaction delete warning:', error.message);
+    }
+  } catch (err) {
+    console.error('Supabase transaction delete error:', err);
+  }
 }
 
 // ─── Budget Pos ────────────────────────────────────────────────

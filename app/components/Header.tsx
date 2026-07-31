@@ -1,8 +1,9 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Search, Bell } from 'lucide-react';
+import { Search, Bell, Menu } from 'lucide-react';
 import { getSettings } from '@/lib/store';
 import { getMonthName, getCurrentMonth } from '@/lib/helpers';
+import { useMobileMenu } from '@/components/SupabaseProvider';
 
 interface HeaderProps {
   title: string;
@@ -12,6 +13,7 @@ interface HeaderProps {
 export default function Header({ title, subtitle }: HeaderProps) {
   const [userName, setUserName] = useState('Pengguna');
   const { year, month } = getCurrentMonth();
+  const { openSidebar } = useMobileMenu();
 
   useEffect(() => {
     const s = getSettings();
@@ -23,8 +25,18 @@ export default function Header({ title, subtitle }: HeaderProps) {
   return (
     <header className="page-header">
       <div className="header-left">
-        <h1>{title}</h1>
-        <p>{subtitle || `Selamat datang, ${userName} · ${getMonthName(year, month)}`}</p>
+        {/* Hamburger — mobile only */}
+        <button
+          className="header-btn hamburger-btn"
+          onClick={openSidebar}
+          aria-label="Buka menu navigasi"
+        >
+          <Menu size={20} />
+        </button>
+        <div>
+          <h1>{title}</h1>
+          <p>{subtitle || `Selamat datang, ${userName} · ${getMonthName(year, month)}`}</p>
+        </div>
       </div>
       <div className="header-right">
         <button className="header-btn" title="Cari">
