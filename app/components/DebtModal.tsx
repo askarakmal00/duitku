@@ -24,10 +24,16 @@ export default function DebtModal({ mode, onSave, onClose, defaultParty }: DebtM
     setParties(getDebtParties());
   }, []);
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setAmount(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!partyName || !amount) return;
-    onSave(partyName, parseFloat(amount), note, date);
+    const num = parseInt(amount, 10);
+    if (!partyName || isNaN(num) || num <= 0) return;
+    onSave(partyName, num, note, date);
   };
 
   const title = mode === 'tambah' ? 'Catat Hutang' : 'Bayar Hutang';
@@ -102,14 +108,18 @@ export default function DebtModal({ mode, onSave, onClose, defaultParty }: DebtM
                 <label className="form-label">{amountLabel}</label>
                 <input
                   className="form-input"
-                  type="number"
-                  min="0"
-                  step="any"
+                  type="text"
+                  inputMode="numeric"
                   placeholder="0"
                   value={amount}
-                  onChange={e => setAmount(e.target.value)}
+                  onChange={handleAmountChange}
                   required
                 />
+                {amount && (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Rp {parseInt(amount || '0').toLocaleString('id-ID')}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label className="form-label">Tanggal *</label>

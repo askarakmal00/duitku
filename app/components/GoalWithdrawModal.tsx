@@ -19,9 +19,14 @@ export default function GoalWithdrawModal({ goal, onSave, onClose }: GoalWithdra
   const progress = getGoalProgress(goal.id);
   const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setAmount(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const withdrawAmount = parseFloat(amount);
+    const withdrawAmount = parseInt(amount, 10);
     if (!withdrawAmount || withdrawAmount <= 0) return;
     if (withdrawAmount > progress) {
       alert('Jumlah penarikan melebihi saldo tabungan goal ini!');
@@ -57,15 +62,19 @@ export default function GoalWithdrawModal({ goal, onSave, onClose }: GoalWithdra
               <label className="form-label">Jumlah Tarik (Rp) *</label>
               <input
                 className="form-input"
-                type="number"
-                min="0"
-                step="any"
+                type="text"
+                inputMode="numeric"
                 placeholder={`Maks penarikan: Rp ${progress.toLocaleString('id-ID')}`}
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={handleAmountChange}
                 autoFocus
                 required
               />
+              {amount && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Rp {parseInt(amount || '0').toLocaleString('id-ID')}
+                </span>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Tanggal *</label>

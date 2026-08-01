@@ -13,10 +13,16 @@ export default function GoalModal({ existing, onSave, onClose }: GoalModalProps)
   const [name, setName] = useState(existing?.name || '');
   const [target, setTarget] = useState(existing?.targetAmount?.toString() || '');
 
+  const handleTargetChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setTarget(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !target) return;
-    onSave({ name, targetAmount: parseFloat(target) });
+    const num = parseInt(target, 10);
+    if (!name || isNaN(num) || num <= 0) return;
+    onSave({ name, targetAmount: num });
   };
 
   return (
@@ -43,14 +49,18 @@ export default function GoalModal({ existing, onSave, onClose }: GoalModalProps)
               <label className="form-label">Nominal Target (Rp) *</label>
               <input
                 className="form-input"
-                type="number"
-                min="0"
-                step="any"
+                type="text"
+                inputMode="numeric"
                 placeholder="0"
                 value={target}
-                onChange={e => setTarget(e.target.value)}
+                onChange={handleTargetChange}
                 required
               />
+              {target && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Rp {parseInt(target || '0').toLocaleString('id-ID')}
+                </span>
+              )}
             </div>
             <p className="text-sm text-muted" style={{ marginTop: -8 }}>
               💡 Progress dihitung dari transaksi Pemasukan dengan kategori Tabungan yang dialokasikan ke target ini.

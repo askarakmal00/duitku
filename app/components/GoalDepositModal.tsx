@@ -20,10 +20,16 @@ export default function GoalDepositModal({ goal, onSave, onClose }: GoalDepositM
   const remaining = Math.max(0, goal.targetAmount - progress);
   const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
 
+  const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setAmount(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!amount || parseFloat(amount) <= 0) return;
-    onSave(parseFloat(amount), note || `Setor ke: ${goal.name}`, date);
+    const num = parseInt(amount, 10);
+    if (!num || num <= 0) return;
+    onSave(num, note || `Setor ke: ${goal.name}`, date);
   };
 
   return (
@@ -54,15 +60,19 @@ export default function GoalDepositModal({ goal, onSave, onClose }: GoalDepositM
               <label className="form-label">Jumlah Setor (Rp) *</label>
               <input
                 className="form-input"
-                type="number"
-                min="0"
-                step="any"
+                type="text"
+                inputMode="numeric"
                 placeholder={`Maks sisa: Rp ${remaining.toLocaleString('id-ID')}`}
                 value={amount}
-                onChange={e => setAmount(e.target.value)}
+                onChange={handleAmountChange}
                 autoFocus
                 required
               />
+              {amount && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Rp {parseInt(amount || '0').toLocaleString('id-ID')}
+                </span>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Tanggal *</label>

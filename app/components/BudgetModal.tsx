@@ -14,10 +14,17 @@ export default function BudgetModal({ existing, onSave, onClose }: BudgetModalPr
   const [allocation, setAllocation] = useState(existing?.monthlyAllocation?.toString() || '');
   const [rollover, setRollover] = useState(existing?.rollover || false);
 
+  const handleAllocationChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow digits
+    const val = e.target.value.replace(/[^0-9]/g, '');
+    setAllocation(val);
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !allocation) return;
-    onSave({ name, monthlyAllocation: parseFloat(allocation), rollover });
+    const num = parseInt(allocation, 10);
+    if (!name || isNaN(num) || num < 0) return;
+    onSave({ name, monthlyAllocation: num, rollover });
   };
 
   return (
@@ -44,14 +51,18 @@ export default function BudgetModal({ existing, onSave, onClose }: BudgetModalPr
               <label className="form-label">Alokasi Bulanan (Rp) *</label>
               <input
                 className="form-input"
-                type="number"
-                min="0"
-                step="any"
+                type="text"
+                inputMode="numeric"
                 placeholder="0"
                 value={allocation}
-                onChange={e => setAllocation(e.target.value)}
+                onChange={handleAllocationChange}
                 required
               />
+              {allocation && (
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
+                  Rp {parseInt(allocation || '0').toLocaleString('id-ID')}
+                </span>
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Rollover Sisa</label>
