@@ -104,7 +104,7 @@ export default function DebtModal({ mode, onSave, onClose, defaultParty }: DebtM
                   className="form-input"
                   type="number"
                   min="0"
-                  step="1000"
+                  step="any"
                   placeholder="0"
                   value={amount}
                   onChange={e => setAmount(e.target.value)}

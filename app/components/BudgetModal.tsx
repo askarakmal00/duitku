@@ -46,7 +46,7 @@ export default function BudgetModal({ existing, onSave, onClose }: BudgetModalPr
                 className="form-input"
                 type="number"
                 min="0"
-                step="1000"
+                step="any"
                 placeholder="0"
                 value={allocation}
                 onChange={e => setAllocation(e.target.value)}

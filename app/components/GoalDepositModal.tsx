@@ -56,7 +56,7 @@ export default function GoalDepositModal({ goal, onSave, onClose }: GoalDepositM
                 className="form-input"
                 type="number"
                 min="0"
-                step="1000"
+                step="any"
                 placeholder={`Maks sisa: Rp ${remaining.toLocaleString('id-ID')}`}
                 value={amount}
                 onChange={e => setAmount(e.target.value)}
