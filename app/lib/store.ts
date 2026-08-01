@@ -67,6 +67,27 @@ function removePending(key: string, id: string): void {
   save(key, Array.from(set));
 }
 
+// ─── Sorting Helpers (Date desc, then input time desc) ─────────────────────
+export function sortTransactions(txns: Transaction[]): Transaction[] {
+  return [...txns].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
+export function sortDebtTransactions(txns: DebtTransaction[]): DebtTransaction[] {
+  return [...txns].sort((a, b) => {
+    const dateDiff = new Date(b.date).getTime() - new Date(a.date).getTime();
+    if (dateDiff !== 0) return dateDiff;
+    const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+}
+
 // ─── Safe DB Helpers ────────────────────────────────────────────────────────
 async function safeInsertTransaction(t: Transaction): Promise<void> {
   const payload: any = {
@@ -197,9 +218,7 @@ export async function syncWithSupabase(): Promise<void> {
 
   const remoteTxnIds = new Set(remoteTxns.map(t => t.id));
   const stillPendingTxns = localTxns.filter(t => pendingTxnIds.has(t.id) && !remoteTxnIds.has(t.id));
-  const finalTxnsList = [...remoteTxns, ...stillPendingTxns].sort((a, b) => 
-    new Date(b.date).getTime() - new Date(a.date).getTime()
-  );
+  const finalTxnsList = sortTransactions([...remoteTxns, ...stillPendingTxns]);
   save(KEYS.transactions, finalTxnsList);
 
   // 2. Budget Pos Sync
@@ -350,14 +369,14 @@ export async function syncWithSupabase(): Promise<void> {
 
 // ─── Transactions ─────────────────────────────────────────────
 export function getTransactions(): Transaction[] {
-  return load<Transaction[]>(KEYS.transactions, []);
+  return sortTransactions(load<Transaction[]>(KEYS.transactions, []));
 }
 
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
   const txns = getTransactions();
   const newTxn: Transaction = { ...data, id: genId(), createdAt: new Date().toISOString() };
   
-  save(KEYS.transactions, [newTxn, ...txns]);
+  save(KEYS.transactions, sortTransactions([newTxn, ...txns]));
   addPending(PENDING_KEYS.transactions, newTxn.id);
 
   try {
