@@ -11,6 +11,14 @@ const KEYS = {
   settings: 'pf_settings',
 };
 
+const PENDING_KEYS = {
+  transactions: 'pf_pending_txns',
+  budgetPos: 'pf_pending_budget',
+  debtParties: 'pf_pending_parties',
+  debtTransactions: 'pf_pending_debt_txns',
+  savingGoals: 'pf_pending_goals',
+};
+
 export function notifyDataChanged(): void {
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('pf_data_changed'));
@@ -42,7 +50,24 @@ function save<T>(key: string, data: T): void {
   localStorage.setItem(key, JSON.stringify(data));
 }
 
-// ─── Safe DB Helpers (Fallback if optional DB columns don't exist yet) ──────
+// ─── Pending Items Tracking (Prevents deleted items from resurrecting) ──────
+function getPending(key: string): Set<string> {
+  return new Set(load<string[]>(key, []));
+}
+
+function addPending(key: string, id: string): void {
+  const set = getPending(key);
+  set.add(id);
+  save(key, Array.from(set));
+}
+
+function removePending(key: string, id: string): void {
+  const set = getPending(key);
+  set.delete(id);
+  save(key, Array.from(set));
+}
+
+// ─── Safe DB Helpers ────────────────────────────────────────────────────────
 async function safeInsertTransaction(t: Transaction): Promise<void> {
   const payload: any = {
     id: t.id,
@@ -137,7 +162,7 @@ export async function syncWithSupabase(): Promise<void> {
     throw new Error('SCHEMA_MISSING');
   }
 
-  // 1. Transactions Merge
+  // 1. Transactions Sync
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => ({
     id: t.id,
     type: t.type,
@@ -153,32 +178,31 @@ export async function syncWithSupabase(): Promise<void> {
   }));
 
   const localTxns = load<Transaction[]>(KEYS.transactions, []);
-  const remoteTxnIds = new Set(remoteTxns.map(t => t.id));
+  const pendingTxnIds = getPending(PENDING_KEYS.transactions);
 
-  // Push unsynced local items to Supabase
-  const unsyncedTxns = localTxns.filter(t => !remoteTxnIds.has(t.id));
-  for (const t of unsyncedTxns) {
-    await safeInsertTransaction(t);
-  }
-
-  // Never drop local transactions: merge remote + unsynced local
-  const finalTxnsMap = new Map<string, Transaction>();
-  // Add remote first
-  for (const t of remoteTxns) {
-    finalTxnsMap.set(t.id, t);
-  }
-  // Keep unsynced local items so they never vanish
-  for (const t of localTxns) {
-    if (!finalTxnsMap.has(t.id)) {
-      finalTxnsMap.set(t.id, t);
+  // Upload pending local transactions
+  if (pendingTxnIds.size > 0) {
+    for (const id of Array.from(pendingTxnIds)) {
+      const localItem = localTxns.find(t => t.id === id);
+      if (localItem) {
+        try {
+          await safeInsertTransaction(localItem);
+          removePending(PENDING_KEYS.transactions, id);
+        } catch {}
+      } else {
+        removePending(PENDING_KEYS.transactions, id);
+      }
     }
   }
-  const finalTxnsList = Array.from(finalTxnsMap.values()).sort((a, b) => 
+
+  const remoteTxnIds = new Set(remoteTxns.map(t => t.id));
+  const stillPendingTxns = localTxns.filter(t => pendingTxnIds.has(t.id) && !remoteTxnIds.has(t.id));
+  const finalTxnsList = [...remoteTxns, ...stillPendingTxns].sort((a, b) => 
     new Date(b.date).getTime() - new Date(a.date).getTime()
   );
   save(KEYS.transactions, finalTxnsList);
 
-  // 2. Budget Pos Merge
+  // 2. Budget Pos Sync
   const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map(b => ({
     id: b.id,
     name: b.name,
@@ -186,49 +210,61 @@ export async function syncWithSupabase(): Promise<void> {
     rollover: b.rollover || false,
     createdAt: b.created_at,
   }));
-  const remoteBudgetIds = new Set(remoteBudgets.map(b => b.id));
   const localBudgets = load<BudgetPos[]>(KEYS.budgetPos, []);
-  const unsyncedBudgets = localBudgets.filter(b => !remoteBudgetIds.has(b.id));
-  for (const b of unsyncedBudgets) {
-    try {
-      await supabase.from('budget_pos').upsert({
-        id: b.id,
-        name: b.name,
-        monthly_allocation: b.monthlyAllocation,
-        rollover: b.rollover,
-        created_at: b.createdAt,
-      });
-    } catch {}
+  const pendingBudgetIds = getPending(PENDING_KEYS.budgetPos);
+  if (pendingBudgetIds.size > 0) {
+    for (const id of Array.from(pendingBudgetIds)) {
+      const b = localBudgets.find(item => item.id === id);
+      if (b) {
+        try {
+          await supabase.from('budget_pos').upsert({
+            id: b.id,
+            name: b.name,
+            monthly_allocation: b.monthlyAllocation,
+            rollover: b.rollover,
+            created_at: b.createdAt,
+          });
+          removePending(PENDING_KEYS.budgetPos, id);
+        } catch {}
+      } else {
+        removePending(PENDING_KEYS.budgetPos, id);
+      }
+    }
   }
-  const finalBudgetMap = new Map<string, BudgetPos>();
-  for (const b of remoteBudgets) finalBudgetMap.set(b.id, b);
-  for (const b of localBudgets) if (!finalBudgetMap.has(b.id)) finalBudgetMap.set(b.id, b);
-  save(KEYS.budgetPos, Array.from(finalBudgetMap.values()));
+  const remoteBudgetIds = new Set(remoteBudgets.map(b => b.id));
+  const stillPendingBudgets = localBudgets.filter(b => pendingBudgetIds.has(b.id) && !remoteBudgetIds.has(b.id));
+  save(KEYS.budgetPos, [...remoteBudgets, ...stillPendingBudgets]);
 
-  // 3. Debt Parties Merge
+  // 3. Debt Parties Sync
   const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => ({
     id: p.id,
     name: p.name,
     createdAt: p.created_at,
   }));
-  const remotePartyIds = new Set(remoteParties.map(p => p.id));
   const localParties = load<DebtParty[]>(KEYS.debtParties, []);
-  const unsyncedParties = localParties.filter(p => !remotePartyIds.has(p.id));
-  for (const p of unsyncedParties) {
-    try {
-      await supabase.from('debt_parties').upsert({
-        id: p.id,
-        name: p.name,
-        created_at: p.createdAt,
-      });
-    } catch {}
+  const pendingPartyIds = getPending(PENDING_KEYS.debtParties);
+  if (pendingPartyIds.size > 0) {
+    for (const id of Array.from(pendingPartyIds)) {
+      const p = localParties.find(item => item.id === id);
+      if (p) {
+        try {
+          await supabase.from('debt_parties').upsert({
+            id: p.id,
+            name: p.name,
+            created_at: p.createdAt,
+          });
+          removePending(PENDING_KEYS.debtParties, id);
+        } catch {}
+      } else {
+        removePending(PENDING_KEYS.debtParties, id);
+      }
+    }
   }
-  const finalPartyMap = new Map<string, DebtParty>();
-  for (const p of remoteParties) finalPartyMap.set(p.id, p);
-  for (const p of localParties) if (!finalPartyMap.has(p.id)) finalPartyMap.set(p.id, p);
-  save(KEYS.debtParties, Array.from(finalPartyMap.values()));
+  const remotePartyIds = new Set(remoteParties.map(p => p.id));
+  const stillPendingParties = localParties.filter(p => pendingPartyIds.has(p.id) && !remotePartyIds.has(p.id));
+  save(KEYS.debtParties, [...remoteParties, ...stillPendingParties]);
 
-  // 4. Debt Transactions Merge
+  // 4. Debt Transactions Sync
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => ({
     id: dt.id,
     partyId: dt.party_id,
@@ -239,41 +275,55 @@ export async function syncWithSupabase(): Promise<void> {
     date: dt.date,
     createdAt: dt.created_at,
   }));
-  const remoteDebtTxnIds = new Set(remoteDebtTxns.map(dt => dt.id));
   const localDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
-  const unsyncedDebtTxns = localDebtTxns.filter(dt => !remoteDebtTxnIds.has(dt.id));
-  for (const dt of unsyncedDebtTxns) {
-    await safeInsertDebtTransaction(dt);
+  const pendingDebtTxnIds = getPending(PENDING_KEYS.debtTransactions);
+  if (pendingDebtTxnIds.size > 0) {
+    for (const id of Array.from(pendingDebtTxnIds)) {
+      const dt = localDebtTxns.find(item => item.id === id);
+      if (dt) {
+        try {
+          await safeInsertDebtTransaction(dt);
+          removePending(PENDING_KEYS.debtTransactions, id);
+        } catch {}
+      } else {
+        removePending(PENDING_KEYS.debtTransactions, id);
+      }
+    }
   }
-  const finalDebtTxnMap = new Map<string, DebtTransaction>();
-  for (const dt of remoteDebtTxns) finalDebtTxnMap.set(dt.id, dt);
-  for (const dt of localDebtTxns) if (!finalDebtTxnMap.has(dt.id)) finalDebtTxnMap.set(dt.id, dt);
-  save(KEYS.debtTransactions, Array.from(finalDebtTxnMap.values()));
+  const remoteDebtTxnIds = new Set(remoteDebtTxns.map(dt => dt.id));
+  const stillPendingDebtTxns = localDebtTxns.filter(dt => pendingDebtTxnIds.has(dt.id) && !remoteDebtTxnIds.has(dt.id));
+  save(KEYS.debtTransactions, [...remoteDebtTxns, ...stillPendingDebtTxns]);
 
-  // 5. Saving Goals Merge
+  // 5. Saving Goals Sync
   const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => ({
     id: g.id,
     name: g.name,
     targetAmount: Number(g.target_amount),
     createdAt: g.created_at,
   }));
-  const remoteGoalIds = new Set(remoteGoals.map(g => g.id));
   const localGoals = load<SavingGoal[]>(KEYS.savingGoals, []);
-  const unsyncedGoals = localGoals.filter(g => !remoteGoalIds.has(g.id));
-  for (const g of unsyncedGoals) {
-    try {
-      await supabase.from('saving_goals').upsert({
-        id: g.id,
-        name: g.name,
-        target_amount: g.targetAmount,
-        created_at: g.createdAt,
-      });
-    } catch {}
+  const pendingGoalIds = getPending(PENDING_KEYS.savingGoals);
+  if (pendingGoalIds.size > 0) {
+    for (const id of Array.from(pendingGoalIds)) {
+      const g = localGoals.find(item => item.id === id);
+      if (g) {
+        try {
+          await supabase.from('saving_goals').upsert({
+            id: g.id,
+            name: g.name,
+            target_amount: g.targetAmount,
+            created_at: g.createdAt,
+          });
+          removePending(PENDING_KEYS.savingGoals, id);
+        } catch {}
+      } else {
+        removePending(PENDING_KEYS.savingGoals, id);
+      }
+    }
   }
-  const finalGoalMap = new Map<string, SavingGoal>();
-  for (const g of remoteGoals) finalGoalMap.set(g.id, g);
-  for (const g of localGoals) if (!finalGoalMap.has(g.id)) finalGoalMap.set(g.id, g);
-  save(KEYS.savingGoals, Array.from(finalGoalMap.values()));
+  const remoteGoalIds = new Set(remoteGoals.map(g => g.id));
+  const stillPendingGoals = localGoals.filter(g => pendingGoalIds.has(g.id) && !remoteGoalIds.has(g.id));
+  save(KEYS.savingGoals, [...remoteGoals, ...stillPendingGoals]);
 
   // 6. Categories
   const mappedCats = (catsRes.data || []).map(c => ({
@@ -306,9 +356,16 @@ export function getTransactions(): Transaction[] {
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
   const txns = getTransactions();
   const newTxn: Transaction = { ...data, id: genId(), createdAt: new Date().toISOString() };
+  
   save(KEYS.transactions, [newTxn, ...txns]);
+  addPending(PENDING_KEYS.transactions, newTxn.id);
 
-  await safeInsertTransaction(newTxn);
+  try {
+    await safeInsertTransaction(newTxn);
+    removePending(PENDING_KEYS.transactions, newTxn.id);
+  } catch (e) {
+    console.warn('Network issue adding transaction, queued locally:', e);
+  }
 
   notifyDataChanged();
   return newTxn;
@@ -343,7 +400,9 @@ export async function deleteTransaction(id: string): Promise<void> {
   const current = getTransactions();
   const targetTxn = current.find(t => t.id === id);
   const updated = current.filter(t => t.id !== id);
+  
   save(KEYS.transactions, updated);
+  removePending(PENDING_KEYS.transactions, id);
 
   try {
     await supabase.from('transactions').delete().eq('id', id);
@@ -358,6 +417,7 @@ export async function deleteTransaction(id: string): Promise<void> {
     const linkedIds = new Set(linkedDebtTxns.map(dt => dt.id));
     save(KEYS.debtTransactions, debtTxns.filter(dt => !linkedIds.has(dt.id)));
     for (const dt of linkedDebtTxns) {
+      removePending(PENDING_KEYS.debtTransactions, dt.id);
       try {
         await supabase.from('debt_transactions').delete().eq('id', dt.id);
       } catch {}
@@ -376,6 +436,7 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
   const list = getBudgetPos();
   const newPos: BudgetPos = { ...data, id: genId(), createdAt: new Date().toISOString() };
   save(KEYS.budgetPos, [...list, newPos]);
+  addPending(PENDING_KEYS.budgetPos, newPos.id);
 
   try {
     await supabase.from('budget_pos').insert({
@@ -385,6 +446,7 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
       rollover: newPos.rollover,
       created_at: newPos.createdAt,
     });
+    removePending(PENDING_KEYS.budgetPos, newPos.id);
   } catch {}
 
   notifyDataChanged();
@@ -407,6 +469,7 @@ export async function updateBudgetPos(id: string, data: Partial<Omit<BudgetPos, 
 
 export async function deleteBudgetPos(id: string): Promise<void> {
   save(KEYS.budgetPos, getBudgetPos().filter(p => p.id !== id));
+  removePending(PENDING_KEYS.budgetPos, id);
   
   // Unlink budgetPosId from transactions
   const txns = getTransactions();
@@ -442,6 +505,7 @@ export async function addDebtParty(name: string): Promise<DebtParty> {
   if (existing) return existing;
   const newParty: DebtParty = { id: genId(), name, createdAt: new Date().toISOString() };
   save(KEYS.debtParties, [...list, newParty]);
+  addPending(PENDING_KEYS.debtParties, newParty.id);
 
   try {
     await supabase.from('debt_parties').insert({
@@ -449,6 +513,7 @@ export async function addDebtParty(name: string): Promise<DebtParty> {
       name: newParty.name,
       created_at: newParty.createdAt,
     });
+    removePending(PENDING_KEYS.debtParties, newParty.id);
   } catch {}
 
   notifyDataChanged();
@@ -466,6 +531,7 @@ export async function deleteDebtParty(id: string): Promise<void> {
 
   for (const dt of partyDebtTxns) {
     if (dt.txnId) {
+      removePending(PENDING_KEYS.transactions, dt.txnId);
       try {
         await supabase.from('transactions').delete().eq('id', dt.txnId);
       } catch {}
@@ -474,6 +540,7 @@ export async function deleteDebtParty(id: string): Promise<void> {
 
   save(KEYS.debtParties, getDebtParties().filter(p => p.id !== id));
   save(KEYS.debtTransactions, getDebtTransactions().filter(t => t.partyId !== id));
+  removePending(PENDING_KEYS.debtParties, id);
 
   try {
     await supabase.from('debt_parties').delete().eq('id', id);
@@ -489,8 +556,12 @@ export async function addDebtTransaction(data: Omit<DebtTransaction, 'id' | 'cre
   const list = getDebtTransactions();
   const newTxn: DebtTransaction = { ...data, id: genId(), createdAt: new Date().toISOString() };
   save(KEYS.debtTransactions, [newTxn, ...list]);
+  addPending(PENDING_KEYS.debtTransactions, newTxn.id);
 
-  await safeInsertDebtTransaction(newTxn);
+  try {
+    await safeInsertDebtTransaction(newTxn);
+    removePending(PENDING_KEYS.debtTransactions, newTxn.id);
+  } catch {}
 
   notifyDataChanged();
   return newTxn;
@@ -519,6 +590,7 @@ export async function deleteDebtTransaction(id: string): Promise<void> {
   const debtTxns = getDebtTransactions();
   const targetDebt = debtTxns.find(dt => dt.id === id);
   save(KEYS.debtTransactions, debtTxns.filter(t => t.id !== id));
+  removePending(PENDING_KEYS.debtTransactions, id);
 
   try {
     await supabase.from('debt_transactions').delete().eq('id', id);
@@ -529,6 +601,7 @@ export async function deleteDebtTransaction(id: string): Promise<void> {
   const linkedTxn = txns.find(t => t.debtTxnId === id || (targetDebt?.txnId && t.id === targetDebt.txnId));
   if (linkedTxn) {
     save(KEYS.transactions, txns.filter(t => t.id !== linkedTxn.id));
+    removePending(PENDING_KEYS.transactions, linkedTxn.id);
     try {
       await supabase.from('transactions').delete().eq('id', linkedTxn.id);
     } catch {}
@@ -556,6 +629,7 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
   const list = getSavingGoals();
   const newGoal: SavingGoal = { ...data, id: genId(), createdAt: new Date().toISOString() };
   save(KEYS.savingGoals, [...list, newGoal]);
+  addPending(PENDING_KEYS.savingGoals, newGoal.id);
 
   try {
     await supabase.from('saving_goals').insert({
@@ -564,6 +638,7 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
       target_amount: newGoal.targetAmount,
       created_at: newGoal.createdAt,
     });
+    removePending(PENDING_KEYS.savingGoals, newGoal.id);
   } catch {}
 
   notifyDataChanged();
@@ -585,6 +660,7 @@ export async function updateSavingGoal(id: string, data: Partial<Omit<SavingGoal
 
 export async function deleteSavingGoal(id: string): Promise<void> {
   save(KEYS.savingGoals, getSavingGoals().filter(g => g.id !== id));
+  removePending(PENDING_KEYS.savingGoals, id);
 
   // Unlink goal_id from transactions
   const txns = getTransactions();
@@ -717,6 +793,9 @@ export function getMonthlyFlowData(months: number = 7): { labels: string[]; inco
 
 export async function clearAllData(): Promise<void> {
   Object.values(KEYS).forEach(key => {
+    if (typeof window !== 'undefined') localStorage.removeItem(key);
+  });
+  Object.values(PENDING_KEYS).forEach(key => {
     if (typeof window !== 'undefined') localStorage.removeItem(key);
   });
 
