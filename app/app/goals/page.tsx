@@ -79,7 +79,7 @@ export default function GoalsPage() {
 
       <div className="page-container">
         {/* Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+        <div className="stats-row-3">
           <div className="card" style={{ padding: '16px 20px' }}>
             <p className="text-sm text-muted">Total Target</p>
             <p className="font-700" style={{ fontSize: 22, marginTop: 4, color: 'var(--primary)' }}>
@@ -156,7 +156,7 @@ export default function GoalsPage() {
                       </div>
 
                       {/* Action buttons */}
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(75px, 1fr))', gap: 6 }}>
                         {!isDone && (
                           <button
                             className="btn btn-primary btn-sm"

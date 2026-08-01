@@ -1237,6 +1237,95 @@ tr:hover td { background: var(--primary-50); }
   white-space: nowrap;
 }
 
+/* ─── Stats Row 3 Columns (Responsive) ───────────────────── */
+.stats-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .stats-row-3 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+}
+
+/* ─── Debt Actions & Header (Responsive) ──────────────────── */
+.debt-actions-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .debt-actions-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .debt-actions-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+.debt-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .debt-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .debt-header > div:last-child {
+    width: 100%;
+    justify-content: space-between;
+    flex-wrap: wrap;
+  }
+}
+
+/* ─── Transactions Toolbar (Responsive) ──────────────────── */
+.transactions-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .transactions-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .transactions-toolbar .filter-bar {
+    width: 100%;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding-bottom: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .search-action-group {
+    display: flex;
+    gap: 8px;
+    width: 100%;
+  }
+  .search-action-group input {
+    flex: 1;
+    width: 100% !important;
+  }
+}
+
 /* ─── Responsive: Mobile ──────────────────────────────────── */
 @media (max-width: 640px) {
   :root { --sidebar-width: 280px; }
@@ -1275,7 +1364,7 @@ tr:hover td { background: var(--primary-50); }
   }
 
   /* Page container */
-  .page-container { padding: 12px 10px; }
+  .page-container { padding: 12px 10px; width: 100%; overflow-x: hidden; }
 
   /* Header */
   .page-header { padding: 12px 10px; gap: 8px; }
@@ -1285,7 +1374,7 @@ tr:hover td { background: var(--primary-50); }
   .header-btn { width: 34px; height: 34px; }
 
   /* Grids collapse to single column */
-  .summary-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .summary-grid { grid-template-columns: 1fr; gap: 10px; }
   .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; gap: 14px; }
   .grid-2 { grid-template-columns: 1fr; gap: 14px; }
   .grid-3 { grid-template-columns: 1fr; gap: 14px; }

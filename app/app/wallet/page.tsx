@@ -68,7 +68,7 @@ export default function WalletPage() {
 
       <div className="page-container">
         {/* Total Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+        <div className="stats-row-3">
           <div className="card" style={{ padding: '16px 20px' }}>
             <p className="text-sm text-muted">Total Hutang</p>
             <p className="font-700 amount-negative" style={{ fontSize: 24, marginTop: 4 }}>
@@ -90,7 +90,7 @@ export default function WalletPage() {
         </div>
 
         {/* Action Buttons */}
-        <div style={{ display: 'flex', gap: 12, marginBottom: 20 }}>
+        <div className="debt-actions-row">
           <button className="btn btn-danger" onClick={() => { setDefaultParty(''); setShowModal('tambah'); }}>
             <Plus size={16} /> Catat Hutang
           </button>

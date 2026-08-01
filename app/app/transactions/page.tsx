@@ -86,7 +86,7 @@ export default function TransactionsPage() {
 
       <div className="page-container">
         {/* Stats Row */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16, marginBottom: 24 }}>
+        <div className="stats-row-3">
           <div className="card" style={{ padding: '16px 20px' }}>
             <p className="text-sm text-muted">Total Transaksi</p>
             <p className="font-700" style={{ fontSize: 22, color: 'var(--text-primary)', marginTop: 4 }}>
@@ -109,7 +109,7 @@ export default function TransactionsPage() {
 
         <div className="card">
           {/* Toolbar */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, gap: 12, flexWrap: 'wrap' }}>
+          <div className="transactions-toolbar">
             <div className="filter-bar" style={{ marginBottom: 0 }}>
               {(['semua', 'masuk', 'keluar', 'bulan-ini'] as Filter[]).map(f => (
                 <button
@@ -122,12 +122,12 @@ export default function TransactionsPage() {
               ))}
             </div>
 
-            <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-              <div style={{ position: 'relative' }}>
+            <div className="search-action-group">
+              <div style={{ position: 'relative', flex: 1 }}>
                 <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   className="form-input"
-                  style={{ paddingLeft: 32, width: 200, marginBottom: 0 }}
+                  style={{ paddingLeft: 32, marginBottom: 0 }}
                   placeholder="Cari transaksi..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
