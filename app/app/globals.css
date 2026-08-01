@@ -1101,9 +1101,148 @@ tr:hover td { background: var(--primary-50); }
   .page-container { padding: 20px 16px; }
 }
 
+/* ─── Desktop vs Mobile view toggle ───────────────────────── */
+.mobile-only-view { display: none !important; }
+.desktop-only-view { display: block !important; }
+
+/* ─── Quick Actions Grid (Fintech Reference Style) ────────── */
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.quick-action-card {
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+  text-decoration: none;
+}
+
+.quick-action-card:hover, .quick-action-card:active {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-300);
+}
+
+.quick-action-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+
+.quick-action-icon.income { background: #ECFDF5; color: #10B981; }
+.quick-action-icon.expense { background: #FEF2F2; color: #EF4444; }
+.quick-action-icon.debt { background: #EEF2FF; color: #6366F1; }
+.quick-action-icon.goal { background: #F5F3FF; color: #8B5CF6; }
+
+.dark .quick-action-icon.income { background: rgba(16, 185, 129, 0.15); }
+.dark .quick-action-icon.expense { background: rgba(239, 68, 68, 0.15); }
+.dark .quick-action-icon.debt { background: rgba(99, 102, 241, 0.15); }
+.dark .quick-action-icon.goal { background: rgba(139, 92, 246, 0.15); }
+
+.quick-action-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+/* ─── Mobile Transaction Item Cards ────────────────────────── */
+.mobile-txn-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobile-txn-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  gap: 10px;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-txn-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.mobile-txn-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+
+.mobile-txn-icon.masuk { background: var(--success-bg); color: var(--success); }
+.mobile-txn-icon.keluar { background: var(--danger-bg); color: var(--danger); }
+
+.mobile-txn-info {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.mobile-txn-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobile-txn-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.mobile-txn-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.mobile-txn-amount {
+  font-weight: 700;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
 /* ─── Responsive: Mobile ──────────────────────────────────── */
 @media (max-width: 640px) {
   :root { --sidebar-width: 280px; }
+
+  .mobile-only-view { display: flex !important; }
+  .desktop-only-view { display: none !important; }
 
   /* Show bottom navigation on mobile */
   .bottom-nav {
@@ -1112,7 +1251,7 @@ tr:hover td { background: var(--primary-50); }
 
   /* Add bottom padding so content isn't hidden behind bottom nav */
   .main-content {
-    padding-bottom: 64px;
+    padding-bottom: 84px;
   }
 
   /* Sidebar overlay visible on mobile */

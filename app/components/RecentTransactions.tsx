@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
 import { Transaction } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/helpers';
 
@@ -31,7 +31,8 @@ export default function RecentTransactions({
 
   return (
     <>
-      <div className="table-wrap">
+      {/* Desktop Table View */}
+      <div className="table-wrap desktop-only-view">
         <table>
           <thead>
             <tr>
@@ -85,10 +86,50 @@ export default function RecentTransactions({
           </tbody>
         </table>
       </div>
+
+      {/* Mobile Card List View (Matching Reference Mobile Design) */}
+      <div className="mobile-only-view mobile-txn-list">
+        {displayed.map(t => (
+          <div className="mobile-txn-item" key={t.id}>
+            <div className="mobile-txn-left">
+              <div className={`mobile-txn-icon ${t.type}`}>
+                {t.type === 'masuk' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+              </div>
+              <div className="mobile-txn-info">
+                <span className="mobile-txn-title">{t.note || t.category}</span>
+                <span className="mobile-txn-meta">
+                  {formatDate(t.date, 'short')} {t.subCategory ? `• ${t.subCategory}` : ''}
+                </span>
+              </div>
+            </div>
+            <div className="mobile-txn-right">
+              <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
+                {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
+              </span>
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                <span className={`chip ${t.type === 'masuk' ? 'chip-success' : 'chip-danger'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
+                  {t.category}
+                </span>
+                {onEdit && (
+                  <button className="btn btn-ghost btn-icon btn-sm" style={{ width: 24, height: 24 }} onClick={() => onEdit(t)} title="Edit">
+                    <Pencil size={12} />
+                  </button>
+                )}
+                {onDelete && (
+                  <button className="btn btn-danger btn-icon btn-sm" style={{ width: 24, height: 24 }} onClick={() => onDelete(t.id)} title="Hapus">
+                    <Trash2 size={12} />
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
       {!showAll && transactions.length > limit && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>
           <Link href="/transactions" className="btn btn-secondary btn-sm">
-            Lihat semua ({transactions.length})
+            Lihat semua ({transactions.length}) →
           </Link>
         </div>
       )}

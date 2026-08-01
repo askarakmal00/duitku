@@ -20,11 +20,11 @@ const navItems = [
 ];
 
 const bottomNavItems = [
-  { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/', icon: LayoutDashboard, label: 'Home' },
   { href: '/transactions', icon: ArrowLeftRight, label: 'Transaksi' },
+  { href: '/wallet', icon: CreditCard, label: 'Hutang' },
   { href: '/goals', icon: Target, label: 'Goals' },
-  { href: '/budget', icon: PieChart, label: 'Anggaran' },
-  { href: '/analytics', icon: BarChart2, label: 'Analitik' },
+  { href: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 interface SidebarProps {
