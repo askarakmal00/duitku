@@ -15,7 +15,7 @@ interface RecentTransactionsProps {
 export default function RecentTransactions({
   transactions, limit = 5, showAll = false, onEdit, onDelete
 }: RecentTransactionsProps) {
-  const displayed = limit ? transactions.slice(0, limit) : transactions;
+  const displayed = showAll ? transactions : (limit ? transactions.slice(0, limit) : transactions);
 
   if (displayed.length === 0) {
     return (
