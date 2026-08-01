@@ -1326,6 +1326,27 @@ tr:hover td { background: var(--primary-50); }
   }
 }
 
+/* ─── Settings Category Add Row (Responsive) ────────────── */
+.settings-cat-add-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+  .settings-cat-add-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+  .settings-cat-add-row .form-select {
+    width: 100% !important;
+  }
+  .settings-cat-add-row .btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
 /* ─── Responsive: Mobile ──────────────────────────────────── */
 @media (max-width: 640px) {
   :root { --sidebar-width: 280px; }

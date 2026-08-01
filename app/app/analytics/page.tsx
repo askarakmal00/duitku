@@ -168,7 +168,7 @@ export default function AnalyticsPage() {
 
       <div className="page-container">
         {/* Stats Summary */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16, marginBottom: 24 }}>
+        <div className="summary-grid mb-5">
           {[
             { label: 'Total Pemasukan', value: totalIncome, color: 'var(--success)' },
             { label: 'Total Pengeluaran', value: totalExpense, color: 'var(--danger)' },

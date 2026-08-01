@@ -55,6 +55,28 @@ export default function BudgetPage() {
       <Header title="Anggaran" subtitle="Kelola pos anggaran dan pantau penggunaannya" />
 
       <div className="page-container">
+        {/* Total Summary */}
+        <div className="stats-row-3">
+          <div className="card" style={{ padding: '16px 20px' }}>
+            <p className="text-sm text-muted">Total Alokasi</p>
+            <p className="font-700" style={{ fontSize: 22, marginTop: 4, color: 'var(--primary)' }}>
+              {formatCurrency(posList.reduce((s, p) => s + p.monthlyAllocation, 0))}
+            </p>
+          </div>
+          <div className="card" style={{ padding: '16px 20px' }}>
+            <p className="text-sm text-muted">Total Terpakai</p>
+            <p className="font-700 amount-negative" style={{ fontSize: 22, marginTop: 4 }}>
+              {formatCurrency(posWithUsage.reduce((s, p) => s + p.used, 0))}
+            </p>
+          </div>
+          <div className="card" style={{ padding: '16px 20px' }}>
+            <p className="text-sm text-muted">Total Sisa</p>
+            <p className="font-700 amount-positive" style={{ fontSize: 22, marginTop: 4 }}>
+              {formatCurrency(posWithUsage.reduce((s, p) => s + p.remaining, 0))}
+            </p>
+          </div>
+        </div>
+
         <div className="dashboard-grid">
           {/* Left: Budget Pos List */}
           <div>

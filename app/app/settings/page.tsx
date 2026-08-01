@@ -91,7 +91,7 @@ export default function SettingsPage() {
             <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 20 }}>Kelola Kategori</h2>
 
             {/* Add new */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            <div className="settings-cat-add-row">
               <input
                 className="form-input"
                 style={{ flex: 1 }}
