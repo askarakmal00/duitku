@@ -10,14 +10,17 @@ import {
 import { BudgetPos } from '@/lib/types';
 import { formatCurrency, getCurrentMonth, clamp } from '@/lib/helpers';
 
+import { useDataRefresh } from '@/lib/useDataRefresh';
+import { useCallback } from 'react';
+
 export default function BudgetPage() {
   const [posList, setPosList] = useState<BudgetPos[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<BudgetPos | undefined>();
   const { year, month } = getCurrentMonth();
 
-  const load = () => setPosList(getBudgetPos());
-  useEffect(() => { load(); }, []);
+  const load = useCallback(() => setPosList(getBudgetPos()), []);
+  useDataRefresh(load);
 
   const posWithUsage = posList.map(p => ({
     ...p,

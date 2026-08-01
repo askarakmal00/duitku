@@ -13,6 +13,9 @@ import {
 import { SavingGoal } from '@/lib/types';
 import { formatCurrency, clamp } from '@/lib/helpers';
 
+import { useDataRefresh } from '@/lib/useDataRefresh';
+import { useCallback } from 'react';
+
 export default function GoalsPage() {
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [showModal, setShowModal] = useState(false);
@@ -20,8 +23,8 @@ export default function GoalsPage() {
   const [depositGoal, setDepositGoal] = useState<SavingGoal | null>(null);
   const [withdrawGoal, setWithdrawGoal] = useState<SavingGoal | null>(null);
 
-  const load = () => setGoals(getSavingGoals());
-  useEffect(() => { load(); }, []);
+  const load = useCallback(() => setGoals(getSavingGoals()), []);
+  useDataRefresh(load);
 
   const handleSave = async (data: Omit<SavingGoal, 'id' | 'createdAt'>) => {
     if (editTarget) await updateSavingGoal(editTarget.id, data);

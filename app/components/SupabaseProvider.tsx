@@ -1,6 +1,7 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { syncWithSupabase } from '@/lib/store';
+import { supabase } from '@/lib/supabase';
 import { Database, AlertTriangle, RefreshCw, ServerOff, FileText } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 
@@ -42,6 +43,41 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
 
   useEffect(() => {
     sync();
+
+    // Supabase Realtime Listener (auto-sync when database changes on HP or other devices)
+    const channel = supabase
+      .channel('public-db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
+        try {
+          await syncWithSupabase();
+        } catch (e) {
+          console.warn('Realtime sync exception:', e);
+        }
+      })
+      .subscribe();
+
+    // Auto-sync when window receives focus or tab becomes visible
+    const handleFocusSync = async () => {
+      try {
+        await syncWithSupabase();
+      } catch (e) {
+        console.warn('Focus sync exception:', e);
+      }
+    };
+
+    window.addEventListener('focus', handleFocusSync);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        handleFocusSync();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      supabase.removeChannel(channel);
+      window.removeEventListener('focus', handleFocusSync);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, []);
 
   // Close sidebar with Escape key

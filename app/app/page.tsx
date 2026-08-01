@@ -17,6 +17,9 @@ import {
 import { Transaction, BudgetPos, SavingGoal } from '@/lib/types';
 import { getCurrentMonth, getPreviousMonth } from '@/lib/helpers';
 
+import { useDataRefresh } from '@/lib/useDataRefresh';
+import { useCallback } from 'react';
+
 export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgetPos, setBudgetPos] = useState<BudgetPos[]>([]);
@@ -25,16 +28,17 @@ export default function DashboardPage() {
   const [editTarget, setEditTarget] = useState<Transaction | undefined>();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [refresh, setRefresh] = useState(0);
 
   const { year, month } = getCurrentMonth();
   const prev = getPreviousMonth();
 
-  useEffect(() => {
+  const loadData = useCallback(() => {
     setTransactions(getTransactions());
     setBudgetPos(getBudgetPos());
     setGoals(getSavingGoals());
-  }, [refresh]);
+  }, []);
+
+  useDataRefresh(loadData);
 
   const totalBalance = getTotalBalance();
   const income = getMonthlyIncome(year, month);
@@ -57,7 +61,7 @@ export default function DashboardPage() {
     }
     setShowModal(false);
     setEditTarget(undefined);
-    setRefresh(r => r + 1);
+    loadData();
   };
 
   const handleEdit = (t: Transaction) => {
@@ -74,7 +78,7 @@ export default function DashboardPage() {
     setIsDeleting(true);
     try {
       await deleteTransaction(deleteId);
-      setRefresh(r => r + 1);
+      loadData();
     } finally {
       setIsDeleting(false);
       setDeleteId(null);

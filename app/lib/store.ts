@@ -11,6 +11,12 @@ const KEYS = {
   settings: 'pf_settings',
 };
 
+export function notifyDataChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('pf_data_changed'));
+  }
+}
+
 function genId(): string {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
     return window.crypto.randomUUID();
@@ -77,58 +83,140 @@ export async function syncWithSupabase(): Promise<void> {
   }
 
   // 1. Transactions
-  const mappedTxns = (txnsRes.data || []).map(t => ({
+  const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => ({
     id: t.id,
     type: t.type,
     category: t.category,
     subCategory: t.sub_category || undefined,
     budgetPosId: t.budget_pos_id || undefined,
     goalId: t.goal_id || undefined,
+    debtTxnId: t.debt_txn_id || undefined,
     amount: Number(t.amount),
     note: t.note || '',
     date: t.date,
     createdAt: t.created_at,
   }));
-  save(KEYS.transactions, mappedTxns);
+
+  // Bi-directional merge: check for unsynced local items
+  const remoteTxnIds = new Set(remoteTxns.map(t => t.id));
+  const localTxns = load<Transaction[]>(KEYS.transactions, []);
+  const unsyncedTxns = localTxns.filter(t => !remoteTxnIds.has(t.id));
+  if (unsyncedTxns.length > 0) {
+    for (const t of unsyncedTxns) {
+      await supabase.from('transactions').upsert({
+        id: t.id,
+        type: t.type,
+        category: t.category,
+        sub_category: t.subCategory || null,
+        budget_pos_id: t.budgetPosId || null,
+        goal_id: t.goalId || null,
+        debt_txn_id: t.debtTxnId || null,
+        amount: t.amount,
+        note: t.note || '',
+        date: t.date,
+        created_at: t.createdAt,
+      });
+    }
+  }
+
+  const finalTxns = [...remoteTxns, ...unsyncedTxns];
+  save(KEYS.transactions, finalTxns);
 
   // 2. Budget Pos
-  const mappedBudgets = (budgetRes.data || []).map(b => ({
+  const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map(b => ({
     id: b.id,
     name: b.name,
     monthlyAllocation: Number(b.monthly_allocation),
     rollover: b.rollover || false,
     createdAt: b.created_at,
   }));
-  save(KEYS.budgetPos, mappedBudgets);
+  const remoteBudgetIds = new Set(remoteBudgets.map(b => b.id));
+  const localBudgets = load<BudgetPos[]>(KEYS.budgetPos, []);
+  const unsyncedBudgets = localBudgets.filter(b => !remoteBudgetIds.has(b.id));
+  if (unsyncedBudgets.length > 0) {
+    for (const b of unsyncedBudgets) {
+      await supabase.from('budget_pos').upsert({
+        id: b.id,
+        name: b.name,
+        monthly_allocation: b.monthlyAllocation,
+        rollover: b.rollover,
+        created_at: b.createdAt,
+      });
+    }
+  }
+  save(KEYS.budgetPos, [...remoteBudgets, ...unsyncedBudgets]);
 
   // 3. Debt Parties
-  const mappedParties = (partiesRes.data || []).map(p => ({
+  const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => ({
     id: p.id,
     name: p.name,
     createdAt: p.created_at,
   }));
-  save(KEYS.debtParties, mappedParties);
+  const remotePartyIds = new Set(remoteParties.map(p => p.id));
+  const localParties = load<DebtParty[]>(KEYS.debtParties, []);
+  const unsyncedParties = localParties.filter(p => !remotePartyIds.has(p.id));
+  if (unsyncedParties.length > 0) {
+    for (const p of unsyncedParties) {
+      await supabase.from('debt_parties').upsert({
+        id: p.id,
+        name: p.name,
+        created_at: p.createdAt,
+      });
+    }
+  }
+  save(KEYS.debtParties, [...remoteParties, ...unsyncedParties]);
 
   // 4. Debt Transactions
-  const mappedDebtTxns = (debtTxnsRes.data || []).map(dt => ({
+  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => ({
     id: dt.id,
     partyId: dt.party_id,
     type: dt.type,
+    txnId: dt.txn_id || undefined,
     amount: Number(dt.amount),
     note: dt.note || '',
     date: dt.date,
     createdAt: dt.created_at,
   }));
-  save(KEYS.debtTransactions, mappedDebtTxns);
+  const remoteDebtTxnIds = new Set(remoteDebtTxns.map(dt => dt.id));
+  const localDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const unsyncedDebtTxns = localDebtTxns.filter(dt => !remoteDebtTxnIds.has(dt.id));
+  if (unsyncedDebtTxns.length > 0) {
+    for (const dt of unsyncedDebtTxns) {
+      await supabase.from('debt_transactions').upsert({
+        id: dt.id,
+        party_id: dt.partyId,
+        type: dt.type,
+        txn_id: dt.txnId || null,
+        amount: dt.amount,
+        note: dt.note || '',
+        date: dt.date,
+        created_at: dt.createdAt,
+      });
+    }
+  }
+  save(KEYS.debtTransactions, [...remoteDebtTxns, ...unsyncedDebtTxns]);
 
   // 5. Saving Goals
-  const mappedGoals = (goalsRes.data || []).map(g => ({
+  const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => ({
     id: g.id,
     name: g.name,
     targetAmount: Number(g.target_amount),
     createdAt: g.created_at,
   }));
-  save(KEYS.savingGoals, mappedGoals);
+  const remoteGoalIds = new Set(remoteGoals.map(g => g.id));
+  const localGoals = load<SavingGoal[]>(KEYS.savingGoals, []);
+  const unsyncedGoals = localGoals.filter(g => !remoteGoalIds.has(g.id));
+  if (unsyncedGoals.length > 0) {
+    for (const g of unsyncedGoals) {
+      await supabase.from('saving_goals').upsert({
+        id: g.id,
+        name: g.name,
+        target_amount: g.targetAmount,
+        created_at: g.createdAt,
+      });
+    }
+  }
+  save(KEYS.savingGoals, [...remoteGoals, ...unsyncedGoals]);
 
   // 6. Categories
   const mappedCats = (catsRes.data || []).map(c => ({
@@ -149,6 +237,8 @@ export async function syncWithSupabase(): Promise<void> {
       darkMode: s.dark_mode || false,
     });
   }
+
+  notifyDataChanged();
 }
 
 // ─── Transactions ─────────────────────────────────────────────
@@ -168,12 +258,14 @@ export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>
     sub_category: newTxn.subCategory || null,
     budget_pos_id: newTxn.budgetPosId || null,
     goal_id: newTxn.goalId || null,
+    debt_txn_id: newTxn.debtTxnId || null,
     amount: newTxn.amount,
     note: newTxn.note || '',
     date: newTxn.date,
     created_at: newTxn.createdAt,
   });
 
+  notifyDataChanged();
   return newTxn;
 }
 
@@ -187,25 +279,39 @@ export async function updateTransaction(id: string, data: Partial<Omit<Transacti
   if (data.subCategory !== undefined) updateData.sub_category = data.subCategory || null;
   if (data.budgetPosId !== undefined) updateData.budget_pos_id = data.budgetPosId || null;
   if (data.goalId !== undefined) updateData.goal_id = data.goalId || null;
+  if (data.debtTxnId !== undefined) updateData.debt_txn_id = data.debtTxnId || null;
   if (data.amount !== undefined) updateData.amount = data.amount;
   if (data.note !== undefined) updateData.note = data.note;
   if (data.date !== undefined) updateData.date = data.date;
 
   await supabase.from('transactions').update(updateData).eq('id', id);
+  notifyDataChanged();
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
   const current = getTransactions();
+  const targetTxn = current.find(t => t.id === id);
   const updated = current.filter(t => t.id !== id);
   save(KEYS.transactions, updated);
+
   try {
-    const { error } = await supabase.from('transactions').delete().eq('id', id);
-    if (error) {
-      console.warn('Supabase transaction delete warning:', error.message);
-    }
+    await supabase.from('transactions').delete().eq('id', id);
   } catch (err) {
-    console.error('Supabase transaction delete error:', err);
+    console.error('Supabase transaction delete warning:', err);
   }
+
+  // Cross-module sync: Delete linked debt_transaction if exists
+  const debtTxns = getDebtTransactions();
+  const linkedDebtTxns = debtTxns.filter(dt => dt.id === targetTxn?.debtTxnId || dt.txnId === id);
+  if (linkedDebtTxns.length > 0) {
+    const linkedIds = new Set(linkedDebtTxns.map(dt => dt.id));
+    save(KEYS.debtTransactions, debtTxns.filter(dt => !linkedIds.has(dt.id)));
+    for (const dt of linkedDebtTxns) {
+      await supabase.from('debt_transactions').delete().eq('id', dt.id);
+    }
+  }
+
+  notifyDataChanged();
 }
 
 // ─── Budget Pos ────────────────────────────────────────────────
@@ -226,6 +332,7 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
     created_at: newPos.createdAt,
   });
 
+  notifyDataChanged();
   return newPos;
 }
 
@@ -238,11 +345,20 @@ export async function updateBudgetPos(id: string, data: Partial<Omit<BudgetPos, 
   if (data.rollover !== undefined) updateData.rollover = data.rollover;
 
   await supabase.from('budget_pos').update(updateData).eq('id', id);
+  notifyDataChanged();
 }
 
 export async function deleteBudgetPos(id: string): Promise<void> {
   save(KEYS.budgetPos, getBudgetPos().filter(p => p.id !== id));
+  
+  // Unlink budgetPosId from transactions
+  const txns = getTransactions();
+  const updatedTxns = txns.map(t => t.budgetPosId === id ? { ...t, budgetPosId: undefined } : t);
+  save(KEYS.transactions, updatedTxns);
+
   await supabase.from('budget_pos').delete().eq('id', id);
+  await supabase.from('transactions').update({ budget_pos_id: null }).eq('budget_pos_id', id);
+  notifyDataChanged();
 }
 
 export function getBudgetUsed(posId: string, year: number, month: number): number {
@@ -274,14 +390,30 @@ export async function addDebtParty(name: string): Promise<DebtParty> {
     created_at: newParty.createdAt,
   });
 
+  notifyDataChanged();
   return newParty;
 }
 
 export async function deleteDebtParty(id: string): Promise<void> {
+  const partyDebtTxns = getDebtTransactions().filter(t => t.partyId === id);
+  const partyDebtTxnIds = new Set(partyDebtTxns.map(t => t.id));
+
+  // Delete linked transactions in main transactions module
+  const txns = getTransactions();
+  const remainingTxns = txns.filter(t => !t.debtTxnId || !partyDebtTxnIds.has(t.debtTxnId));
+  save(KEYS.transactions, remainingTxns);
+
+  for (const dt of partyDebtTxns) {
+    if (dt.txnId) {
+      await supabase.from('transactions').delete().eq('id', dt.txnId);
+    }
+  }
+
   save(KEYS.debtParties, getDebtParties().filter(p => p.id !== id));
   save(KEYS.debtTransactions, getDebtTransactions().filter(t => t.partyId !== id));
 
   await supabase.from('debt_parties').delete().eq('id', id);
+  notifyDataChanged();
 }
 
 export function getDebtTransactions(): DebtTransaction[] {
@@ -297,18 +429,46 @@ export async function addDebtTransaction(data: Omit<DebtTransaction, 'id' | 'cre
     id: newTxn.id,
     party_id: newTxn.partyId,
     type: newTxn.type,
+    txn_id: newTxn.txnId || null,
     amount: newTxn.amount,
     note: newTxn.note || '',
     date: newTxn.date,
     created_at: newTxn.createdAt,
   });
 
+  notifyDataChanged();
   return newTxn;
 }
 
+export async function updateDebtTransaction(id: string, data: Partial<Omit<DebtTransaction, 'id' | 'createdAt'>>): Promise<void> {
+  save(KEYS.debtTransactions, getDebtTransactions().map(dt => dt.id === id ? { ...dt, ...data } : dt));
+
+  const updateData: any = {};
+  if (data.txnId !== undefined) updateData.txn_id = data.txnId || null;
+  if (data.amount !== undefined) updateData.amount = data.amount;
+  if (data.note !== undefined) updateData.note = data.note;
+  if (data.date !== undefined) updateData.date = data.date;
+
+  await supabase.from('debt_transactions').update(updateData).eq('id', id);
+  notifyDataChanged();
+}
+
 export async function deleteDebtTransaction(id: string): Promise<void> {
-  save(KEYS.debtTransactions, getDebtTransactions().filter(t => t.id !== id));
+  const debtTxns = getDebtTransactions();
+  const targetDebt = debtTxns.find(dt => dt.id === id);
+  save(KEYS.debtTransactions, debtTxns.filter(t => t.id !== id));
+
   await supabase.from('debt_transactions').delete().eq('id', id);
+
+  // Cross-module sync: Delete linked main transaction if exists
+  const txns = getTransactions();
+  const linkedTxn = txns.find(t => t.debtTxnId === id || (targetDebt?.txnId && t.id === targetDebt.txnId));
+  if (linkedTxn) {
+    save(KEYS.transactions, txns.filter(t => t.id !== linkedTxn.id));
+    await supabase.from('transactions').delete().eq('id', linkedTxn.id);
+  }
+
+  notifyDataChanged();
 }
 
 export function getDebtBalance(partyId: string): number {
@@ -338,6 +498,7 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
     created_at: newGoal.createdAt,
   });
 
+  notifyDataChanged();
   return newGoal;
 }
 
@@ -349,11 +510,20 @@ export async function updateSavingGoal(id: string, data: Partial<Omit<SavingGoal
   if (data.targetAmount !== undefined) updateData.target_amount = data.targetAmount;
 
   await supabase.from('saving_goals').update(updateData).eq('id', id);
+  notifyDataChanged();
 }
 
 export async function deleteSavingGoal(id: string): Promise<void> {
   save(KEYS.savingGoals, getSavingGoals().filter(g => g.id !== id));
+
+  // Unlink goal_id from transactions
+  const txns = getTransactions();
+  const updatedTxns = txns.map(t => t.goalId === id ? { ...t, goalId: undefined } : t);
+  save(KEYS.transactions, updatedTxns);
+
   await supabase.from('saving_goals').delete().eq('id', id);
+  await supabase.from('transactions').update({ goal_id: null }).eq('goal_id', id);
+  notifyDataChanged();
 }
 
 export function getGoalProgress(goalId: string): number {
@@ -389,12 +559,14 @@ export async function addCategory(data: Omit<Category, 'id'>): Promise<Category>
     is_default: newCat.isDefault || false,
   });
 
+  notifyDataChanged();
   return newCat;
 }
 
 export async function deleteCategory(id: string): Promise<void> {
   save(KEYS.categories, getCategories().filter(c => c.id !== id || c.isDefault));
   await supabase.from('categories').delete().eq('id', id);
+  notifyDataChanged();
 }
 
 // ─── Settings ──────────────────────────────────────────────────
@@ -413,6 +585,8 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
     dark_mode: settings.darkMode,
     updated_at: new Date().toISOString(),
   });
+
+  notifyDataChanged();
 }
 
 // ─── Dashboard Calculations ────────────────────────────────────
@@ -477,4 +651,6 @@ export async function clearAllData(): Promise<void> {
     supabase.from('categories').delete().neq('is_default', true),
     supabase.from('app_settings').upsert({ id: 1, user_name: 'Pengguna', dark_mode: false }),
   ]);
+
+  notifyDataChanged();
 }

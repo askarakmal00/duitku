@@ -14,11 +14,14 @@ create table if not exists transactions (
   sub_category text,
   budget_pos_id uuid,
   goal_id      uuid,
+  debt_txn_id  uuid,
   amount       numeric(15,2) not null check (amount >= 0),
   note         text default '',
   date         date not null default current_date,
   created_at   timestamptz default now()
 );
+
+alter table transactions add column if not exists debt_txn_id uuid;
 
 create index if not exists idx_transactions_date on transactions(date desc);
 create index if not exists idx_transactions_type on transactions(type);
@@ -45,11 +48,14 @@ create table if not exists debt_transactions (
   id         uuid primary key default gen_random_uuid(),
   party_id   uuid not null references debt_parties(id) on delete cascade,
   type       text not null check (type in ('tambah', 'bayar')),
+  txn_id     uuid,
   amount     numeric(15,2) not null check (amount >= 0),
   note       text default '',
   date       date not null default current_date,
   created_at timestamptz default now()
 );
+
+alter table debt_transactions add column if not exists txn_id uuid;
 
 create index if not exists idx_debt_txn_party on debt_transactions(party_id);
 

@@ -12,6 +12,9 @@ import { formatCurrency, getCurrentMonth } from '@/lib/helpers';
 
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 
+import { useDataRefresh } from '@/lib/useDataRefresh';
+import { useCallback } from 'react';
+
 type Filter = 'semua' | 'masuk' | 'keluar' | 'bulan-ini';
 
 export default function TransactionsPage() {
@@ -23,8 +26,8 @@ export default function TransactionsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const load = () => setTransactions(getTransactions());
-  useEffect(() => { load(); }, []);
+  const load = useCallback(() => setTransactions(getTransactions()), []);
+  useDataRefresh(load);
 
   const { year, month } = getCurrentMonth();
 

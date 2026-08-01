@@ -4,11 +4,14 @@ import { Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import Header from '@/components/Header';
 import DebtModal from '@/components/DebtModal';
 import {
-  getDebtParties, getDebtTransactions, addDebtParty, addDebtTransaction,
+  getDebtParties, getDebtTransactions, addDebtParty, addDebtTransaction, updateDebtTransaction,
   deleteDebtTransaction, deleteDebtParty, getDebtBalance, getTotalDebt, addTransaction
 } from '@/lib/store';
 import { DebtParty, DebtTransaction } from '@/lib/types';
 import { formatCurrency, formatDate } from '@/lib/helpers';
+
+import { useDataRefresh } from '@/lib/useDataRefresh';
+import { useCallback } from 'react';
 
 export default function WalletPage() {
   const [parties, setParties] = useState<DebtParty[]>([]);
@@ -17,26 +20,28 @@ export default function WalletPage() {
   const [showModal, setShowModal] = useState<'tambah' | 'bayar' | null>(null);
   const [defaultParty, setDefaultParty] = useState('');
 
-  const load = () => {
+  const load = useCallback(() => {
     setParties(getDebtParties());
     setDebtTxns(getDebtTransactions());
-  };
-  useEffect(() => { load(); }, []);
+  }, []);
+  useDataRefresh(load);
 
   const handleSave = async (partyName: string, amount: number, note: string, date: string) => {
     const party = await addDebtParty(partyName);
     const debtType = showModal === 'tambah' ? 'tambah' : 'bayar';
-    await addDebtTransaction({ partyId: party.id, type: debtType, amount, note, date });
+    const newDebtTxn = await addDebtTransaction({ partyId: party.id, type: debtType, amount, note, date });
 
     // Bayar hutang → potong saldo utama secara otomatis
     if (debtType === 'bayar') {
-      await addTransaction({
+      const newTxn = await addTransaction({
         type: 'keluar',
         category: 'Hutang',
+        debtTxnId: newDebtTxn.id,
         amount,
         note: note || `Bayar hutang ke ${partyName}`,
         date,
       });
+      await updateDebtTransaction(newDebtTxn.id, { txnId: newTxn.id });
     }
 
     setShowModal(null);

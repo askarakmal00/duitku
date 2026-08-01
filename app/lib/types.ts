@@ -5,6 +5,7 @@ export interface Transaction {
   subCategory?: string;
   budgetPosId?: string;
   goalId?: string;
+  debtTxnId?: string;
   amount: number;
   note: string;
   date: string;
@@ -33,6 +34,7 @@ export interface DebtTransaction {
   note: string;
   date: string;
   createdAt: string;
+  txnId?: string;
 }
 
 export interface SavingGoal {
