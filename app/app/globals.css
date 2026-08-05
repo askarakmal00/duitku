@@ -1592,6 +1592,34 @@ tr:hover td { background: var(--primary-50); }
   gap: 20px;
 }
 
+.calendar-main-grid {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 20px;
+  align-items: start;
+}
+
+.calendar-detail-col {
+  position: sticky;
+  top: 90px;
+}
+
+.desktop-only-card {
+  background: var(--card);
+  border-radius: var(--radius-md);
+  border: 1.5px dashed var(--border);
+}
+
+@media (max-width: 900px) {
+  .calendar-main-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+  .desktop-only-card {
+    display: none !important;
+  }
+}
+
 .calendar-summary-bar {
   display: grid;
   grid-template-columns: 1fr 1fr;

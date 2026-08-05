@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
-import { ChevronLeft, ChevronRight, X, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, ArrowUpRight, ArrowDownLeft, Calendar as CalendarIcon } from 'lucide-react';
 import { getDailyExpenseMap, getTransactionsByDate, getMonthlyExpense } from '@/lib/store';
 import { Transaction } from '@/lib/types';
 import { formatCurrency, formatDate, getCurrentMonth } from '@/lib/helpers';
@@ -52,7 +52,6 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
 
   useEffect(() => {
     loadData();
-    // Listen for external data changes
     const handler = () => loadData();
     window.addEventListener('pf_data_changed', handler);
     return () => window.removeEventListener('pf_data_changed', handler);
@@ -127,134 +126,151 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
         </div>
       </div>
 
-      {/* Calendar Card */}
-      <div className="card" style={{ padding: '20px' }}>
-        {/* Month Navigation */}
-        <div className="calendar-nav" style={{ marginBottom: 16 }}>
-          <button className="calendar-nav-btn" onClick={prevMonth} aria-label="Bulan sebelumnya">
-            <ChevronLeft size={18} />
-          </button>
-          <span className="calendar-nav-title">{monthLabel}</span>
-          <button className="calendar-nav-btn" onClick={nextMonth} aria-label="Bulan berikutnya">
-            <ChevronRight size={18} />
-          </button>
-        </div>
-
-        {/* Heatmap Legend */}
-        <div className="calendar-legend" style={{ marginBottom: 12 }}>
-          <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Intensitas:</span>
-          {[
-            { cls: 'heat-0', bg: 'var(--bg-secondary)', label: 'Tidak ada' },
-            { cls: 'heat-1', bg: '#F5F3FF', label: 'Kecil' },
-            { cls: 'heat-2', bg: '#EDE9FE', label: 'Sedang' },
-            { cls: 'heat-3', bg: '#7C3AED', label: 'Besar' },
-          ].map(({ bg, label }) => (
-            <div key={label} className="calendar-legend-item">
-              <div className="calendar-legend-dot" style={{ background: bg, border: '1px solid var(--border)' }} />
-              {label}
-            </div>
-          ))}
-        </div>
-
-        {/* Day Headers */}
-        <div className="calendar-grid">
-          {DAY_HEADERS.map(d => (
-            <div key={d} className="calendar-day-header">{d}</div>
-          ))}
-
-          {/* Calendar Cells */}
-          {cells.map((day, idx) => {
-            if (day === null) {
-              return <div key={`empty-${idx}`} className="calendar-cell empty" />;
-            }
-            const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const amount = expenseMap[dateStr] || 0;
-            const heat = heatLevel(amount, maxExpense);
-            const isToday = isCurrentMonth && day === todayDay;
-            const isSelected = selectedDate === dateStr;
-
-            let cls = `calendar-cell heat-${heat}`;
-            if (isToday) cls += ' today';
-            if (isSelected) cls += ' selected';
-
-            return (
-              <div key={dateStr} className={cls} onClick={() => handleCellClick(day)}>
-                <span className="calendar-date-num">{day}</span>
-                {amount > 0 && (
-                  <span className="calendar-cell-amount">{compactAmount(amount)}</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Detail Panel */}
-      {selectedDate && (
-        <div className="calendar-detail-panel">
-          <div className="calendar-detail-header">
-            <span className="calendar-detail-title">
-              {formatDate(selectedDate, 'long')}
-            </span>
-            <button
-              className="calendar-detail-close"
-              onClick={() => { setSelectedDate(null); setSelectedTxns([]); }}
-              aria-label="Tutup detail"
-            >
-              <X size={14} />
+      {/* Main Grid: Calendar Left, Detail Right (Desktop) */}
+      <div className="calendar-main-grid">
+        {/* Left Column: Calendar Card */}
+        <div className="card" style={{ padding: '20px' }}>
+          {/* Month Navigation */}
+          <div className="calendar-nav" style={{ marginBottom: 16 }}>
+            <button className="calendar-nav-btn" onClick={prevMonth} aria-label="Bulan sebelumnya">
+              <ChevronLeft size={18} />
+            </button>
+            <span className="calendar-nav-title">{monthLabel}</span>
+            <button className="calendar-nav-btn" onClick={nextMonth} aria-label="Bulan berikutnya">
+              <ChevronRight size={18} />
             </button>
           </div>
-          <div className="calendar-detail-body">
-            {selectedTxns.length === 0 ? (
-              <div className="empty-state" style={{ padding: '24px 12px', gap: 8 }}>
-                <div className="empty-state-icon" style={{ width: 48, height: 48, fontSize: 22 }}>🎉</div>
-                <h3 style={{ fontSize: 14 }}>Tidak ada transaksi</h3>
-                <p style={{ fontSize: 12 }}>Hari yang hemat, bagus!</p>
+
+          {/* Heatmap Legend */}
+          <div className="calendar-legend" style={{ marginBottom: 12 }}>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Intensitas:</span>
+            {[
+              { cls: 'heat-0', bg: 'var(--bg-secondary)', label: 'Tidak ada' },
+              { cls: 'heat-1', bg: '#F5F3FF', label: 'Kecil' },
+              { cls: 'heat-2', bg: '#EDE9FE', label: 'Sedang' },
+              { cls: 'heat-3', bg: '#7C3AED', label: 'Besar' },
+            ].map(({ bg, label }) => (
+              <div key={label} className="calendar-legend-item">
+                <div className="calendar-legend-dot" style={{ background: bg, border: '1px solid var(--border)' }} />
+                {label}
               </div>
-            ) : (
-              <>
-                {/* Expense total for selected day */}
-                {(() => {
-                  const dayExpense = selectedTxns.filter(t => t.type === 'keluar').reduce((s, t) => s + t.amount, 0);
-                  const dayIncome = selectedTxns.filter(t => t.type === 'masuk').reduce((s, t) => s + t.amount, 0);
-                  return (
-                    <div style={{ display: 'flex', gap: 12, marginBottom: 8 }}>
-                      {dayIncome > 0 && (
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--success)' }}>
-                          +{formatCurrency(dayIncome)}
-                        </span>
-                      )}
-                      {dayExpense > 0 && (
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger)' }}>
-                          -{formatCurrency(dayExpense)}
-                        </span>
-                      )}
-                    </div>
-                  );
-                })()}
-                {selectedTxns.map(t => (
-                  <div key={t.id} className="mobile-txn-item">
-                    <div className="mobile-txn-left">
-                      <div className={`mobile-txn-icon ${t.type}`}>
-                        {t.type === 'masuk' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
-                      </div>
-                      <div className="mobile-txn-info">
-                        <span className="mobile-txn-title">{t.note || t.category}</span>
-                        <span className="mobile-txn-meta">{t.category}{t.subCategory ? ` · ${t.subCategory}` : ''}</span>
-                      </div>
-                    </div>
-                    <div className="mobile-txn-right">
-                      <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
-                        {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
+            ))}
+          </div>
+
+          {/* Day Headers */}
+          <div className="calendar-grid">
+            {DAY_HEADERS.map(d => (
+              <div key={d} className="calendar-day-header">{d}</div>
+            ))}
+
+            {/* Calendar Cells */}
+            {cells.map((day, idx) => {
+              if (day === null) {
+                return <div key={`empty-${idx}`} className="calendar-cell empty" />;
+              }
+              const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+              const amount = expenseMap[dateStr] || 0;
+              const heat = heatLevel(amount, maxExpense);
+              const isToday = isCurrentMonth && day === todayDay;
+              const isSelected = selectedDate === dateStr;
+
+              let cls = `calendar-cell heat-${heat}`;
+              if (isToday) cls += ' today';
+              if (isSelected) cls += ' selected';
+
+              return (
+                <div key={dateStr} className={cls} onClick={() => handleCellClick(day)}>
+                  <span className="calendar-date-num">{day}</span>
+                  {amount > 0 && (
+                    <span className="calendar-cell-amount">{compactAmount(amount)}</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
-      )}
+
+        {/* Right Column: Detail Panel (Desktop: side, Mobile: stacked) */}
+        <div className="calendar-detail-col">
+          {selectedDate ? (
+            <div className="calendar-detail-panel">
+              <div className="calendar-detail-header">
+                <span className="calendar-detail-title">
+                  {formatDate(selectedDate, 'long')}
+                </span>
+                <button
+                  className="calendar-detail-close"
+                  onClick={() => { setSelectedDate(null); setSelectedTxns([]); }}
+                  aria-label="Tutup detail"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+              <div className="calendar-detail-body">
+                {selectedTxns.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '32px 12px', gap: 8 }}>
+                    <div className="empty-state-icon" style={{ width: 48, height: 48, fontSize: 22 }}>🎉</div>
+                    <h3 style={{ fontSize: 14 }}>Tidak ada transaksi</h3>
+                    <p style={{ fontSize: 12 }}>Hari yang hemat, bagus!</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Expense total for selected day */}
+                    {(() => {
+                      const dayExpense = selectedTxns.filter(t => t.type === 'keluar').reduce((s, t) => s + t.amount, 0);
+                      const dayIncome = selectedTxns.filter(t => t.type === 'masuk').reduce((s, t) => s + t.amount, 0);
+                      return (
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 8, paddingBottom: 8, borderBottom: '1px solid var(--divider)' }}>
+                          {dayIncome > 0 && (
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--success)' }}>
+                              +{formatCurrency(dayIncome)}
+                            </span>
+                          )}
+                          {dayExpense > 0 && (
+                            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger)' }}>
+                              -{formatCurrency(dayExpense)}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {selectedTxns.map(t => (
+                      <div key={t.id} className="mobile-txn-item">
+                        <div className="mobile-txn-left">
+                          <div className={`mobile-txn-icon ${t.type}`}>
+                            {t.type === 'masuk' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
+                          </div>
+                          <div className="mobile-txn-info">
+                            <span className="mobile-txn-title">{t.note || t.category}</span>
+                            <span className="mobile-txn-meta">{t.category}{t.subCategory ? ` · ${t.subCategory}` : ''}</span>
+                          </div>
+                        </div>
+                        <div className="mobile-txn-right">
+                          <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
+                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="calendar-detail-placeholder desktop-only-card">
+              <div className="empty-state" style={{ padding: '40px 20px', gap: 12 }}>
+                <div className="empty-state-icon" style={{ width: 56, height: 56, fontSize: 26 }}>
+                  📅
+                </div>
+                <h3 style={{ fontSize: 15 }}>Rincian Transaksi Harian</h3>
+                <p style={{ fontSize: 13, lineHeight: 1.5 }}>
+                  Klik salah satu tanggal pada kalender di sebelah kiri untuk melihat rincian transaksi pengeluaran & pemasukan hari tersebut.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
