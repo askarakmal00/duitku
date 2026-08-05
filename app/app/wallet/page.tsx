@@ -31,8 +31,19 @@ export default function WalletPage() {
     const debtType = showModal === 'tambah' ? 'tambah' : 'bayar';
     const newDebtTxn = await addDebtTransaction({ partyId: party.id, type: debtType, amount, note, date });
 
-    // Bayar hutang → potong saldo utama secara otomatis
-    if (debtType === 'bayar') {
+    if (debtType === 'tambah') {
+      // Catat hutang (pinjam uang) → tambah ke saldo utama (uang masuk)
+      const newTxn = await addTransaction({
+        type: 'masuk',
+        category: 'Hutang',
+        debtTxnId: newDebtTxn.id,
+        amount,
+        note: note || `Hutang dari ${partyName}`,
+        date,
+      });
+      await updateDebtTransaction(newDebtTxn.id, { txnId: newTxn.id });
+    } else if (debtType === 'bayar') {
+      // Bayar hutang → potong saldo utama secara otomatis (uang keluar)
       const newTxn = await addTransaction({
         type: 'keluar',
         category: 'Hutang',
