@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Search, Filter } from 'lucide-react';
+import { Plus, Search } from 'lucide-react';
 import Header from '@/components/Header';
 import RecentTransactions from '@/components/RecentTransactions';
 import TransactionModal from '@/components/TransactionModal';
@@ -110,30 +110,32 @@ export default function TransactionsPage() {
         <div className="card">
           {/* Toolbar */}
           <div className="transactions-toolbar">
-            <div className="filter-bar" style={{ marginBottom: 0 }}>
-              {(['semua', 'masuk', 'keluar', 'bulan-ini'] as Filter[]).map(f => (
-                <button
-                  key={f}
-                  className={`filter-chip ${filter === f ? 'active' : ''}`}
-                  onClick={() => setFilter(f)}
-                >
-                  {f === 'semua' ? 'Semua' : f === 'masuk' ? '↑ Pemasukan' : f === 'keluar' ? '↓ Pengeluaran' : '📅 Bulan Ini'}
-                </button>
-              ))}
+            <div className="filter-bar-wrap">
+              <div className="filter-bar" style={{ marginBottom: 0 }}>
+                {(['semua', 'masuk', 'keluar', 'bulan-ini'] as Filter[]).map(f => (
+                  <button
+                    key={f}
+                    className={`filter-chip ${filter === f ? 'active' : ''}`}
+                    onClick={() => setFilter(f)}
+                  >
+                    {f === 'semua' ? 'Semua' : f === 'masuk' ? '↑ Pemasukan' : f === 'keluar' ? '↓ Pengeluaran' : '📅 Bulan Ini'}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="search-action-group">
-              <div style={{ position: 'relative', flex: 1 }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
                 <Search size={15} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
                 <input
                   className="form-input"
-                  style={{ paddingLeft: 32, marginBottom: 0 }}
+                  style={{ paddingLeft: 32, marginBottom: 0, width: '100%', minWidth: 0 }}
                   placeholder="Cari transaksi..."
                   value={search}
                   onChange={e => setSearch(e.target.value)}
                 />
               </div>
-              <button className="btn btn-primary" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
+              <button className="btn btn-primary desktop-only-inline" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
                 <Plus size={16} /> Tambah
               </button>
             </div>
@@ -147,6 +149,15 @@ export default function TransactionsPage() {
           />
         </div>
       </div>
+
+      {/* FAB: mobile-only floating add button */}
+      <button
+        className="fab"
+        onClick={() => { setEditTarget(undefined); setShowModal(true); }}
+        aria-label="Tambah transaksi"
+      >
+        <Plus size={22} />
+      </button>
 
       {showModal && (
         <TransactionModal

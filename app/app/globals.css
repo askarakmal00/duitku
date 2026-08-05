@@ -967,10 +967,29 @@ tr:hover td { background: var(--primary-50); }
   cursor: pointer;
   transition: all var(--transition);
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .filter-chip:hover { border-color: var(--primary); color: var(--primary); }
 .filter-chip.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+/* Filter bar scrollable wrapper for mobile */
+.filter-bar-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+.filter-bar-wrap::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 40px;
+  background: linear-gradient(to right, transparent, var(--card));
+  pointer-events: none;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
 
 /* ─── Grid Layouts ────────────────────────────────────────── */
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
@@ -1201,6 +1220,7 @@ tr:hover td { background: var(--primary-50); }
 /* ─── Desktop vs Mobile view toggle ───────────────────────── */
 .mobile-only-view { display: none !important; }
 .desktop-only-view { display: block !important; }
+.desktop-only-inline { display: inline-flex !important; }
 
 /* ─── Quick Actions Grid (Fintech Reference Style) ────────── */
 .quick-actions-grid {
@@ -1277,19 +1297,23 @@ tr:hover td { background: var(--primary-50); }
   gap: 10px;
   transition: all 0.2s ease;
   box-shadow: var(--shadow-sm);
+  overflow: hidden; /* prevent child content from escaping */
+  min-width: 0;
 }
 
 .mobile-txn-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   overflow: hidden;
+  flex: 1;
+  min-width: 0; /* critical: allows flex children to shrink below content width */
 }
 
 .mobile-txn-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1304,6 +1328,7 @@ tr:hover td { background: var(--primary-50); }
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-width: 0; /* allow text to shrink and ellipsis */
 }
 
 .mobile-txn-title {
@@ -1313,11 +1338,16 @@ tr:hover td { background: var(--primary-50); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .mobile-txn-meta {
   font-size: 11px;
   color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 .mobile-txn-right {
@@ -1326,12 +1356,16 @@ tr:hover td { background: var(--primary-50); }
   align-items: flex-end;
   gap: 3px;
   flex-shrink: 0;
+  max-width: 45%; /* never let right side eat more than half the row */
 }
 
 .mobile-txn-amount {
   font-weight: 700;
   font-size: 13px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* ─── Stats Row 3 Columns (Responsive) ───────────────────── */
@@ -1399,27 +1433,91 @@ tr:hover td { background: var(--primary-50); }
   flex-wrap: wrap;
 }
 
+.search-action-group {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  min-width: 0;
+}
+
+.search-action-group > div {
+  flex: 1;
+  min-width: 0;
+}
+
 @media (max-width: 640px) {
   .transactions-toolbar {
     flex-direction: column;
     align-items: stretch;
-    gap: 12px;
+    gap: 10px;
   }
+  /* Filter bar: scrollable horizontal with fade */
   .transactions-toolbar .filter-bar {
-    width: 100%;
+    display: flex;
+    flex-wrap: nowrap;
     overflow-x: auto;
-    white-space: nowrap;
-    padding-bottom: 4px;
     -webkit-overflow-scrolling: touch;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 4px;
+    gap: 8px;
+    /* hide scrollbar visually */
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    width: 100%;
+    margin-bottom: 0;
   }
+  .transactions-toolbar .filter-bar::-webkit-scrollbar { display: none; }
+  .transactions-toolbar .filter-bar .filter-chip { scroll-snap-align: start; }
+  /* Search + button: search full width, button stays compact */
   .search-action-group {
+    width: 100%;
     display: flex;
     gap: 8px;
-    width: 100%;
+    align-items: center;
+  }
+  .search-action-group > div {
+    flex: 1;
+    min-width: 0;
   }
   .search-action-group input {
-    flex: 1;
     width: 100% !important;
+    min-width: 0;
+  }
+  /* Tombol Tambah compact on mobile — icon only with label */
+  .search-action-group .btn-primary {
+    flex-shrink: 0;
+    padding: 8px 12px;
+    white-space: nowrap;
+  }
+}
+
+/* FAB — Floating Action Button for mobile */
+.fab {
+  display: none;
+}
+
+@media (max-width: 640px) {
+  .fab {
+    display: flex;
+    position: fixed;
+    bottom: 80px; /* above bottom nav */
+    right: 20px;
+    z-index: 200;
+    width: 54px;
+    height: 54px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    border: none;
+    cursor: pointer;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 16px rgba(124, 58, 237, 0.45);
+    transition: all 0.2s ease;
+  }
+  .fab:hover, .fab:active {
+    background: var(--primary-700);
+    transform: scale(1.08);
   }
 }
 
@@ -1450,6 +1548,7 @@ tr:hover td { background: var(--primary-50); }
 
   .mobile-only-view { display: flex !important; }
   .desktop-only-view { display: none !important; }
+  .desktop-only-inline { display: none !important; }
 
   /* Show bottom navigation on mobile */
   .bottom-nav {

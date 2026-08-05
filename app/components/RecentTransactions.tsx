@@ -91,46 +91,50 @@ export default function RecentTransactions({
         </table>
       </div>
 
-      {/* Mobile Card List View (Matching Reference Mobile Design) */}
+      {/* Mobile Card List View */}
       <div className="mobile-only-view mobile-txn-list">
         {displayed.map(t => {
           const timeStr = t.createdAt ? new Date(t.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
           return (
             <div className="mobile-txn-item" key={t.id}>
+              {/* LEFT: icon + info */}
               <div className="mobile-txn-left">
                 <div className={`mobile-txn-icon ${t.type}`}>
-                  {t.type === 'masuk' ? <ArrowDownLeft size={18} /> : <ArrowUpRight size={18} />}
+                  {t.type === 'masuk' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                 </div>
                 <div className="mobile-txn-info">
                   <span className="mobile-txn-title">{t.note || t.category}</span>
                   <span className="mobile-txn-meta">
-                    {formatDate(t.date, 'short')} {timeStr ? `• ${timeStr}` : ''} {t.subCategory ? `• ${t.subCategory}` : ''}
+                    {formatDate(t.date, 'short')}{timeStr ? ` • ${timeStr}` : ''}
+                  </span>
+                  <span className={`chip ${t.type === 'masuk' ? 'chip-success' : 'chip-danger'}`} style={{ fontSize: 10, padding: '1px 6px', marginTop: 2, alignSelf: 'flex-start' }}>
+                    {t.category}
                   </span>
                 </div>
               </div>
-            <div className="mobile-txn-right">
-              <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
-                {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
-              </span>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                <span className={`chip ${t.type === 'masuk' ? 'chip-success' : 'chip-danger'}`} style={{ fontSize: 10, padding: '1px 6px' }}>
-                  {t.category}
+              {/* RIGHT: amount + actions (compact) */}
+              <div className="mobile-txn-right">
+                <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
+                  {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
                 </span>
-                {onEdit && (
-                  <button className="btn btn-ghost btn-icon btn-sm" style={{ width: 24, height: 24 }} onClick={() => onEdit(t)} title="Edit">
-                    <Pencil size={12} />
-                  </button>
-                )}
-                {onDelete && (
-                  <button className="btn btn-danger btn-icon btn-sm" style={{ width: 24, height: 24 }} onClick={() => onDelete(t.id)} title="Hapus">
-                    <Trash2 size={12} />
-                  </button>
+                {(onEdit || onDelete) && (
+                  <div style={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-end' }}>
+                    {onEdit && (
+                      <button className="btn btn-ghost btn-icon btn-sm" style={{ width: 24, height: 24, minHeight: 'unset' }} onClick={() => onEdit(t)} title="Edit">
+                        <Pencil size={11} />
+                      </button>
+                    )}
+                    {onDelete && (
+                      <button className="btn btn-danger btn-icon btn-sm" style={{ width: 24, height: 24, minHeight: 'unset' }} onClick={() => onDelete(t.id)} title="Hapus">
+                        <Trash2 size={11} />
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
       </div>
 
       {!showAll && transactions.length > limit && (
