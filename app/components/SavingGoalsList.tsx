@@ -14,9 +14,9 @@ export default function SavingGoalsList({ goals, onEdit, onDelete }: SavingGoals
   if (goals.length === 0) {
     return (
       <div className="empty-state">
-        <div className="empty-state-icon"><span style={{ fontSize: 28 }}>🎯</span></div>
+        <div className="empty-state-icon">🎯</div>
         <h3>Belum ada target tabungan</h3>
-        <p>Tambahkan target untuk memotivasi diri</p>
+        <p>Buat target impianmu dan pantau perkembangannya setiap hari ✨</p>
       </div>
     );
   }

@@ -1,18 +1,27 @@
 'use client';
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
+import { TrendingUp, TrendingDown, Minus, Wallet, TrendingUp as IncomeIcon, TrendingDown as ExpenseIcon, PiggyBank } from 'lucide-react';
 import { formatCurrency } from '@/lib/helpers';
+
+type CardVariant = 'hero' | 'income' | 'expense' | 'savings' | 'default';
 
 interface SummaryCardProps {
   label: string;
   value: number;
   prevValue?: number;
-  prefix?: string;
   isCurrency?: boolean;
-  color?: 'default' | 'success' | 'danger' | 'primary';
+  variant?: CardVariant;
 }
 
+const VARIANT_ICONS: Record<CardVariant, React.ReactNode> = {
+  hero:     <Wallet size={18} />,
+  income:   <IncomeIcon size={18} />,
+  expense:  <ExpenseIcon size={18} />,
+  savings:  <PiggyBank size={18} />,
+  default:  null,
+};
+
 export default function SummaryCard({
-  label, value, prevValue, isCurrency = true, color = 'default'
+  label, value, prevValue, isCurrency = true, variant = 'default'
 }: SummaryCardProps) {
   const hasChange = prevValue !== undefined;
   let pct = 0;
@@ -20,32 +29,34 @@ export default function SummaryCard({
   else if (hasChange && prevValue === 0 && value > 0) pct = 100;
 
   const isUp = pct >= 0;
-  const absLabel = isCurrency ? formatCurrency(value) : value.toLocaleString('id-ID');
 
   const displayPrimary = isCurrency
     ? new Intl.NumberFormat('id-ID').format(Math.floor(value))
     : value.toLocaleString('id-ID');
 
+  const icon = VARIANT_ICONS[variant];
+
   return (
-    <div className="summary-card">
+    <div className={`summary-card${variant !== 'default' ? ` variant-${variant}` : ''}`}>
+      {icon && <div className="summary-card-icon">{icon}</div>}
       <p className="summary-card-label">{label}</p>
       <div className="summary-card-value">
-        {isCurrency && <span style={{ fontSize: 14, opacity: 0.6 }}>Rp </span>}
+        {isCurrency && <span>Rp </span>}
         {displayPrimary}
       </div>
       {hasChange && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <span className={`summary-badge ${isUp ? 'badge-up' : 'badge-down'}`}>
-            {isUp ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
+            {isUp ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
             {Math.abs(pct).toFixed(1)}%
           </span>
-          <span className="text-sm text-muted">vs bulan lalu</span>
+          <span className="text-sm text-muted" style={{ fontSize: 11 }}>vs bulan lalu</span>
         </div>
       )}
       {!hasChange && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
           <span className="summary-badge badge-neutral">
-            <Minus size={12} />
+            <Minus size={11} />
             Total
           </span>
         </div>

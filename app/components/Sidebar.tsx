@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import {
   LayoutDashboard, ArrowLeftRight, Wallet, Target,
   PieChart, BarChart2, Settings, HelpCircle,
-  Moon, Sun, X, CreditCard
+  Moon, Sun, X, CreditCard, CalendarDays
 } from 'lucide-react';
 import { getSettings, saveSettings } from '@/lib/store';
 
@@ -15,6 +15,7 @@ const navItems = [
   { href: '/wallet', icon: CreditCard, label: 'Hutang' },
   { href: '/goals', icon: Target, label: 'Goals' },
   { href: '/budget', icon: PieChart, label: 'Anggaran' },
+  { href: '/calendar', icon: CalendarDays, label: 'Kalender' },
   { href: '/analytics', icon: BarChart2, label: 'Analitik' },
   { href: '/settings', icon: Settings, label: 'Pengaturan' },
 ];
@@ -22,7 +23,7 @@ const navItems = [
 const bottomNavItems = [
   { href: '/', icon: LayoutDashboard, label: 'Home' },
   { href: '/transactions', icon: ArrowLeftRight, label: 'Transaksi' },
-  { href: '/wallet', icon: CreditCard, label: 'Hutang' },
+  { href: '/calendar', icon: CalendarDays, label: 'Kalender' },
   { href: '/goals', icon: Target, label: 'Goals' },
   { href: '/settings', icon: Settings, label: 'Settings' },
 ];

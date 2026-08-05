@@ -66,10 +66,10 @@ export default function BudgetDonut({ items }: BudgetDonutProps) {
     return (
       <div className="empty-state">
         <div className="empty-state-icon">
-          <span style={{ fontSize: 28 }}>💰</span>
+          💰
         </div>
         <h3>Belum ada pos anggaran</h3>
-        <p>Tambahkan pos anggaran untuk mulai memantau pengeluaran</p>
+        <p>Tambahkan pos anggaran untuk mulai memantau pengeluaranmu 🎯</p>
       </div>
     );
   }

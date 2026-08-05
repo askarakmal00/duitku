@@ -810,6 +810,30 @@ export function getMonthlyFlowData(months: number = 7): { labels: string[]; inco
   return { labels, income, expense };
 }
 
+// ─── Calendar / Daily Expense Helpers ─────────────────────────
+/**
+ * Returns a map of dateStr (YYYY-MM-DD) → total pengeluaran for the given month.
+ * Only includes expense transactions.
+ */
+export function getDailyExpenseMap(year: number, month: number): Record<string, number> {
+  const map: Record<string, number> = {};
+  getTransactions().forEach(t => {
+    if (t.type !== 'keluar') return;
+    const d = new Date(t.date);
+    if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
+    const key = t.date.slice(0, 10); // YYYY-MM-DD
+    map[key] = (map[key] || 0) + t.amount;
+  });
+  return map;
+}
+
+/**
+ * Returns all transactions (both types) for a specific date (YYYY-MM-DD).
+ */
+export function getTransactionsByDate(dateStr: string): Transaction[] {
+  return getTransactions().filter(t => t.date.slice(0, 10) === dateStr);
+}
+
 export async function clearAllData(): Promise<void> {
   Object.values(KEYS).forEach(key => {
     if (typeof window !== 'undefined') localStorage.removeItem(key);

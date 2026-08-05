@@ -99,7 +99,7 @@ export default function MoneyFlowChart({ months = 7 }: MoneyFlowChartProps) {
   }, [months]);
 
   return (
-    <div style={{ position: 'relative', height: 260 }}>
+    <div className="chart-responsive-wrap">
       <canvas ref={chartRef} />
     </div>
   );

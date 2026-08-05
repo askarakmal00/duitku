@@ -123,11 +123,12 @@ export default function DashboardPage() {
 
         {/* Summary Cards */}
         <div className="summary-grid mb-5">
-          <SummaryCard label="Total Saldo" value={totalBalance} />
-          <SummaryCard label="Pemasukan (Bulan Ini)" value={income} prevValue={prevIncome} />
-          <SummaryCard label="Pengeluaran (Bulan Ini)" value={expense} prevValue={prevExpense} />
-          <SummaryCard label="Total Tabungan" value={savings} />
+          <SummaryCard label="Total Saldo" value={totalBalance} variant="hero" />
+          <SummaryCard label="Pemasukan (Bulan Ini)" value={income} prevValue={prevIncome} variant="income" />
+          <SummaryCard label="Pengeluaran (Bulan Ini)" value={expense} prevValue={prevExpense} variant="expense" />
+          <SummaryCard label="Total Tabungan" value={savings} variant="savings" />
         </div>
+
 
         {/* Main Grid */}
         <div className="dashboard-grid">

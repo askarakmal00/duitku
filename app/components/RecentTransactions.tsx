@@ -21,10 +21,10 @@ export default function RecentTransactions({
     return (
       <div className="empty-state">
         <div className="empty-state-icon">
-          <span style={{ fontSize: 28 }}>💸</span>
+          💸
         </div>
         <h3>Belum ada transaksi</h3>
-        <p>Tambahkan transaksi pertama Anda</p>
+        <p>Mulai catat pemasukan dan pengeluaranmu hari ini — jejak keuangan yang baik dimulai dari sini! 💪</p>
       </div>
     );
   }
