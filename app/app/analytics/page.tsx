@@ -165,9 +165,9 @@ export default function AnalyticsPage() {
   const savingRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
   const stats = [
-    { label: 'Total Pemasukan', value: formatCurrency(totalIncome, true), icon: <TrendingUp size={16} />, color: '#0F766E' },
-    { label: 'Total Pengeluaran', value: formatCurrency(totalExpense, true), icon: <TrendingDown size={16} />, color: '#0F766E' },
-    { label: 'Rata-rata / Bulan', value: formatCurrency(avgIncome, true), icon: <BarChart2 size={16} />, color: '#0F766E' },
+    { label: 'Total Pemasukan', value: formatCurrency(totalIncome), icon: <TrendingUp size={16} />, color: '#0F766E' },
+    { label: 'Total Pengeluaran', value: formatCurrency(totalExpense), icon: <TrendingDown size={16} />, color: '#0F766E' },
+    { label: 'Rata-rata / Bulan', value: formatCurrency(avgIncome), icon: <BarChart2 size={16} />, color: '#0F766E' },
     { label: `Saving Rate ${period}bln`, value: `${savingRate.toFixed(1)}%`, icon: <Percent size={16} />, color: savingRate >= 20 ? 'var(--success)' : 'var(--warning)' },
   ];
 

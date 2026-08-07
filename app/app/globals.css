@@ -242,13 +242,13 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   position: sticky;
   top: 0;
   z-index: 50;
-  overflow: hidden; /* prevent children from causing horizontal scroll */
   width: 100%;
   box-sizing: border-box;
+  /* NOTE: do NOT add overflow:hidden here — it clips the avatar/buttons */
 }
 
 .header-left {
@@ -424,6 +424,9 @@ body {
   justify-content: space-between;
   font-size: 11px;
   line-height: 1.2;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .hero-breakdown-label {
@@ -432,6 +435,8 @@ body {
   display: flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0; /* label stays visible */
+  white-space: nowrap;
 }
 
 .hero-breakdown-icon.free {
@@ -446,6 +451,12 @@ body {
   font-weight: 700;
   color: white;
   font-size: 11.5px;
+  text-align: right;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .hero-breakdown-val.positive {
@@ -1575,6 +1586,8 @@ tr:hover td { background: var(--primary-50); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* For flex children (e.g. progress bar), allow inner layout to work */
+  min-width: 0;
 }
 
 .psc-sub {
@@ -1583,6 +1596,7 @@ tr:hover td { background: var(--primary-50); }
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
 /* Analytics 2x2 grid items */

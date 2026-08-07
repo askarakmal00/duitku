@@ -62,7 +62,7 @@ export default function BudgetPage() {
               <div className="psc-icon"><Wallet size={16} /></div>
               <span className="psc-label">Total Alokasi</span>
             </div>
-            <div className="psc-value">{formatCurrency(posList.reduce((s, p) => s + p.monthlyAllocation, 0), true)}</div>
+            <div className="psc-value">{formatCurrency(posList.reduce((s, p) => s + p.monthlyAllocation, 0))}</div>
             <div className="psc-sub">{posList.length} pos anggaran aktif</div>
           </div>
 
@@ -74,7 +74,7 @@ export default function BudgetPage() {
               <span className="psc-label">Total Terpakai</span>
             </div>
             <div className="psc-value" style={{ color: 'var(--danger)' }}>
-              {formatCurrency(posWithUsage.reduce((s, p) => s + p.used, 0), true)}
+              {formatCurrency(posWithUsage.reduce((s, p) => s + p.used, 0))}
             </div>
             <div className="psc-sub">
               {posList.reduce((s, p) => s + p.monthlyAllocation, 0) > 0
@@ -91,8 +91,7 @@ export default function BudgetPage() {
               <span className="psc-label">Total Sisa</span>
             </div>
             <div className="psc-value" style={{ color: posWithUsage.reduce((s, p) => s + p.remaining, 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-              {formatCurrency(Math.abs(posWithUsage.reduce((s, p) => s + p.remaining, 0)), true)}
-              {posWithUsage.reduce((s, p) => s + p.remaining, 0) < 0 ? ' (minus)' : ''}
+              {formatCurrency(Math.abs(posWithUsage.reduce((s, p) => s + p.remaining, 0)))}{posWithUsage.reduce((s, p) => s + p.remaining, 0) < 0 ? ' (minus)' : ''}
             </div>
             <div className="psc-sub">Sisa anggaran bulan ini</div>
           </div>
@@ -102,9 +101,9 @@ export default function BudgetPage() {
           {/* Left: Budget Pos List */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700 }}>Pos Anggaran ({posList.length})</h2>
-              <button className="btn btn-primary" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-                <Plus size={16} /> Tambah Pos
+              <h2 style={{ fontSize: 17, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Pos Anggaran ({posList.length})</h2>
+              <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
+                <Plus size={16} /> Tambah
               </button>
             </div>
 

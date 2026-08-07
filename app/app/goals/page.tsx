@@ -85,7 +85,7 @@ export default function GoalsPage() {
               <div className="psc-icon"><Target size={16} /></div>
               <span className="psc-label">Total Target</span>
             </div>
-            <div className="psc-value">{formatCurrency(totalTarget, true)}</div>
+            <div className="psc-value">{formatCurrency(totalTarget)}</div>
             <div className="psc-sub">{goals.length} target aktif</div>
           </div>
 
@@ -96,7 +96,7 @@ export default function GoalsPage() {
               <div className="psc-icon"><Coins size={16} /></div>
               <span className="psc-label">Total Terkumpul</span>
             </div>
-            <div className="psc-value">{formatCurrency(totalProgress, true)}</div>
+            <div className="psc-value">{formatCurrency(totalProgress)}</div>
             <div className="psc-sub">{totalTarget > 0 ? ((totalProgress / totalTarget) * 100).toFixed(0) : 0}% dari target</div>
           </div>
 
@@ -107,12 +107,12 @@ export default function GoalsPage() {
               <div className="psc-icon"><TrendingUp size={16} /></div>
               <span className="psc-label">Progress Keseluruhan</span>
             </div>
-            <div className="psc-value" style={{ fontSize: 17 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div className="progress-bar" style={{ flex: 1, height: 8, minWidth: 0 }}>
+            <div className="psc-value" style={{ fontSize: 17, whiteSpace: 'normal' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, width: '100%' }}>
+                <div className="progress-bar" style={{ flex: 1, height: 8, minWidth: 0, overflow: 'hidden' }}>
                   <div className="progress-fill" style={{ width: `${overallPct}%` }} />
                 </div>
-                <span style={{ flexShrink: 0, fontSize: 16 }}>{overallPct.toFixed(0)}%</span>
+                <span style={{ flexShrink: 0, fontSize: 16, fontWeight: 800 }}>{overallPct.toFixed(0)}%</span>
               </div>
             </div>
             <div className="psc-sub">{overallPct >= 100 ? '🎉 Semua target tercapai!' : 'Terus semangat menabung!'}</div>
@@ -122,10 +122,10 @@ export default function GoalsPage() {
         <div className="dashboard-grid">
           {/* Goals Grid */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700 }}>Target Saya ({goals.length})</h2>
-              <button className="btn btn-primary" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-                <Plus size={16} /> Tambah Target
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, gap: 8 }}>
+              <h2 style={{ fontSize: 17, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Target Saya ({goals.length})</h2>
+              <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
+                <Plus size={16} /> Tambah
               </button>
             </div>
 

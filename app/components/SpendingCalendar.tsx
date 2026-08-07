@@ -108,28 +108,49 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
 
   return (
     <div className="calendar-page-wrap">
-      {/* Summary Bar */}
-      <div className="calendar-summary-bar">
-        <div className="calendar-summary-item">
-          <span className="calendar-summary-label">
-            {todayExpense !== null ? 'Hari ini keluar' : 'Total bulan ini'}
-          </span>
-          <span className={`calendar-summary-value${(todayExpense ?? monthlyTotal) > 0 ? ' is-expense' : ''}`}>
-            Rp {new Intl.NumberFormat('id-ID').format(Math.floor(todayExpense !== null ? todayExpense : monthlyTotal))}
-          </span>
+      {/* Unified Stat Card — Calendar (blue accent) */}
+      <div className="page-stat-card" style={{
+        background: 'linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%)',
+        border: '1px solid #BFDBFE',
+        marginBottom: 16,
+        position: 'relative',
+      }}>
+        <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: '#2563EB', borderRadius: '4px 0 0 4px' }} />
+        <div className="psc-item">
+          <div className="psc-header">
+            <div className="psc-icon" style={{ background: 'rgba(37,99,235,0.12)', color: '#2563EB' }}>
+              <CalendarIcon size={16} />
+            </div>
+            <span className="psc-label" style={{ color: '#1D4ED8' }}>
+              {todayExpense !== null ? 'Hari ini keluar' : 'Total bulan ini'}
+            </span>
+          </div>
+          <div className="psc-value" style={{ color: (todayExpense ?? monthlyTotal) > 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+            {formatCurrency(todayExpense !== null ? todayExpense : monthlyTotal)}
+          </div>
+          <div className="psc-sub">{monthLabel}</div>
         </div>
-        <div className="calendar-summary-item">
-          <span className="calendar-summary-label">Rata-rata pengeluaran harian</span>
-          <span className={`calendar-summary-value${avgDaily > 0 ? ' is-expense' : ''}`}>
-            Rp {new Intl.NumberFormat('id-ID').format(Math.floor(avgDaily))}
-          </span>
+
+        <div className="psc-divider" />
+
+        <div className="psc-item">
+          <div className="psc-header">
+            <div className="psc-icon" style={{ background: 'rgba(37,99,235,0.12)', color: '#2563EB' }}>
+              <ChevronRight size={16} />
+            </div>
+            <span className="psc-label" style={{ color: '#1D4ED8' }}>Rata-rata Harian</span>
+          </div>
+          <div className="psc-value" style={{ color: avgDaily > 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
+            {avgDaily > 0 ? formatCurrency(avgDaily) : 'Rp 0'}
+          </div>
+          <div className="psc-sub">{daysWithExpense} hari ada pengeluaran</div>
         </div>
       </div>
 
       {/* Main Grid: Calendar Left, Detail Right (Desktop) */}
       <div className="calendar-main-grid">
         {/* Left Column: Calendar Card */}
-        <div className="card" style={{ padding: '20px' }}>
+        <div className="card" style={{ padding: '20px', overflow: 'hidden' }}>
           {/* Month Navigation */}
           <div className="calendar-nav" style={{ marginBottom: 16 }}>
             <button className="calendar-nav-btn" onClick={prevMonth} aria-label="Bulan sebelumnya">
@@ -247,7 +268,7 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
                         </div>
                         <div className="mobile-txn-right">
                           <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
-                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
+                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
                           </span>
                         </div>
                       </div>

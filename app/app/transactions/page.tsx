@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, ChevronLeft, ChevronRight, X, SlidersHorizontal } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, X, SlidersHorizontal, Hash, TrendingUp, TrendingDown } from 'lucide-react';
 import Header from '@/components/Header';
 import RecentTransactions from '@/components/RecentTransactions';
 import TransactionModal from '@/components/TransactionModal';
@@ -170,25 +170,43 @@ export default function TransactionsPage() {
       <Header title="Transaksi" subtitle="Kelola semua pemasukan dan pengeluaran" />
 
       <div className="page-container">
-        {/* Stats Row */}
-        <div className="stats-row-3">
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Transaksi</p>
-            <p className="font-700" style={{ fontSize: 22, color: 'var(--text-primary)', marginTop: 4 }}>
-              {filtered.length}
-            </p>
+        {/* Unified Stat Card — Transactions (indigo accent) */}
+        <div className="page-stat-card" style={{
+          background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
+          border: '1px solid #C7D2FE',
+          marginBottom: 20,
+          position: 'relative',
+        }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: 4, background: '#4F46E5', borderRadius: '4px 0 0 4px' }} />
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon" style={{ background: 'rgba(79,70,229,0.12)', color: '#4F46E5' }}><Hash size={16} /></div>
+              <span className="psc-label" style={{ color: '#4338CA' }}>Total Transaksi</span>
+            </div>
+            <div className="psc-value" style={{ color: '#3730A3' }}>{filtered.length}</div>
+            <div className="psc-sub">{showAllMonths ? 'semua waktu' : getMonthName(selectedYear, selectedMonth)}</div>
           </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Masuk</p>
-            <p className="font-700 amount-positive" style={{ fontSize: 22, marginTop: 4 }}>
-              +{formatCurrency(totalIn)}
-            </p>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669' }}><TrendingDown size={16} /></div>
+              <span className="psc-label" style={{ color: '#4338CA' }}>Total Masuk</span>
+            </div>
+            <div className="psc-value" style={{ color: 'var(--success)' }}>+{formatCurrency(totalIn)}</div>
+            <div className="psc-sub">{filtered.filter(t => t.type === 'masuk').length} transaksi</div>
           </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Keluar</p>
-            <p className="font-700 amount-negative" style={{ fontSize: 22, marginTop: 4 }}>
-              -{formatCurrency(totalOut)}
-            </p>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon" style={{ background: 'rgba(239,68,68,0.12)', color: '#DC2626' }}><TrendingUp size={16} /></div>
+              <span className="psc-label" style={{ color: '#4338CA' }}>Total Keluar</span>
+            </div>
+            <div className="psc-value" style={{ color: 'var(--danger)' }}>-{formatCurrency(totalOut)}</div>
+            <div className="psc-sub">{filtered.filter(t => t.type === 'keluar').length} transaksi</div>
           </div>
         </div>
 
