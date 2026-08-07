@@ -96,36 +96,38 @@ export default function RecentTransactions({
         {displayed.map(t => {
           const timeStr = t.createdAt ? new Date(t.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '';
           return (
-            <div className="mobile-txn-item" key={t.id}>
+            <div className="mobile-txn-item" key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minWidth: 0, overflow: 'hidden' }}>
               {/* LEFT: icon + info */}
-              <div className="mobile-txn-left">
-                <div className={`mobile-txn-icon ${t.type}`}>
+              <div className="mobile-txn-left" style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                <div className={`mobile-txn-icon ${t.type}`} style={{ flexShrink: 0 }}>
                   {t.type === 'masuk' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                 </div>
-                <div className="mobile-txn-info">
-                  <span className="mobile-txn-title">{t.note || t.category}</span>
-                  <span className="mobile-txn-meta">
+                <div className="mobile-txn-info" style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                  <span className="mobile-txn-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontSize: 13, fontWeight: 600, display: 'block' }}>
+                    {t.note || t.category}
+                  </span>
+                  <span className="mobile-txn-meta" style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {formatDate(t.date, 'short')}{timeStr ? ` • ${timeStr}` : ''}
                   </span>
-                  <span className={`chip ${t.type === 'masuk' ? 'chip-success' : 'chip-danger'}`} style={{ fontSize: 10, padding: '1px 6px', marginTop: 2, alignSelf: 'flex-start' }}>
+                  <span className={`chip ${t.type === 'masuk' ? 'chip-success' : 'chip-danger'}`} style={{ fontSize: 10, padding: '1px 6px', marginTop: 2, alignSelf: 'flex-start', flexShrink: 0 }}>
                     {t.category}
                   </span>
                 </div>
               </div>
               {/* RIGHT: amount + actions (compact) */}
-              <div className="mobile-txn-right">
-                <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
-                  {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+              <div className="mobile-txn-right" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3, flexShrink: 0, minWidth: 0 }}>
+                <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`} style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
                 </span>
                 {(onEdit || onDelete) && (
-                  <div style={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-end' }}>
+                  <div style={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-end', flexShrink: 0 }}>
                     {onEdit && (
-                      <button className="btn btn-ghost btn-icon btn-sm" style={{ width: 24, height: 24, minHeight: 'unset' }} onClick={() => onEdit(t)} title="Edit">
+                      <button className="btn btn-ghost btn-icon btn-sm" style={{ width: 24, height: 24, minHeight: 'unset', padding: 0 }} onClick={() => onEdit(t)} title="Edit">
                         <Pencil size={11} />
                       </button>
                     )}
                     {onDelete && (
-                      <button className="btn btn-danger btn-icon btn-sm" style={{ width: 24, height: 24, minHeight: 'unset' }} onClick={() => onDelete(t.id)} title="Hapus">
+                      <button className="btn btn-danger btn-icon btn-sm" style={{ width: 24, height: 24, minHeight: 'unset', padding: 0 }} onClick={() => onDelete(t.id)} title="Hapus">
                         <Trash2 size={11} />
                       </button>
                     )}
