@@ -256,7 +256,7 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
                       );
                     })()}
                     {selectedTxns.map(t => (
-                      <div key={t.id} className="mobile-txn-item" style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <div key={t.id} className="mobile-txn-item" style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexShrink: 0 }}>
                         <div className="mobile-txn-left" style={{ minWidth: 0, flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 8 }}>
                           <div className={`mobile-txn-icon ${t.type}`} style={{ flexShrink: 0 }}>
                             {t.type === 'masuk' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}

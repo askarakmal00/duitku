@@ -1394,6 +1394,7 @@ tr:hover td { background: var(--primary-50); }
   box-shadow: var(--shadow-sm);
   overflow: hidden; /* prevent child content from escaping */
   min-width: 0;
+  flex-shrink: 0; /* CRITICAL: never squish item height vertically in scrollable containers */
 }
 
 .mobile-txn-left {
@@ -2515,6 +2516,10 @@ canvas {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+}
+
+.calendar-detail-body > * {
+  flex-shrink: 0 !important;
 }
 
 /* Heatmap legend */
