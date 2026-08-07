@@ -256,19 +256,23 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
                       );
                     })()}
                     {selectedTxns.map(t => (
-                      <div key={t.id} className="mobile-txn-item">
-                        <div className="mobile-txn-left">
-                          <div className={`mobile-txn-icon ${t.type}`}>
+                      <div key={t.id} className="mobile-txn-item" style={{ minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                        <div className="mobile-txn-left" style={{ minWidth: 0, flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <div className={`mobile-txn-icon ${t.type}`} style={{ flexShrink: 0 }}>
                             {t.type === 'masuk' ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}
                           </div>
-                          <div className="mobile-txn-info">
-                            <span className="mobile-txn-title">{t.note || t.category}</span>
-                            <span className="mobile-txn-meta">{t.category}{t.subCategory ? ` · ${t.subCategory}` : ''}</span>
+                          <div className="mobile-txn-info" style={{ minWidth: 0, flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                            <span className="mobile-txn-title" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '100%', fontSize: 13, fontWeight: 600 }}>
+                              {t.note || t.category}
+                            </span>
+                            <span className="mobile-txn-meta" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'block', maxWidth: '100%', fontSize: 11, color: 'var(--text-muted)' }}>
+                              {t.category}{t.subCategory ? ` · ${t.subCategory}` : ''}
+                            </span>
                           </div>
                         </div>
-                        <div className="mobile-txn-right">
-                          <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
-                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+                        <div className="mobile-txn-right" style={{ flexShrink: 0, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`} style={{ fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
                           </span>
                         </div>
                       </div>
