@@ -93,37 +93,6 @@ export default function DashboardPage() {
       <Header title="Dashboard" subtitle="Ringkasan keuangan Anda bulan ini" />
 
       <div className="page-container">
-        {/* Mobile Quick Action Buttons Grid (Matching Reference Design) */}
-        <div className="quick-actions-grid">
-          <button className="quick-action-card" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-            <div className="quick-action-icon income">
-              <ArrowDownLeft size={20} />
-            </div>
-            <span className="quick-action-label">Pemasukan</span>
-          </button>
-
-          <button className="quick-action-card" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-            <div className="quick-action-icon expense">
-              <ArrowUpRight size={20} />
-            </div>
-            <span className="quick-action-label">Pengeluaran</span>
-          </button>
-
-          <a href="/wallet" className="quick-action-card">
-            <div className="quick-action-icon debt">
-              <CreditCard size={20} />
-            </div>
-            <span className="quick-action-label">Hutang</span>
-          </a>
-
-          <a href="/goals" className="quick-action-card">
-            <div className="quick-action-icon goal">
-              <Target size={20} />
-            </div>
-            <span className="quick-action-label">Goals</span>
-          </a>
-        </div>
-
         {/* Summary Cards */}
         <div className="summary-grid mb-5">
           <SummaryCard

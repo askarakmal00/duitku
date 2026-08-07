@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Plus, ChevronDown, ChevronUp, Trash2, CreditCard, Users, CheckCircle2 } from 'lucide-react';
 import Header from '@/components/Header';
 import DebtModal from '@/components/DebtModal';
 import {
@@ -78,25 +78,39 @@ export default function WalletPage() {
       <Header title="Hutang" subtitle="Kelola hutang ke berbagai pihak" />
 
       <div className="page-container">
-        {/* Total Summary */}
-        <div className="stats-row-3">
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Hutang</p>
-            <p className="font-700 amount-negative" style={{ fontSize: 24, marginTop: 4 }}>
-              {formatCurrency(totalDebt)}
-            </p>
+        {/* Unified Stat Card — Debt (rose accent) */}
+        <div className="page-stat-card debt">
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><CreditCard size={16} /></div>
+              <span className="psc-label">Total Hutang</span>
+            </div>
+            <div className="psc-value" style={{ color: 'var(--danger)' }}>{formatCurrency(totalDebt)}</div>
+            <div className="psc-sub">Sisa hutang belum lunas</div>
           </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Jumlah Pihak</p>
-            <p className="font-700" style={{ fontSize: 24, marginTop: 4, color: 'var(--text-primary)' }}>
-              {parties.length}
-            </p>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><Users size={16} /></div>
+              <span className="psc-label">Jumlah Pihak</span>
+            </div>
+            <div className="psc-value">{parties.length}</div>
+            <div className="psc-sub">Pihak terdaftar</div>
           </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Pihak Lunas</p>
-            <p className="font-700 amount-positive" style={{ fontSize: 24, marginTop: 4 }}>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><CheckCircle2 size={16} /></div>
+              <span className="psc-label">Pihak Lunas</span>
+            </div>
+            <div className="psc-value" style={{ color: 'var(--success)' }}>
               {parties.filter(p => getDebtBalance(p.id) <= 0).length}
-            </p>
+            </div>
+            <div className="psc-sub">Sudah lunas</div>
           </div>
         </div>
 

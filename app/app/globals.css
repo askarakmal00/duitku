@@ -1522,13 +1522,24 @@ tr:hover td { background: var(--primary-50); }
 .page-stat-card.analytics .psc-icon { background: rgba(13,148,136,0.12); color: #0D9488; }
 .page-stat-card.analytics .psc-value { color: #0F766E; }
 
+/* Debt — rose/red accent */
+.page-stat-card.debt {
+  background: linear-gradient(135deg, #FFF1F2 0%, #FFE4E6 100%);
+  border: 1px solid #FECDD3;
+}
+.page-stat-card.debt::before { background: #E11D48; }
+.page-stat-card.debt .psc-icon { background: rgba(225,29,72,0.12); color: #E11D48; }
+.page-stat-card.debt .psc-value { color: #BE123C; }
+
 /* Dark mode overrides */
 .dark .page-stat-card.goals { background: rgba(124,58,237,0.08); border-color: rgba(124,58,237,0.2); }
 .dark .page-stat-card.budget { background: rgba(217,119,6,0.08); border-color: rgba(217,119,6,0.2); }
 .dark .page-stat-card.analytics { background: rgba(13,148,136,0.08); border-color: rgba(13,148,136,0.2); }
+.dark .page-stat-card.debt { background: rgba(225,29,72,0.08); border-color: rgba(225,29,72,0.2); }
 .dark .page-stat-card.goals .psc-value { color: #A78BFA; }
 .dark .page-stat-card.budget .psc-value { color: #FCD34D; }
 .dark .page-stat-card.analytics .psc-value { color: #2DD4BF; }
+.dark .page-stat-card.debt .psc-value { color: #FB7185; }
 
 /* Analytics 2x2 variant */
 .page-stat-card.analytics-grid {
