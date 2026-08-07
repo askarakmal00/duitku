@@ -11,7 +11,7 @@ import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import TransactionModal from '@/components/TransactionModal';
 import {
   getTransactions, addTransaction, updateTransaction, deleteTransaction, getTotalBalance,
-  getMonthlyIncome, getMonthlyExpense, getTotalSavings,
+  getMonthlyIncome, getMonthlyExpense, getTotalSavings, getRemainingBudget, getFreeMoney,
   getBudgetPos, getBudgetUsed, getSavingGoals,
 } from '@/lib/store';
 import { Transaction, BudgetPos, SavingGoal } from '@/lib/types';
@@ -41,6 +41,9 @@ export default function DashboardPage() {
   useDataRefresh(loadData);
 
   const totalBalance = getTotalBalance();
+  const remainingBudget = getRemainingBudget(year, month);
+  const freeMoney = getFreeMoney(year, month);
+
   const income = getMonthlyIncome(year, month);
   const expense = getMonthlyExpense(year, month);
   const savings = getTotalSavings();
@@ -123,7 +126,13 @@ export default function DashboardPage() {
 
         {/* Summary Cards */}
         <div className="summary-grid mb-5">
-          <SummaryCard label="Total Saldo" value={totalBalance} variant="hero" />
+          <SummaryCard
+            label="Total Saldo"
+            value={totalBalance}
+            variant="hero"
+            freeMoney={freeMoney}
+            remainingBudget={remainingBudget}
+          />
           <SummaryCard label="Pemasukan (Bulan Ini)" value={income} prevValue={prevIncome} variant="income" />
           <SummaryCard label="Pengeluaran (Bulan Ini)" value={expense} prevValue={prevExpense} variant="expense" />
           <SummaryCard label="Total Tabungan" value={savings} variant="savings" />

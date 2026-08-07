@@ -768,6 +768,20 @@ export function getTotalBalance(): number {
     sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
 }
 
+export function getRemainingBudget(year: number, month: number): number {
+  const posList = getBudgetPos();
+  return posList.reduce((sum, p) => {
+    const used = getBudgetUsed(p.id, year, month);
+    return sum + Math.max(0, p.monthlyAllocation - used);
+  }, 0);
+}
+
+export function getFreeMoney(year: number, month: number): number {
+  const totalBalance = getTotalBalance();
+  const remainingBudget = getRemainingBudget(year, month);
+  return totalBalance - remainingBudget;
+}
+
 export function getMonthlyIncome(year: number, month: number): number {
   return getTransactions()
     .filter(t => {
