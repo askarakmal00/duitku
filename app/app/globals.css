@@ -1424,6 +1424,205 @@ tr:hover td { background: var(--primary-50); }
 }
 
 /* ─── Transactions Toolbar (Responsive) ──────────────────── */
+/* ─── Transactions Period Navigator ──────────────────────── */
+.txn-period-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0 16px;
+  border-bottom: 1px solid var(--divider);
+  margin-bottom: 20px;
+}
+
+.txn-period-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.txn-period-btn:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-50);
+}
+.txn-period-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.txn-period-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.txn-period-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+  text-transform: capitalize;
+}
+
+.txn-go-current {
+  font-size: 11px;
+  color: var(--primary);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  opacity: 0.8;
+  transition: opacity var(--transition);
+}
+.txn-go-current:hover { opacity: 1; }
+
+.txn-period-all {
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all var(--transition);
+}
+.txn-period-all:hover { border-color: var(--primary); color: var(--primary); }
+.txn-period-all.active { background: var(--primary); border-color: var(--primary); color: white; }
+
+/* ─── Advanced Filters Panel ──────────────────────────────── */
+.txn-advanced-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+  padding: 14px 16px;
+  background: var(--primary-50);
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border-light);
+  margin-bottom: 20px;
+  animation: fadeSlideDown 0.2s ease;
+}
+
+@keyframes fadeSlideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.txn-adv-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  flex: 1;
+}
+
+.txn-adv-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.txn-adv-select-wrap {
+  position: relative;
+}
+
+.txn-adv-select {
+  margin-bottom: 0 !important;
+  padding-right: 32px !important;
+  width: 100%;
+  font-size: 13px;
+}
+
+.txn-adv-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: none;
+  background: var(--text-muted);
+  color: white;
+  cursor: pointer;
+  opacity: 0.7;
+  transition: opacity var(--transition);
+  flex-shrink: 0;
+}
+.txn-adv-clear:hover { opacity: 1; }
+
+.txn-adv-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-style: italic;
+}
+
+.txn-reset-filters {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: var(--radius-xs);
+  border: 1.5px dashed var(--danger-light);
+  background: transparent;
+  color: var(--danger);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-end;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.txn-reset-filters:hover { background: var(--danger-bg); }
+
+/* Filter badge on the sliders button */
+.txn-filter-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: var(--warning);
+  color: white;
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1.5px solid var(--border);
+  color: var(--text-secondary);
+}
+.btn-ghost:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-50);
+}
+
 .transactions-toolbar {
   display: flex;
   justify-content: space-between;
