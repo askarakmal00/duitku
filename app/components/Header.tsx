@@ -33,7 +33,7 @@ export default function Header({ title, subtitle }: HeaderProps) {
         >
           <Menu size={20} />
         </button>
-        <div>
+        <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
           <h1>{title}</h1>
           <p>{subtitle || `Selamat datang, ${userName} · ${getMonthName(year, month)}`}</p>
         </div>
