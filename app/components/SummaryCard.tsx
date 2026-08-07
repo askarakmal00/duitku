@@ -57,7 +57,7 @@ export default function SummaryCard({
               <Sparkles size={11} className="hero-breakdown-icon free" /> Free Money:
             </span>
             <span className={`hero-breakdown-val ${freeMoney! < 0 ? 'negative' : 'positive'}`}>
-              {freeMoney! < 0 ? '-' : ''}Rp {new Intl.NumberFormat('id-ID').format(Math.abs(Math.floor(freeMoney!)))}
+              {freeMoney! < 0 ? '-' : ''}{formatCurrency(Math.abs(freeMoney!), true)}
             </span>
           </div>
           <div className="hero-breakdown-row">
@@ -65,7 +65,7 @@ export default function SummaryCard({
               <PieChart size={11} className="hero-breakdown-icon budget" /> Sisa Anggaran:
             </span>
             <span className="hero-breakdown-val">
-              Rp {new Intl.NumberFormat('id-ID').format(Math.floor(remainingBudget!))}
+              {formatCurrency(remainingBudget!, true)}
             </span>
           </div>
         </div>

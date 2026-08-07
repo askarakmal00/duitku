@@ -115,7 +115,7 @@ export default function RecentTransactions({
               {/* RIGHT: amount + actions (compact) */}
               <div className="mobile-txn-right">
                 <span className={`mobile-txn-amount ${t.type === 'masuk' ? 'amount-positive' : 'amount-negative'}`}>
-                  {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
+                  {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
                 </span>
                 {(onEdit || onDelete) && (
                   <div style={{ display: 'flex', gap: 2, alignItems: 'center', justifyContent: 'flex-end' }}>

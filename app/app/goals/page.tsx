@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus } from 'lucide-react';
+import { Plus, Target, Coins, TrendingUp } from 'lucide-react';
 import Header from '@/components/Header';
 import SavingGoalsList from '@/components/SavingGoalsList';
 import GoalModal from '@/components/GoalModal';
@@ -78,28 +78,44 @@ export default function GoalsPage() {
       <Header title="Target Tabungan" subtitle="Pantau progress menuju tujuan keuangan Anda" />
 
       <div className="page-container">
-        {/* Summary */}
-        <div className="stats-row-3">
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Target</p>
-            <p className="font-700" style={{ fontSize: 22, marginTop: 4, color: 'var(--primary)' }}>
-              {formatCurrency(totalTarget)}
-            </p>
-          </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Terkumpul</p>
-            <p className="font-700 amount-positive" style={{ fontSize: 22, marginTop: 4 }}>
-              {formatCurrency(totalProgress)}
-            </p>
-          </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Progress Keseluruhan</p>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
-              <div className="progress-bar" style={{ flex: 1, height: 10 }}>
-                <div className="progress-fill" style={{ width: `${overallPct}%` }} />
-              </div>
-              <span className="font-700" style={{ color: 'var(--primary)' }}>{overallPct.toFixed(0)}%</span>
+        {/* Unified Stat Card — Goals (violet accent) */}
+        <div className="page-stat-card goals">
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><Target size={16} /></div>
+              <span className="psc-label">Total Target</span>
             </div>
+            <div className="psc-value">{formatCurrency(totalTarget, true)}</div>
+            <div className="psc-sub">{goals.length} target aktif</div>
+          </div>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><Coins size={16} /></div>
+              <span className="psc-label">Total Terkumpul</span>
+            </div>
+            <div className="psc-value">{formatCurrency(totalProgress, true)}</div>
+            <div className="psc-sub">{totalTarget > 0 ? ((totalProgress / totalTarget) * 100).toFixed(0) : 0}% dari target</div>
+          </div>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><TrendingUp size={16} /></div>
+              <span className="psc-label">Progress Keseluruhan</span>
+            </div>
+            <div className="psc-value" style={{ fontSize: 17 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="progress-bar" style={{ flex: 1, height: 8, minWidth: 0 }}>
+                  <div className="progress-fill" style={{ width: `${overallPct}%` }} />
+                </div>
+                <span style={{ flexShrink: 0, fontSize: 16 }}>{overallPct.toFixed(0)}%</span>
+              </div>
+            </div>
+            <div className="psc-sub">{overallPct >= 100 ? '🎉 Semua target tercapai!' : 'Terus semangat menabung!'}</div>
           </div>
         </div>
 

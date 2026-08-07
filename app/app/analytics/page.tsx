@@ -5,6 +5,7 @@ import Header from '@/components/Header';
 import { getMonthlyFlowData, getTransactions } from '@/lib/store';
 import { formatCurrency, CHART_COLORS } from '@/lib/helpers';
 import { Transaction } from '@/lib/types';
+import { TrendingUp, TrendingDown, BarChart2, Percent } from 'lucide-react';
 
 Chart.register(...registerables);
 
@@ -52,7 +53,7 @@ function BarChart({ months }: { months: number }) {
           legend: {
             position: 'top',
             align: 'end',
-            labels: { usePointStyle: true, pointStyle: 'circle', font: { family: 'Inter', size: 12 }, color: '#6B7280', padding: 16 },
+            labels: { usePointStyle: true, pointStyle: 'circle', font: { family: 'Inter', size: 12 }, color: '#6B7280', padding: 12 },
           },
           tooltip: {
             backgroundColor: '#1E1B4B',
@@ -64,7 +65,7 @@ function BarChart({ months }: { months: number }) {
           },
         },
         scales: {
-          x: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 12 }, color: '#9CA3AF' } },
+          x: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#9CA3AF', maxRotation: 0 } },
           y: {
             border: { display: false },
             grid: { color: 'rgba(124,58,237,0.06)' },
@@ -76,7 +77,8 @@ function BarChart({ months }: { months: number }) {
     return () => { inst.current?.destroy(); };
   }, [months]);
 
-  return <div style={{ position: 'relative', height: 300 }}><canvas ref={ref} /></div>;
+  // Use chart-responsive-wrap for consistent responsive behavior
+  return <div className="chart-responsive-wrap"><canvas ref={ref} /></div>;
 }
 
 function PieChart({ data }: { data: { label: string; value: number }[] }) {
@@ -124,7 +126,7 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
     return () => { inst.current?.destroy(); };
   }, [data]);
 
-  return <div style={{ position: 'relative', height: 300 }}><canvas ref={ref} /></div>;
+  return <div className="chart-responsive-wrap"><canvas ref={ref} /></div>;
 }
 
 export default function AnalyticsPage() {
@@ -162,38 +164,37 @@ export default function AnalyticsPage() {
   const avgExpense = totalExpense / period;
   const savingRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
+  const stats = [
+    { label: 'Total Pemasukan', value: formatCurrency(totalIncome, true), icon: <TrendingUp size={16} />, color: '#0F766E' },
+    { label: 'Total Pengeluaran', value: formatCurrency(totalExpense, true), icon: <TrendingDown size={16} />, color: '#0F766E' },
+    { label: 'Rata-rata / Bulan', value: formatCurrency(avgIncome, true), icon: <BarChart2 size={16} />, color: '#0F766E' },
+    { label: `Saving Rate ${period}bln`, value: `${savingRate.toFixed(1)}%`, icon: <Percent size={16} />, color: savingRate >= 20 ? 'var(--success)' : 'var(--warning)' },
+  ];
+
   return (
     <>
       <Header title="Analitik" subtitle="Tren keuangan jangka panjang" />
 
       <div className="page-container">
-        {/* Stats Summary */}
-        <div className="summary-grid mb-5">
-          {[
-            { label: 'Total Pemasukan', value: totalIncome, color: 'var(--success)' },
-            { label: 'Total Pengeluaran', value: totalExpense, color: 'var(--danger)' },
-            { label: 'Rata-rata Pemasukan', value: avgIncome, color: 'var(--primary)' },
-            { label: `Saving Rate ${period}bln`, value: null, pct: savingRate },
-          ].map((item, i) => (
-            <div key={i} className="card" style={{ padding: '16px 20px' }}>
-              <p className="text-sm text-muted">{item.label}</p>
-              {item.value !== null ? (
-                <p style={{ fontSize: 20, fontWeight: 700, marginTop: 4, color: item.color }}>
-                  {formatCurrency(item.value!, true)}
-                </p>
-              ) : (
-                <p style={{ fontSize: 24, fontWeight: 800, marginTop: 4, color: (item.pct || 0) >= 20 ? 'var(--success)' : 'var(--warning)' }}>
-                  {(item.pct || 0).toFixed(1)}%
-                </p>
-              )}
+        {/* Unified Analytics Stat Card — 2x2 grid */}
+        <div className="page-stat-card analytics-grid" style={{ marginBottom: 24, padding: 0, border: '1px solid #99F6E4', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+          {stats.map((item, i) => (
+            <div key={i} className="psc-grid-item">
+              <div className="psc-header">
+                <div className="psc-icon" style={{ background: 'rgba(13,148,136,0.12)', color: '#0D9488' }}>
+                  {item.icon}
+                </div>
+                <span className="psc-label" style={{ color: '#0F766E' }}>{item.label}</span>
+              </div>
+              <div className="psc-value" style={{ color: item.color, fontSize: 16 }}>{item.value}</div>
             </div>
           ))}
         </div>
 
         <div className="analytics-grid">
           {/* Main Chart */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="card">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+            <div className="card" style={{ overflow: 'hidden' }}>
               <div className="card-header">
                 <span className="card-title">Arus Uang (Money Flow)</span>
                 <div style={{ display: 'flex', gap: 8 }}>
@@ -252,8 +253,8 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Right: Category Breakdown */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="card">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
+            <div className="card" style={{ overflow: 'hidden' }}>
               <div className="card-header">
                 <span className="card-title">Pengeluaran per Kategori</span>
                 <span className="text-xs text-muted">Bulan ini</span>
@@ -263,12 +264,12 @@ export default function AnalyticsPage() {
                   <PieChart data={catData} />
                   <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {catData.slice(0, 6).map((d, i) => (
-                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                          <span className="text-sm">{d.label}</span>
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1, overflow: 'hidden' }}>
+                          <div style={{ width: 10, height: 10, borderRadius: '50%', background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
+                          <span className="text-sm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
                         </div>
-                        <span className="font-600 text-sm">{formatCurrency(d.value, true)}</span>
+                        <span className="font-600 text-sm" style={{ flexShrink: 0, marginLeft: 8 }}>{formatCurrency(d.value, true)}</span>
                       </div>
                     ))}
                   </div>

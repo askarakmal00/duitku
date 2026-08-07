@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, AlertTriangle } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertTriangle, Wallet, BarChart2, Coins } from 'lucide-react';
 import Header from '@/components/Header';
 import BudgetDonut from '@/components/BudgetDonut';
 import BudgetModal from '@/components/BudgetModal';
@@ -55,25 +55,46 @@ export default function BudgetPage() {
       <Header title="Anggaran" subtitle="Kelola pos anggaran dan pantau penggunaannya" />
 
       <div className="page-container">
-        {/* Total Summary */}
-        <div className="stats-row-3">
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Alokasi</p>
-            <p className="font-700" style={{ fontSize: 22, marginTop: 4, color: 'var(--primary)' }}>
-              {formatCurrency(posList.reduce((s, p) => s + p.monthlyAllocation, 0))}
-            </p>
+        {/* Unified Stat Card — Budget (amber accent) */}
+        <div className="page-stat-card budget">
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><Wallet size={16} /></div>
+              <span className="psc-label">Total Alokasi</span>
+            </div>
+            <div className="psc-value">{formatCurrency(posList.reduce((s, p) => s + p.monthlyAllocation, 0), true)}</div>
+            <div className="psc-sub">{posList.length} pos anggaran aktif</div>
           </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Terpakai</p>
-            <p className="font-700 amount-negative" style={{ fontSize: 22, marginTop: 4 }}>
-              {formatCurrency(posWithUsage.reduce((s, p) => s + p.used, 0))}
-            </p>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><BarChart2 size={16} /></div>
+              <span className="psc-label">Total Terpakai</span>
+            </div>
+            <div className="psc-value" style={{ color: 'var(--danger)' }}>
+              {formatCurrency(posWithUsage.reduce((s, p) => s + p.used, 0), true)}
+            </div>
+            <div className="psc-sub">
+              {posList.reduce((s, p) => s + p.monthlyAllocation, 0) > 0
+                ? `${((posWithUsage.reduce((s, p) => s + p.used, 0) / posList.reduce((s, p) => s + p.monthlyAllocation, 0)) * 100).toFixed(0)}% dari alokasi`
+                : 'Belum ada pengeluaran'}
+            </div>
           </div>
-          <div className="card" style={{ padding: '16px 20px' }}>
-            <p className="text-sm text-muted">Total Sisa</p>
-            <p className="font-700 amount-positive" style={{ fontSize: 22, marginTop: 4 }}>
-              {formatCurrency(posWithUsage.reduce((s, p) => s + p.remaining, 0))}
-            </p>
+
+          <div className="psc-divider" />
+
+          <div className="psc-item">
+            <div className="psc-header">
+              <div className="psc-icon"><Coins size={16} /></div>
+              <span className="psc-label">Total Sisa</span>
+            </div>
+            <div className="psc-value" style={{ color: posWithUsage.reduce((s, p) => s + p.remaining, 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+              {formatCurrency(Math.abs(posWithUsage.reduce((s, p) => s + p.remaining, 0)), true)}
+              {posWithUsage.reduce((s, p) => s + p.remaining, 0) < 0 ? ' (minus)' : ''}
+            </div>
+            <div className="psc-sub">Sisa anggaran bulan ini</div>
           </div>
         </div>
 

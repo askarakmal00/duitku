@@ -246,12 +246,18 @@ body {
   position: sticky;
   top: 0;
   z-index: 50;
+  overflow: hidden; /* prevent children from causing horizontal scroll */
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .header-left {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;       /* critical: allow flex child to shrink below content size */
+  flex: 1;
+  overflow: hidden;
 }
 
 .header-left h1 {
@@ -259,18 +265,25 @@ body {
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-left p {
   font-size: 13px;
   color: var(--text-secondary);
   margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 8px;
+  flex-shrink: 0; /* never compress the icons/avatar */
 }
 
 .header-btn {
@@ -1281,6 +1294,7 @@ tr:hover td { background: var(--primary-50); }
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
   margin-bottom: 20px;
+  overflow: hidden; /* desktop: no overflow */
 }
 
 .quick-action-card {
@@ -1435,6 +1449,175 @@ tr:hover td { background: var(--primary-50); }
     gap: 10px;
     margin-bottom: 16px;
   }
+}
+
+/* ─── Unified Page Stat Card (Goals / Budget / Analytics) ─── */
+.page-stat-card {
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Accent strip on left side */
+.page-stat-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+}
+
+/* Goals — violet/purple accent */
+.page-stat-card.goals {
+  background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%);
+  border: 1px solid #DDD6FE;
+}
+.page-stat-card.goals::before { background: #7C3AED; }
+.page-stat-card.goals .psc-icon { background: rgba(124,58,237,0.12); color: #7C3AED; }
+.page-stat-card.goals .psc-value { color: #6D28D9; }
+
+/* Budget — amber/orange accent */
+.page-stat-card.budget {
+  background: linear-gradient(135deg, #FFFBEB 0%, #FEF3C7 100%);
+  border: 1px solid #FDE68A;
+}
+.page-stat-card.budget::before { background: #D97706; }
+.page-stat-card.budget .psc-icon { background: rgba(217,119,6,0.12); color: #D97706; }
+.page-stat-card.budget .psc-value { color: #B45309; }
+
+/* Analytics — teal accent */
+.page-stat-card.analytics {
+  background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%);
+  border: 1px solid #99F6E4;
+}
+.page-stat-card.analytics::before { background: #0D9488; }
+.page-stat-card.analytics .psc-icon { background: rgba(13,148,136,0.12); color: #0D9488; }
+.page-stat-card.analytics .psc-value { color: #0F766E; }
+
+/* Dark mode overrides */
+.dark .page-stat-card.goals { background: rgba(124,58,237,0.08); border-color: rgba(124,58,237,0.2); }
+.dark .page-stat-card.budget { background: rgba(217,119,6,0.08); border-color: rgba(217,119,6,0.2); }
+.dark .page-stat-card.analytics { background: rgba(13,148,136,0.08); border-color: rgba(13,148,136,0.2); }
+.dark .page-stat-card.goals .psc-value { color: #A78BFA; }
+.dark .page-stat-card.budget .psc-value { color: #FCD34D; }
+.dark .page-stat-card.analytics .psc-value { color: #2DD4BF; }
+
+/* Analytics 2x2 variant */
+.page-stat-card.analytics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+  background: #99F6E4;
+  border: 1px solid #99F6E4;
+  background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%);
+}
+.dark .page-stat-card.analytics-grid { background: rgba(13,148,136,0.08); border-color: rgba(13,148,136,0.2); }
+
+/* Stat item inside the card */
+.psc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  padding: 4px 0;
+  min-width: 0;
+}
+
+/* Vertical divider between stat items */
+.psc-divider {
+  width: 1px;
+  background: rgba(0,0,0,0.1);
+  margin: 0 20px;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+.dark .psc-divider { background: rgba(255,255,255,0.08); }
+
+.psc-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.psc-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.psc-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.psc-value {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.psc-sub {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Analytics 2x2 grid items */
+.psc-grid-item {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 14px 16px;
+  min-width: 0;
+  background: linear-gradient(135deg, #F0FDFA 0%, #CCFBF1 100%);
+}
+.dark .psc-grid-item { background: rgba(13,148,136,0.08); }
+.psc-grid-item:nth-child(1) { border-radius: var(--radius-sm) 0 0 0; }
+.psc-grid-item:nth-child(2) { border-radius: 0 var(--radius-sm) 0 0; border-left: 1px solid #99F6E4; }
+.psc-grid-item:nth-child(3) { border-radius: 0 0 0 var(--radius-sm); border-top: 1px solid #99F6E4; }
+.psc-grid-item:nth-child(4) { border-radius: 0 0 var(--radius-sm) 0; border-top: 1px solid #99F6E4; border-left: 1px solid #99F6E4; }
+.dark .psc-grid-item:nth-child(2), .dark .psc-grid-item:nth-child(4) { border-left-color: rgba(13,148,136,0.2); }
+.dark .psc-grid-item:nth-child(3), .dark .psc-grid-item:nth-child(4) { border-top-color: rgba(13,148,136,0.2); }
+
+/* Mobile: page-stat-card stacks */
+@media (max-width: 640px) {
+  .page-stat-card {
+    flex-direction: column;
+    padding: 16px;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .psc-divider { width: 100%; height: 1px; margin: 0; }
+  .psc-value { font-size: 17px; }
+  .page-stat-card.analytics-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+  .psc-grid-item { padding: 10px 12px; }
+  .psc-grid-item .psc-value { font-size: 14px; }
 }
 
 /* ─── Debt Actions & Header (Responsive) ──────────────────── */
@@ -1833,7 +2016,7 @@ tr:hover td { background: var(--primary-50); }
   }
 
   /* Page container */
-  .page-container { padding: 12px 10px; width: 100%; overflow-x: hidden; }
+  .page-container { padding: 12px 10px; width: 100%; overflow-x: hidden; max-width: 100%; }
 
   /* Header */
   .page-header { padding: 12px 10px; gap: 8px; }
@@ -1894,6 +2077,27 @@ tr:hover td { background: var(--primary-50); }
 
   /* Goals */
   .goal-item { gap: 4px; }
+
+  /* Quick Actions: horizontal scroll on mobile with snap */
+  .quick-actions-grid {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    padding-bottom: 4px;
+    padding-right: 20px; /* bleed to signal more content */
+    gap: 8px;
+    margin-right: -10px; /* compensate page padding */
+  }
+  .quick-actions-grid::-webkit-scrollbar { display: none; }
+  .quick-action-card {
+    flex: 0 0 21vw;
+    min-width: 68px;
+    max-width: 90px;
+    scroll-snap-align: start;
+  }
 }
 
 /* ─── Responsive: Very Small Mobile (e.g. iPhone SE / < 380px) ─── */
