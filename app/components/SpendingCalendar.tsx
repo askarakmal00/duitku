@@ -148,9 +148,9 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
       </div>
 
       {/* Main Grid: Calendar Left, Detail Right (Desktop) */}
-      <div className="calendar-main-grid">
+      <div className="calendar-main-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
         {/* Left Column: Calendar Card */}
-        <div className="card calendar-card-mobile" style={{ padding: '20px', overflow: 'hidden' }}>
+        <div className="card calendar-card-mobile" style={{ padding: '20px', overflow: 'hidden', minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
           {/* Month Navigation */}
           <div className="calendar-nav" style={{ marginBottom: 16 }}>
             <button className="calendar-nav-btn" onClick={prevMonth} aria-label="Bulan sebelumnya">

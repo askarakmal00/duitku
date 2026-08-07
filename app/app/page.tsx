@@ -109,14 +109,14 @@ export default function DashboardPage() {
 
 
         {/* Main Grid */}
-        <div className="dashboard-grid">
+        <div className="dashboard-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           {/* Left Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
             {/* Money Flow */}
             <div className="card">
-              <div className="card-header">
-                <span className="card-title">Arus Uang (Money Flow)</span>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div className="card-header" style={{ minWidth: 0 }}>
+                <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Arus Uang (Money Flow)</span>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
                   <span className="text-sm text-muted">7 bulan terakhir</span>
                 </div>
               </div>
@@ -125,9 +125,9 @@ export default function DashboardPage() {
 
             {/* Recent Transactions */}
             <div className="card">
-              <div className="card-header">
-                <span className="card-title">Transaksi Terbaru</span>
-                <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+              <div className="card-header" style={{ minWidth: 0 }}>
+                <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaksi Terbaru</span>
+                <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
                   <button className="btn btn-primary btn-sm" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
                     <Plus size={14} /> Tambah
                   </button>
@@ -143,21 +143,21 @@ export default function DashboardPage() {
           </div>
 
           {/* Right Column */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
             {/* Budget */}
             <div className="card">
-              <div className="card-header">
-                <span className="card-title">Anggaran</span>
-                <a href="/budget" className="card-action">Lihat semua →</a>
+              <div className="card-header" style={{ minWidth: 0 }}>
+                <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Anggaran</span>
+                <a href="/budget" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
               </div>
               <BudgetDonut items={budgetItems} />
             </div>
 
             {/* Saving Goals */}
             <div className="card">
-              <div className="card-header">
-                <span className="card-title">Target Tabungan</span>
-                <a href="/goals" className="card-action">Lihat semua →</a>
+              <div className="card-header" style={{ minWidth: 0 }}>
+                <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Target Tabungan</span>
+                <a href="/goals" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
               </div>
               <SavingGoalsList goals={goals.slice(0, 4)} />
             </div>

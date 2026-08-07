@@ -333,6 +333,11 @@ body {
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   padding: 24px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: hidden;
   transition: background var(--transition), box-shadow var(--transition);
 }
 
@@ -1300,6 +1305,7 @@ tr:hover td { background: var(--primary-50); }
 
   .summary-grid { grid-template-columns: repeat(2, 1fr); }
   .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; }
+  .dashboard-grid > div { min-width: 0; max-width: 100%; }
   .grid-3 { grid-template-columns: repeat(2, 1fr); }
 
   .page-container { padding: 20px 16px; }
@@ -1456,6 +1462,26 @@ tr:hover td { background: var(--primary-50); }
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+}
+
+/* ─── Chart Canvas Container Bounds ────────────────────────── */
+canvas {
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.chart-responsive-wrap {
+  position: relative;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  height: 240px;
+  overflow: hidden !important;
+}
+
+.chart-responsive-wrap canvas {
+  width: 100% !important;
+  max-width: 100% !important;
 }
 
 /* ─── Stats Row 3 Columns (Responsive) ───────────────────── */
@@ -2065,7 +2091,8 @@ tr:hover td { background: var(--primary-50); }
 
   /* Grids collapse to single column */
   .summary-grid { grid-template-columns: 1fr; gap: 10px; }
-  .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; gap: 14px; }
+  .dashboard-grid, .analytics-grid { grid-template-columns: 1fr; gap: 14px; width: 100%; max-width: 100%; min-width: 0; }
+  .dashboard-grid > div { min-width: 0; max-width: 100%; width: 100%; }
   .grid-2 { grid-template-columns: 1fr; gap: 14px; }
   .grid-3 { grid-template-columns: 1fr; gap: 14px; }
   .grid-4 { grid-template-columns: 1fr 1fr; gap: 8px; }
