@@ -79,7 +79,8 @@
 
 html {
   scroll-behavior: smooth;
-  overflow-x: hidden; /* CRITICAL: page cannot be wider than viewport */
+  overflow-x: hidden !important; /* CRITICAL: page cannot be wider than viewport */
+  max-width: 100vw !important;
 }
 
 body {
@@ -90,8 +91,9 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   transition: background var(--transition), color var(--transition);
-  overflow-x: hidden; /* CRITICAL: prevent any child from causing horizontal scroll */
-  max-width: 100vw;
+  overflow-x: hidden !important; /* CRITICAL: prevent any child from causing horizontal scroll */
+  max-width: 100vw !important;
+  position: relative;
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────── */
@@ -1443,7 +1445,8 @@ tr:hover td { background: var(--primary-50); }
   align-items: flex-end;
   gap: 3px;
   flex-shrink: 0;
-  max-width: 45%; /* never let right side eat more than half the row */
+  max-width: 55%;
+  min-width: 0;
 }
 
 .mobile-txn-amount {
@@ -2312,7 +2315,7 @@ tr:hover td { background: var(--primary-50); }
 
 .calendar-cell:hover {
   border-color: var(--primary-300);
-  transform: scale(1.04);
+  background: var(--primary-50);
   z-index: 1;
 }
 
@@ -2455,6 +2458,8 @@ tr:hover td { background: var(--primary-50); }
 
 /* Responsive calendar */
 @media (max-width: 640px) {
+  .calendar-card-mobile { padding: 12px 8px !important; }
+
   .calendar-summary-bar {
     grid-template-columns: 1fr;
     gap: 8px;
@@ -2462,20 +2467,23 @@ tr:hover td { background: var(--primary-50); }
   .calendar-summary-item { padding: 12px 14px; }
   .calendar-summary-value { font-size: 18px; }
 
-  .calendar-grid { gap: 3px; }
+  .calendar-grid { gap: 2px !important; }
 
   .calendar-cell {
-    min-height: 40px;
+    min-height: 36px !important;
     border-radius: 6px;
-    padding: 2px 1px;
+    padding: 2px 1px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 
-  .calendar-date-num { font-size: 11px; }
-  .calendar-cell-amount { font-size: 9px; }
+  .calendar-date-num { font-size: 10px !important; }
+  .calendar-cell-amount { font-size: 8.5px !important; }
 }
 
 @media (max-width: 380px) {
-  .calendar-cell { min-height: 34px; }
-  .calendar-date-num { font-size: 10px; }
-  .calendar-cell-amount { display: none; } /* too small, hide amount but keep heatmap color */
+  .calendar-cell { min-height: 32px !important; }
+  .calendar-date-num { font-size: 9.5px !important; }
+  .calendar-cell-amount { display: none !important; } /* too small, hide text amount but keep heatmap background color */
 }

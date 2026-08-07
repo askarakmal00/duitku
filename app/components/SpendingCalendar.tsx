@@ -150,7 +150,7 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
       {/* Main Grid: Calendar Left, Detail Right (Desktop) */}
       <div className="calendar-main-grid">
         {/* Left Column: Calendar Card */}
-        <div className="card" style={{ padding: '20px', overflow: 'hidden' }}>
+        <div className="card calendar-card-mobile" style={{ padding: '20px', overflow: 'hidden' }}>
           {/* Month Navigation */}
           <div className="calendar-nav" style={{ marginBottom: 16 }}>
             <button className="calendar-nav-btn" onClick={prevMonth} aria-label="Bulan sebelumnya">

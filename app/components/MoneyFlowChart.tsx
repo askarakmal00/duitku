@@ -54,13 +54,15 @@ export default function MoneyFlowChart({ months = 7 }: MoneyFlowChartProps) {
         plugins: {
           legend: {
             position: 'top',
-            align: 'end',
+            align: typeof window !== 'undefined' && window.innerWidth < 640 ? 'center' : 'end',
             labels: {
               usePointStyle: true,
               pointStyle: 'circle',
-              font: { family: 'Inter', size: 12, weight: 500 as const },
+              boxWidth: 8,
+              boxHeight: 8,
+              font: { family: 'Inter', size: 11, weight: 500 as const },
               color: '#6B7280',
-              padding: 16,
+              padding: 8,
             },
           },
           tooltip: {
