@@ -781,6 +781,65 @@ body {
 .type-option.keluar.selected { background: var(--danger-bg); border-color: var(--danger); }
 .type-option:hover { border-color: var(--primary); }
 
+/* ─── Budget Pos Button Selector ──────────────────────────── */
+.budget-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.budget-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--border);
+  background: var(--card);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.budget-btn:hover {
+  border-color: var(--primary-light);
+  background: var(--primary-50);
+}
+
+.budget-btn.selected {
+  background: var(--primary-50);
+  border-color: var(--primary);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.15);
+}
+
+.budget-btn-check {
+  color: var(--primary);
+  flex-shrink: 0;
+}
+
+.dark .budget-btn {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.dark .budget-btn:hover {
+  border-color: var(--primary-light);
+  background: var(--primary-100);
+}
+
+.dark .budget-btn.selected {
+  background: var(--primary-100);
+  border-color: var(--primary-light);
+  color: var(--text-primary);
+}
+
 /* ─── Table ──────────────────────────────────────────────── */
 .table-wrap {
   overflow-x: auto;
@@ -2454,6 +2513,48 @@ canvas {
 .dark .calendar-cell.heat-1 { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.2); }
 .dark .calendar-cell.heat-2 { background: rgba(124,58,237,0.25); border-color: rgba(124,58,237,0.35); }
 .dark .calendar-cell.heat-3 { background: #6D28D9; border-color: #7C3AED; }
+
+.calendar-cell-amount.is-positive {
+  color: #059669;
+  font-weight: 700;
+}
+.calendar-cell.heat-3 .calendar-cell-amount.is-positive {
+  color: #A7F3D0 !important;
+}
+
+/* Income heatmap levels (Green surplus) */
+.calendar-cell.heat-income-1 {
+  background: #ECFDF5;
+  border-color: #A7F3D0;
+}
+.calendar-cell.heat-income-1 .calendar-date-num { color: #047857; }
+.calendar-cell.heat-income-1 .calendar-cell-amount { color: #059669; }
+
+.calendar-cell.heat-income-2 {
+  background: #D1FAE5;
+  border-color: #6EE7B7;
+}
+.calendar-cell.heat-income-2 .calendar-date-num { color: #065F46; }
+.calendar-cell.heat-income-2 .calendar-cell-amount { color: #047857; }
+
+.calendar-cell.heat-income-3 {
+  background: #10B981;
+  border-color: #059669;
+}
+.calendar-cell.heat-income-3 .calendar-date-num { color: white; }
+.calendar-cell.heat-income-3 .calendar-cell-amount { color: white; }
+
+.dark .calendar-cell.heat-income-1 { background: rgba(16, 185, 129, 0.15); border-color: rgba(16, 185, 129, 0.3); }
+.dark .calendar-cell.heat-income-1 .calendar-date-num { color: #34D399; }
+.dark .calendar-cell.heat-income-1 .calendar-cell-amount { color: #34D399; }
+
+.dark .calendar-cell.heat-income-2 { background: rgba(16, 185, 129, 0.3); border-color: rgba(16, 185, 129, 0.45); }
+.dark .calendar-cell.heat-income-2 .calendar-date-num { color: #6EE7B7; }
+.dark .calendar-cell.heat-income-2 .calendar-cell-amount { color: #A7F3D0; }
+
+.dark .calendar-cell.heat-income-3 { background: #059669; border-color: #10B981; }
+.dark .calendar-cell.heat-income-3 .calendar-date-num { color: white; }
+.dark .calendar-cell.heat-income-3 .calendar-cell-amount { color: white; }
 
 /* Calendar detail panel */
 .calendar-detail-col, .calendar-detail-panel {

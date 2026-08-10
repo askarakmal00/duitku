@@ -33,7 +33,8 @@ git push -u origin main
 6. Buka **Project Settings → API**:
    - Copy **Project URL** → ini adalah `NEXT_PUBLIC_SUPABASE_URL`
    - Copy **anon/public key** → ini adalah `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-
+   
+DB PASSWORD: U8ky1NH22bKzQDmX
 ---
 
 ## Langkah 3: Deploy ke Vercel

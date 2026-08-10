@@ -56,6 +56,6 @@ export interface AppSettings {
   darkMode: boolean;
 }
 
-export const DEFAULT_INCOME_CATEGORIES = ['Gaji', 'Tabungan', 'Hutang', 'Lainnya'];
-export const DEFAULT_EXPENSE_CATEGORIES = ['Pengeluaran', 'Tabungan', 'Hutang', 'Lainnya'];
-export const SUB_CATEGORIES = ['Makan', 'Transport', 'Tagihan', 'Kebutuhan Rumah Tangga', 'Kesehatan', 'Lainnya'];
+export const DEFAULT_INCOME_CATEGORIES = ['Gaji', 'Bonus', 'Investasi', 'Tabungan', 'Hutang', 'Lainnya'];
+export const DEFAULT_EXPENSE_CATEGORIES = ['Makan', 'Transport', 'Tagihan', 'Kebutuhan Rumah Tangga', 'Kesehatan', 'Hiburan', 'Belanja', 'Tabungan', 'Hutang', 'Lainnya'];
+

@@ -1,17 +1,23 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { ChevronLeft, ChevronRight, X, ArrowUpRight, ArrowDownLeft, Calendar as CalendarIcon } from 'lucide-react';
-import { getDailyExpenseMap, getTransactionsByDate, getMonthlyExpense } from '@/lib/store';
+import { getDailyNetMap, DailyNetSummary, getTransactionsByDate, getMonthlyExpense } from '@/lib/store';
 import { Transaction } from '@/lib/types';
 import { formatCurrency, formatDate, getCurrentMonth } from '@/lib/helpers';
 
 const DAY_HEADERS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
-/** Compact amount formatter for calendar cells (e.g. 45000 → "45rb", 1500000 → "1,5jt") */
+/** Compact amount formatter for calendar cells (e.g. +400000 → "+400rb", -216800 → "-217rb") */
 function compactAmount(amount: number): string {
-  if (amount >= 1_000_000) return (amount / 1_000_000).toFixed(1).replace('.0', '') + 'jt';
-  if (amount >= 1_000) return Math.round(amount / 1_000) + 'rb';
-  return String(amount);
+  const abs = Math.abs(amount);
+  let str = '';
+  if (abs >= 1_000_000) str = (abs / 1_000_000).toFixed(1).replace('.0', '') + 'jt';
+  else if (abs >= 1_000) str = Math.round(abs / 1_000) + 'rb';
+  else str = String(abs);
+
+  if (amount > 0) return '+' + str;
+  if (amount < 0) return '-' + str;
+  return '0';
 }
 
 /** Determine heatmap level based on amount */
@@ -42,12 +48,12 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
   const now = getCurrentMonth();
   const [viewYear, setViewYear] = useState(now.year);
   const [viewMonth, setViewMonth] = useState(now.month);
-  const [expenseMap, setExpenseMap] = useState<Record<string, number>>({});
+  const [netMap, setNetMap] = useState<Record<string, DailyNetSummary>>({});
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [selectedTxns, setSelectedTxns] = useState<Transaction[]>([]);
 
   const loadData = useCallback(() => {
-    setExpenseMap(getDailyExpenseMap(viewYear, viewMonth));
+    setNetMap(getDailyNetMap(viewYear, viewMonth));
   }, [viewYear, viewMonth]);
 
   useEffect(() => {
@@ -57,16 +63,19 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
     return () => window.removeEventListener('pf_data_changed', handler);
   }, [loadData]);
 
-  const maxExpense = Math.max(0, ...Object.values(expenseMap));
+  const netSummaries = Object.values(netMap);
+  const maxNetExpense = Math.max(0, ...netSummaries.map(s => Math.max(0, -s.net)));
+  const maxNetIncome = Math.max(0, ...netSummaries.map(s => Math.max(0, s.net)));
+
   const monthlyTotal = getMonthlyExpense(viewYear, viewMonth);
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
-  const daysWithExpense = Object.values(expenseMap).filter(v => v > 0).length;
+  const daysWithExpense = netSummaries.filter(s => s.expense > 0).length;
   const avgDaily = daysWithExpense > 0 ? monthlyTotal / daysWithExpense : 0;
 
-  // Today's expense
+  // Today's net
   const todayStr = new Date().toISOString().slice(0, 10);
-  const todayExpense = new Date().getFullYear() === viewYear && (new Date().getMonth() + 1) === viewMonth
-    ? (expenseMap[todayStr] || 0)
+  const todaySummary = new Date().getFullYear() === viewYear && (new Date().getMonth() + 1) === viewMonth
+    ? (netMap[todayStr] || null)
     : null;
 
   const monthLabel = new Date(viewYear, viewMonth - 1, 1)
@@ -122,11 +131,14 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
               <CalendarIcon size={16} />
             </div>
             <span className="psc-label" style={{ color: '#1D4ED8' }}>
-              {todayExpense !== null ? 'Hari ini keluar' : 'Total bulan ini'}
+              {todaySummary ? 'Hari ini (Net)' : 'Total Pengeluaran Bulan ini'}
             </span>
           </div>
-          <div className="psc-value" style={{ color: (todayExpense ?? monthlyTotal) > 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
-            {formatCurrency(todayExpense !== null ? todayExpense : monthlyTotal)}
+          <div className="psc-value" style={{ color: todaySummary ? (todaySummary.net >= 0 ? 'var(--success)' : 'var(--danger)') : (monthlyTotal > 0 ? 'var(--danger)' : 'var(--text-primary)') }}>
+            {todaySummary
+              ? `${todaySummary.net >= 0 ? '+' : ''}${formatCurrency(todaySummary.net)}`
+              : formatCurrency(monthlyTotal)
+            }
           </div>
           <div className="psc-sub">{monthLabel}</div>
         </div>
@@ -164,12 +176,13 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
 
           {/* Heatmap Legend */}
           <div className="calendar-legend" style={{ marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Intensitas:</span>
+            <span style={{ fontSize: 11, color: 'var(--text-muted)', marginRight: 4 }}>Surplus / Defisit:</span>
             {[
-              { cls: 'heat-0', bg: 'var(--bg-secondary)', label: 'Tidak ada' },
-              { cls: 'heat-1', bg: '#F5F3FF', label: 'Kecil' },
-              { cls: 'heat-2', bg: '#EDE9FE', label: 'Sedang' },
-              { cls: 'heat-3', bg: '#7C3AED', label: 'Besar' },
+              { bg: '#D1FAE5', label: '+Surplus' },
+              { bg: 'var(--bg-secondary)', label: 'Tidak ada' },
+              { bg: '#F5F3FF', label: '-Kecil' },
+              { bg: '#EDE9FE', label: '-Sedang' },
+              { bg: '#7C3AED', label: '-Besar' },
             ].map(({ bg, label }) => (
               <div key={label} className="calendar-legend-item">
                 <div className="calendar-legend-dot" style={{ background: bg, border: '1px solid var(--border)' }} />
@@ -190,20 +203,34 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
                 return <div key={`empty-${idx}`} className="calendar-cell empty" />;
               }
               const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-              const amount = expenseMap[dateStr] || 0;
-              const heat = heatLevel(amount, maxExpense);
+              const daySummary = netMap[dateStr] || { net: 0, income: 0, expense: 0, count: 0 };
+              const { net, count } = daySummary;
+
+              let heatCls = 'heat-0';
+              if (count > 0 && net !== 0) {
+                if (net > 0) {
+                  const heat = heatLevel(net, maxNetIncome);
+                  heatCls = `heat-income-${heat}`;
+                } else {
+                  const heat = heatLevel(Math.abs(net), maxNetExpense);
+                  heatCls = `heat-${heat}`;
+                }
+              }
+
               const isToday = isCurrentMonth && day === todayDay;
               const isSelected = selectedDate === dateStr;
 
-              let cls = `calendar-cell heat-${heat}`;
+              let cls = `calendar-cell ${heatCls}`;
               if (isToday) cls += ' today';
               if (isSelected) cls += ' selected';
 
               return (
                 <div key={dateStr} className={cls} onClick={() => handleCellClick(day)}>
                   <span className="calendar-date-num">{day}</span>
-                  {amount > 0 && (
-                    <span className="calendar-cell-amount">{compactAmount(amount)}</span>
+                  {count > 0 && net !== 0 && (
+                    <span className={`calendar-cell-amount ${net > 0 ? 'is-positive' : 'is-negative'}`}>
+                      {compactAmount(net)}
+                    </span>
                   )}
                 </div>
               );

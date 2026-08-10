@@ -144,11 +144,9 @@ export default function SettingsPage() {
                         )}
                       </td>
                       <td>
-                        {!cat.isDefault && (
-                          <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleDeleteCat(cat.id)}>
-                            <Trash2 size={14} />
-                          </button>
-                        )}
+                        <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleDeleteCat(cat.id)} title="Hapus Kategori">
+                          <Trash2 size={14} />
+                        </button>
                       </td>
                     </tr>
                   ))}

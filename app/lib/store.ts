@@ -704,10 +704,16 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c1', name: 'Gaji', type: 'masuk', isDefault: true },
   { id: 'c2', name: 'Bonus', type: 'masuk', isDefault: true },
   { id: 'c3', name: 'Investasi', type: 'masuk', isDefault: true },
-  { id: 'c4', name: 'Tabungan', type: 'both', isDefault: true },
-  { id: 'c5', name: 'Pengeluaran', type: 'keluar', isDefault: true },
-  { id: 'c6', name: 'Hutang', type: 'both', isDefault: true },
-  { id: 'c7', name: 'Lainnya', type: 'both', isDefault: true },
+  { id: 'c4', name: 'Makan', type: 'keluar', isDefault: true },
+  { id: 'c5', name: 'Transport', type: 'keluar', isDefault: true },
+  { id: 'c6', name: 'Tagihan', type: 'keluar', isDefault: true },
+  { id: 'c7', name: 'Kebutuhan Rumah Tangga', type: 'keluar', isDefault: true },
+  { id: 'c8', name: 'Kesehatan', type: 'keluar', isDefault: true },
+  { id: 'c9', name: 'Hiburan', type: 'keluar', isDefault: true },
+  { id: 'c10', name: 'Belanja', type: 'keluar', isDefault: true },
+  { id: 'c11', name: 'Tabungan', type: 'both', isDefault: true },
+  { id: 'c12', name: 'Hutang', type: 'both', isDefault: true },
+  { id: 'c13', name: 'Lainnya', type: 'both', isDefault: true },
 ];
 
 export function getCategories(): Category[] {
@@ -733,7 +739,7 @@ export async function addCategory(data: Omit<Category, 'id'>): Promise<Category>
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  save(KEYS.categories, getCategories().filter(c => c.id !== id || c.isDefault));
+  save(KEYS.categories, getCategories().filter(c => c.id !== id));
   try {
     await supabase.from('categories').delete().eq('id', id);
   } catch {}
@@ -825,6 +831,38 @@ export function getMonthlyFlowData(months: number = 7): { labels: string[]; inco
 }
 
 // ─── Calendar / Daily Expense Helpers ─────────────────────────
+export interface DailyNetSummary {
+  net: number;
+  income: number;
+  expense: number;
+  count: number;
+}
+
+/**
+ * Returns a map of dateStr (YYYY-MM-DD) → net cash flow summary for the given month.
+ * Net = income - expense.
+ */
+export function getDailyNetMap(year: number, month: number): Record<string, DailyNetSummary> {
+  const map: Record<string, DailyNetSummary> = {};
+  getTransactions().forEach(t => {
+    const d = new Date(t.date);
+    if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
+    const key = t.date.slice(0, 10); // YYYY-MM-DD
+    if (!map[key]) {
+      map[key] = { net: 0, income: 0, expense: 0, count: 0 };
+    }
+    map[key].count += 1;
+    if (t.type === 'masuk') {
+      map[key].income += t.amount;
+      map[key].net += t.amount;
+    } else {
+      map[key].expense += t.amount;
+      map[key].net -= t.amount;
+    }
+  });
+  return map;
+}
+
 /**
  * Returns a map of dateStr (YYYY-MM-DD) → total pengeluaran for the given month.
  * Only includes expense transactions.

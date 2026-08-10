@@ -1,10 +1,9 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import { Transaction, SUB_CATEGORIES } from '@/lib/types';
+import { X, Check } from 'lucide-react';
+import { Transaction, BudgetPos, SavingGoal, Category } from '@/lib/types';
 import { getCategories, getBudgetPos, getSavingGoals } from '@/lib/store';
 import { toInputDate } from '@/lib/helpers';
-import { BudgetPos, SavingGoal, Category } from '@/lib/types';
 
 interface TransactionModalProps {
   existing?: Transaction;
@@ -15,7 +14,6 @@ interface TransactionModalProps {
 export default function TransactionModal({ existing, onSave, onClose }: TransactionModalProps) {
   const [type, setType] = useState<'masuk' | 'keluar'>(existing?.type || 'keluar');
   const [category, setCategory] = useState(existing?.category || '');
-  const [subCategory, setSubCategory] = useState(existing?.subCategory || '');
   const [budgetPosId, setBudgetPosId] = useState(existing?.budgetPosId || '');
   const [goalId, setGoalId] = useState(existing?.goalId || '');
   const [amount, setAmount] = useState(existing?.amount?.toString() || '');
@@ -54,7 +52,6 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     onSave({
       type,
       category,
-      subCategory: category === 'Pengeluaran' ? subCategory : undefined,
       budgetPosId: budgetPosId || undefined,
       goalId: goalId || undefined,
       amount: numAmount,
@@ -135,35 +132,30 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
               </select>
             </div>
 
-            {category === 'Pengeluaran' && (
-              <div className="form-group">
-                <label className="form-label">Sub-kategori</label>
-                <select
-                  className="form-select"
-                  value={subCategory}
-                  onChange={e => setSubCategory(e.target.value)}
-                >
-                  <option value="">Pilih sub-kategori...</option>
-                  {SUB_CATEGORIES.map(s => (
-                    <option key={s} value={s}>{s}</option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {type === 'keluar' && budgetPosList.length > 0 && (
+            {type === 'keluar' && (
               <div className="form-group">
                 <label className="form-label">Pos Anggaran</label>
-                <select
-                  className="form-select"
-                  value={budgetPosId}
-                  onChange={e => setBudgetPosId(e.target.value)}
-                >
-                  <option value="">Tidak ada / Umum</option>
+                <div className="budget-selector">
+                  <button
+                    type="button"
+                    className={`budget-btn ${!budgetPosId ? 'selected' : ''}`}
+                    onClick={() => setBudgetPosId('')}
+                  >
+                    {!budgetPosId && <Check size={14} className="budget-btn-check" />}
+                    <span>Tanpa Anggaran / Umum</span>
+                  </button>
                   {budgetPosList.map(p => (
-                    <option key={p.id} value={p.id}>{p.name}</option>
+                    <button
+                      key={p.id}
+                      type="button"
+                      className={`budget-btn ${budgetPosId === p.id ? 'selected' : ''}`}
+                      onClick={() => setBudgetPosId(p.id)}
+                    >
+                      {budgetPosId === p.id && <Check size={14} className="budget-btn-check" />}
+                      <span>{p.name}</span>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             )}
 
@@ -211,3 +203,4 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     </div>
   );
 }
+

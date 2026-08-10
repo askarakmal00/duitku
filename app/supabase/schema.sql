@@ -80,8 +80,14 @@ insert into categories (name, type, is_default) values
   ('Gaji', 'masuk', true),
   ('Bonus', 'masuk', true),
   ('Investasi', 'masuk', true),
+  ('Makan', 'keluar', true),
+  ('Transport', 'keluar', true),
+  ('Tagihan', 'keluar', true),
+  ('Kebutuhan Rumah Tangga', 'keluar', true),
+  ('Kesehatan', 'keluar', true),
+  ('Hiburan', 'keluar', true),
+  ('Belanja', 'keluar', true),
   ('Tabungan', 'both', true),
-  ('Pengeluaran', 'keluar', true),
   ('Hutang', 'both', true),
   ('Lainnya', 'both', true)
 on conflict do nothing;
