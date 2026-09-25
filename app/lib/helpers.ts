@@ -1,6 +1,9 @@
 export function formatCurrency(amount: number, compact = false): string {
   if (compact && Math.abs(amount) >= 1_000_000) {
-    return 'Rp ' + (amount / 1_000_000).toFixed(1) + 'jt';
+    return 'Rp ' + (amount / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'jt';
+  }
+  if (compact && Math.abs(amount) >= 1_000) {
+    return 'Rp ' + (amount / 1_000).toFixed(0) + 'rb';
   }
   return new Intl.NumberFormat('id-ID', {
     style: 'currency',
@@ -9,6 +12,7 @@ export function formatCurrency(amount: number, compact = false): string {
     maximumFractionDigits: 0,
   }).format(amount);
 }
+
 
 export function formatDate(dateStr: string, style: 'short' | 'medium' | 'long' = 'medium'): string {
   const d = new Date(dateStr);
