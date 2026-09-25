@@ -62,3 +62,49 @@ export const CHART_COLORS = [
   '#F59E0B', '#FBBF24', '#FCD34D',
   '#EF4444', '#F87171',
 ];
+
+export const CATEGORY_EMOJI: Record<string, string> = {
+  'Makan': '🍽️',
+  'Transport': '🚗',
+  'Tagihan': '⚡',
+  'Kebutuhan Rumah Tangga': '🏠',
+  'Kesehatan': '💊',
+  'Hiburan': '🎬',
+  'Belanja': '🛍️',
+  'Tabungan': '🏦',
+  'Hutang': '💳',
+  'Lainnya': '📝',
+  'Gaji': '💼',
+  'Bonus': '🎁',
+  'Investasi': '📈',
+};
+
+export function getCategoryEmoji(category: string): string {
+  return CATEGORY_EMOJI[category] || (category ? category[0].toUpperCase() : '📝');
+}
+
+export function getRelativeTime(dateStr: string, createdAt?: string): string {
+  const txDate = new Date(dateStr);
+  const now = new Date();
+  const todayStr = now.toISOString().slice(0, 10);
+  const txDateStr = dateStr.slice(0, 10);
+
+  const yesterday = new Date(now);
+  yesterday.setDate(now.getDate() - 1);
+  const yesterdayStr = yesterday.toISOString().slice(0, 10);
+
+  const timeStr = createdAt
+    ? new Date(createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(':', '.')
+    : '';
+
+  if (txDateStr === todayStr) {
+    return `Hari ini${timeStr ? `, ${timeStr}` : ''}`;
+  } else if (txDateStr === yesterdayStr) {
+    return `Kemarin${timeStr ? `, ${timeStr}` : ''}`;
+  } else {
+    const diffDays = Math.floor((now.getTime() - txDate.getTime()) / (1000 * 60 * 60 * 24));
+    if (diffDays < 7) return `${diffDays} hari lalu`;
+    return formatDate(dateStr, 'short');
+  }
+}
+

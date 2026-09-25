@@ -188,12 +188,6 @@ export default function DashboardPage() {
           <div className="mobile-balance-card">
             <div className="mobile-balance-label">Total saldo</div>
             <div className="mobile-balance-amount">{formatCurrency(totalBalance)}</div>
-            <div className="mobile-balance-sub">
-              Termasuk {formatCurrency(Math.max(0, freeMoney))} uang bebas belanja
-            </div>
-
-            <div className="mobile-balance-divider" />
-
             <div className="mobile-balance-row">
               <div className="mobile-balance-stat">
                 <span className="mobile-balance-stat-icon income">↗</span>
@@ -203,7 +197,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="mobile-balance-stat">
-                <span className="mobile-balance-stat-icon expense">↘</span>
+                <span className="mobile-balance-stat-icon expense">↙</span>
                 <div>
                   <div className="mobile-balance-stat-label">Pengeluaran</div>
                   <div className="mobile-balance-stat-val expense">{formatCurrency(expense, true)}</div>
@@ -220,12 +214,12 @@ export default function DashboardPage() {
                   <div className="mobile-progress-title">Anggaran bulan ini</div>
                   <div className="mobile-progress-bar-wrap">
                     <div
-                      className={`mobile-progress-bar-fill ${budgetPct >= 100 ? 'budget-over' : 'budget'}`}
+                      className="mobile-progress-bar-fill budget"
                       style={{ width: `${budgetPct}%` }}
                     />
                   </div>
-                  <div className={`mobile-progress-sub ${budgetPct >= 100 ? 'is-over' : ''}`}>
-                    Terpakai {formatCurrency(totalBudgetUsed, true)} dari {formatCurrency(totalBudgetAllocated, true)}
+                  <div className="mobile-progress-sub">
+                    {budgetPct.toFixed(0)}% dari {formatCurrency(totalBudgetAllocated, true)}
                   </div>
                 </Link>
               )}
@@ -239,7 +233,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <div className="mobile-progress-sub">
-                    {formatCurrency(totalGoalProgress, true)} dari {formatCurrency(totalGoalTarget, true)}
+                    {formatCurrency(totalGoalProgress, true)} / {formatCurrency(totalGoalTarget, true)}
                   </div>
                 </Link>
               )}

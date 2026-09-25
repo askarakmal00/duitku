@@ -1218,21 +1218,8 @@ tr:hover td { background: var(--primary-50); }
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -1px;
-  margin-bottom: 4px;
-  line-height: 1.1;
-}
-
-.mobile-balance-sub {
-  font-size: 13px;
-  color: var(--text-muted);
   margin-bottom: 16px;
-  font-weight: 400;
-}
-
-.mobile-balance-divider {
-  height: 1px;
-  background: var(--divider);
-  margin-bottom: 16px;
+  line-height: 1;
 }
 
 .mobile-balance-row {
@@ -1243,50 +1230,47 @@ tr:hover td { background: var(--primary-50); }
 .mobile-balance-stat {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex: 1;
 }
 
 .mobile-balance-stat-icon {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .mobile-balance-stat-icon.income {
-  background: #DCFCE7;
-  color: #15803D;
+  background: var(--success-bg);
+  color: var(--success);
 }
 
 .mobile-balance-stat-icon.expense {
-  background: #FEE2E2;
-  color: #DC2626;
+  background: var(--danger-bg);
+  color: var(--danger);
 }
 
-.dark .mobile-balance-stat-icon.income { background: rgba(16, 185, 129, 0.2); color: #34D399; }
-.dark .mobile-balance-stat-icon.expense { background: rgba(239, 68, 68, 0.2); color: #F87171; }
-
 .mobile-balance-stat-label {
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text-muted);
   font-weight: 500;
   margin-bottom: 2px;
 }
 
 .mobile-balance-stat-val {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
   letter-spacing: -0.3px;
 }
 
-.mobile-balance-stat-val.income { color: var(--text-primary); }
-.mobile-balance-stat-val.expense { color: #DC2626; }
+.mobile-balance-stat-val.income { color: var(--success); }
+.mobile-balance-stat-val.expense { color: var(--danger); }
 
 /* ─── Mobile Progress Cards ───────────────────────────────── */
 .mobile-progress-row {
@@ -1314,7 +1298,7 @@ tr:hover td { background: var(--primary-50); }
 }
 
 .mobile-progress-title {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--text-secondary);
   line-height: 1.3;
@@ -1338,24 +1322,17 @@ tr:hover td { background: var(--primary-50); }
   background: #3B82F6;
 }
 
-.mobile-progress-bar-fill.budget-over {
-  background: #EF4444;
-}
-
 .mobile-progress-bar-fill.goal {
   background: #10B981;
 }
 
 .mobile-progress-sub {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
   font-weight: 500;
-  line-height: 1.35;
-}
-
-.mobile-progress-sub.is-over {
-  color: #B91C1C;
-  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ─── Mobile Section Header ───────────────────────────────── */
@@ -2993,3 +2970,439 @@ canvas {
   .calendar-date-num { font-size: 9.5px !important; }
   .calendar-cell-amount { display: none !important; } /* too small, hide text amount but keep heatmap background color */
 }
+
+/* ─── NEW MOBILE DESIGNS (Transaksi, Anggaran, Goals, Hutang) ─── */
+.mobile-page-header {
+  margin-bottom: 16px;
+}
+
+.mobile-page-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.6px;
+  line-height: 1.2;
+}
+
+.mobile-page-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.mobile-stat-card {
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mobile-stat-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.mobile-stat-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.5px;
+}
+
+.mobile-stat-val.income { color: #16A34A; }
+.mobile-stat-val.expense { color: #DC2626; }
+
+.mobile-stat-sub {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.mobile-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+/* Month navigator in mobile design */
+.mobile-month-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
+.mobile-month-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.mobile-month-arrow {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  border-radius: 50%;
+  transition: background 0.15s ease;
+}
+.mobile-month-arrow:hover { background: var(--bg-secondary); }
+
+/* Filter pills */
+.mobile-filter-pills {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.mobile-filter-pills::-webkit-scrollbar { display: none; }
+
+.mobile-pill {
+  padding: 8px 18px;
+  border-radius: 24px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.mobile-pill.active {
+  background: #2563EB;
+  border-color: #2563EB;
+  color: #FFFFFF;
+}
+
+/* Mobile search */
+.mobile-search-bar {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.mobile-search-input {
+  width: 100%;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text-primary);
+  font-size: 14px;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+.mobile-search-input:focus { border-color: #2563EB; }
+
+/* Alert card (Anggaran & Hutang) */
+.mobile-alert-card {
+  padding: 16px;
+  border-radius: var(--radius-md);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: var(--shadow-sm);
+}
+
+.mobile-alert-card.danger {
+  background: #FEE2E2;
+  border: 1px solid #FECDD3;
+}
+
+.dark .mobile-alert-card.danger {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.mobile-alert-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #B91C1C;
+}
+
+.dark .mobile-alert-label { color: #FCA5A5; }
+
+.mobile-alert-val {
+  font-size: 22px;
+  font-weight: 800;
+  color: #991B1B;
+  letter-spacing: -0.5px;
+  margin-top: 2px;
+}
+
+.dark .mobile-alert-val { color: #F87171; }
+
+.mobile-alert-icon {
+  color: #B91C1C;
+  flex-shrink: 0;
+}
+
+.dark .mobile-alert-icon { color: #F87171; }
+
+/* Section Header */
+.mobile-sec-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 16px;
+  margin-bottom: 12px;
+}
+
+.mobile-sec-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobile-sec-action {
+  font-size: 13px;
+  font-weight: 600;
+  color: #2563EB;
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+}
+
+/* Badges kontras tegas (Anggaran) */
+.badge-kontras-melebihi {
+  background: #DC2626 !important;
+  color: #FFFFFF !important;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 12px;
+  letter-spacing: 0.2px;
+}
+
+.badge-kontras-hampir {
+  background: #FDE68A !important;
+  color: #92400E !important;
+  border: 1px solid #F59E0B;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 12px;
+  letter-spacing: 0.2px;
+}
+
+.dark .badge-kontras-hampir {
+  background: #B45309 !important;
+  color: #FEF3C7 !important;
+  border-color: #D97706;
+}
+
+.badge-kontras-aman {
+  background: #DCFCE7 !important;
+  color: #166534 !important;
+  border: 1px solid #86EFAC;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 12px;
+}
+
+/* Item Card (Anggaran & Goals) */
+.mobile-card-item {
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mobile-card-item-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.mobile-card-item-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.2px;
+}
+
+.mobile-card-item-pct {
+  font-size: 16px;
+  font-weight: 800;
+  color: #2563EB;
+}
+
+.mobile-card-item-pct.zero {
+  color: var(--text-muted);
+}
+
+.mobile-card-item-subrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Button Setor */
+.btn-setor {
+  background: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 16px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.btn-setor:hover { opacity: 0.9; }
+
+/* Hutang Styles */
+.btn-catat-hutang {
+  background: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 13px;
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: opacity 0.15s ease;
+}
+.btn-catat-hutang:hover { opacity: 0.9; }
+
+.mobile-party-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+.mobile-party-card:active { border-color: #2563EB; background: var(--bg-secondary); }
+
+.mobile-party-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #FEE2E2;
+  color: #991B1B;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.mobile-party-info {
+  flex: 1;
+  margin-left: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mobile-party-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobile-party-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+/* Hutang Detail View */
+.mobile-debt-detail-card {
+  background: var(--card);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 18px 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.mobile-debt-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-debt-bayar {
+  flex: 1;
+  background: #2563EB;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-debt-tambah {
+  flex: 1;
+  background: var(--card);
+  color: var(--text-primary);
+  border: 1.5px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mobile-debt-history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--divider);
+}
+.mobile-debt-history-item:last-child { border-bottom: none; }
+
+.mobile-debt-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.mobile-debt-icon.tambah { background: #FEE2E2; color: #DC2626; }
+.mobile-debt-icon.bayar { background: #DCFCE7; color: #16A34A; }
+

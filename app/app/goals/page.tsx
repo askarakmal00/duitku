@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Target, Coins, TrendingUp } from 'lucide-react';
+import { Plus, Target, Coins, TrendingUp, MoreVertical } from 'lucide-react';
 import Header from '@/components/Header';
 import SavingGoalsList from '@/components/SavingGoalsList';
 import GoalModal from '@/components/GoalModal';
@@ -22,6 +22,7 @@ export default function GoalsPage() {
   const [editTarget, setEditTarget] = useState<SavingGoal | undefined>();
   const [depositGoal, setDepositGoal] = useState<SavingGoal | null>(null);
   const [withdrawGoal, setWithdrawGoal] = useState<SavingGoal | null>(null);
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   const load = useCallback(() => setGoals(getSavingGoals()), []);
   useDataRefresh(load);
@@ -75,11 +76,144 @@ export default function GoalsPage() {
 
   return (
     <>
-      <Header title="Target Tabungan" subtitle="Pantau progress menuju tujuan keuangan Anda" />
+      {/* ─── MOBILE VIEW (Image 3) ─── */}
+      <div className="mobile-only-view page-container" style={{ flexDirection: 'column', gap: 14 }}>
+        <div className="mobile-page-header">
+          <div className="mobile-page-title">Target tabungan</div>
+          <div className="mobile-page-subtitle">Pantau progress menuju tujuan keuangan</div>
+        </div>
 
-      <div className="page-container">
-        {/* Unified Stat Card — Goals (violet accent) */}
-        <div className="page-stat-card goals">
+        {/* Grid 2: Total target & Terkumpul */}
+        <div className="mobile-grid-2">
+          <div className="mobile-stat-card">
+            <div className="mobile-stat-label">Total target</div>
+            <div className="mobile-stat-val">{formatCurrency(totalTarget, true)}</div>
+            <div className="mobile-stat-sub">{goals.length} target aktif</div>
+          </div>
+          <div className="mobile-stat-card">
+            <div className="mobile-stat-label">Terkumpul</div>
+            <div className="mobile-stat-val income">{formatCurrency(totalProgress, true)}</div>
+            <div className="mobile-stat-sub">
+              {totalTarget > 0 ? ((totalProgress / totalTarget) * 100).toFixed(0) : 0}% dari target
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Target saya */}
+        <div className="mobile-sec-header">
+          <span className="mobile-sec-title">Target saya ({goals.length})</span>
+          <button
+            className="mobile-sec-action"
+            onClick={() => { setEditTarget(undefined); setShowModal(true); }}
+          >
+            + Tambah
+          </button>
+        </div>
+
+        {/* Goals List */}
+        {goals.length === 0 ? (
+          <div className="empty-state" style={{ padding: '24px 0' }}>
+            <div className="empty-state-icon">🎯</div>
+            <h3>Belum ada target</h3>
+            <p>Buat target tabungan untuk memotivasi Anda menabung.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {goals.map(goal => {
+              const progress = getGoalProgress(goal.id);
+              const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
+              const remaining = goal.targetAmount - progress;
+
+              return (
+                <div key={goal.id} className="mobile-card-item">
+                  <div className="mobile-card-item-top">
+                    <span className="mobile-card-item-name">{goal.name}</span>
+                    <span className={`mobile-card-item-pct ${pct === 0 ? 'zero' : ''}`}>
+                      {pct.toFixed(0)}%
+                    </span>
+                  </div>
+
+                  <div className="mobile-progress-bar-wrap" style={{ height: 6 }}>
+                    <div
+                      className="mobile-progress-bar-fill"
+                      style={{ width: `${pct}%`, background: '#2563EB' }}
+                    />
+                  </div>
+
+                  <div className="mobile-card-item-subrow">
+                    <div style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 12 }}>
+                      {formatCurrency(progress, true)} dari {formatCurrency(goal.targetAmount, true)}
+                      {remaining > 0 ? ` · ${formatCurrency(remaining, true)} lagi` : ''}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, position: 'relative' }}>
+                      <button
+                        className="btn-setor"
+                        onClick={() => setDepositGoal(goal)}
+                      >
+                        Setor
+                      </button>
+                      <button
+                        className="btn btn-ghost btn-icon btn-sm"
+                        style={{ width: 28, height: 28, minHeight: 'unset', padding: 0 }}
+                        onClick={() => setActiveMenuId(activeMenuId === goal.id ? null : goal.id)}
+                        aria-label="Menu opsi"
+                      >
+                        <MoreVertical size={16} />
+                      </button>
+
+                      {/* Dropdown Menu */}
+                      {activeMenuId === goal.id && (
+                        <div style={{
+                          position: 'absolute',
+                          right: 0,
+                          bottom: '100%',
+                          marginBottom: 4,
+                          background: 'var(--card)',
+                          border: '1px solid var(--border)',
+                          borderRadius: 'var(--radius-sm)',
+                          boxShadow: 'var(--shadow-md)',
+                          zIndex: 50,
+                          minWidth: 120,
+                          overflow: 'hidden',
+                          display: 'flex',
+                          flexDirection: 'column',
+                        }}>
+                          <button
+                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', color: 'var(--text-primary)' }}
+                            onClick={() => { handleEdit(goal); setActiveMenuId(null); }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', color: 'var(--text-primary)' }}
+                            onClick={() => { setWithdrawGoal(goal); setActiveMenuId(null); }}
+                          >
+                            Tarik
+                          </button>
+                          <button
+                            style={{ padding: '8px 12px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', color: 'var(--danger)' }}
+                            onClick={() => { handleDelete(goal.id); setActiveMenuId(null); }}
+                          >
+                            Hapus
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ─── DESKTOP VIEW ─── */}
+      <div className="desktop-only-view">
+        <Header title="Target Tabungan" subtitle="Pantau progress menuju tujuan keuangan Anda" />
+
+        <div className="page-container">
+          {/* Unified Stat Card — Goals (violet accent) */}
+          <div className="page-stat-card goals">
           <div className="psc-item">
             <div className="psc-header">
               <div className="psc-icon"><Target size={16} /></div>
@@ -213,6 +347,7 @@ export default function GoalsPage() {
             <SavingGoalsList goals={goals} onEdit={handleEdit} onDelete={handleDelete} />
           </div>
         </div>
+      </div>
       </div>
 
       {showModal && (

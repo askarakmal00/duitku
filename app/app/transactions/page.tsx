@@ -10,7 +10,7 @@ import {
   getCategories, getBudgetPos, getSavingGoals,
 } from '@/lib/store';
 import { Transaction, Category, BudgetPos, SavingGoal } from '@/lib/types';
-import { formatCurrency, getCurrentMonth, getMonthName } from '@/lib/helpers';
+import { formatCurrency, getCurrentMonth, getMonthName, getCategoryEmoji, getRelativeTime } from '@/lib/helpers';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useCallback } from 'react';
@@ -169,11 +169,119 @@ export default function TransactionsPage() {
 
   return (
     <>
-      <Header title="Transaksi" subtitle="Kelola semua pemasukan dan pengeluaran" />
+      {/* ─── MOBILE VIEW (Image 1) ─── */}
+      <div className="mobile-only-view page-container" style={{ flexDirection: 'column', gap: 14 }}>
+        <div className="mobile-page-header">
+          <div className="mobile-page-title">Transaksi</div>
+          <div className="mobile-page-subtitle">Kelola semua pemasukan dan pengeluaran</div>
+        </div>
 
-      <div className="page-container">
-        {/* Unified Stat Card — Transactions (indigo accent) */}
-        <div className="page-stat-card" style={{
+        {/* Card 1: Total transaksi */}
+        <div className="mobile-stat-card">
+          <div className="mobile-stat-label">Total transaksi</div>
+          <div className="mobile-stat-val">{filtered.length}</div>
+          <div className="mobile-stat-sub">
+            {showAllMonths ? 'Semua waktu' : getMonthName(selectedYear, selectedMonth)}
+          </div>
+        </div>
+
+        {/* Grid 2: Total masuk & Total keluar */}
+        <div className="mobile-grid-2">
+          <div className="mobile-stat-card">
+            <div className="mobile-stat-label">Total masuk</div>
+            <div className="mobile-stat-val income">+{formatCurrency(totalIn, true)}</div>
+            <div className="mobile-stat-sub">{filtered.filter(t => t.type === 'masuk').length} transaksi</div>
+          </div>
+          <div className="mobile-stat-card">
+            <div className="mobile-stat-label">Total keluar</div>
+            <div className="mobile-stat-val expense">-{formatCurrency(totalOut, true)}</div>
+            <div className="mobile-stat-sub">{filtered.filter(t => t.type === 'keluar').length} transaksi</div>
+          </div>
+        </div>
+
+        {/* Month Navigator */}
+        <div className="mobile-month-nav">
+          <button className="mobile-month-arrow" onClick={goToPrevMonth} aria-label="Bulan sebelumnya">
+            <ChevronLeft size={20} />
+          </button>
+          <span className="mobile-month-title">
+            {showAllMonths ? 'Semua Waktu' : getMonthName(selectedYear, selectedMonth)}
+          </span>
+          <button className="mobile-month-arrow" onClick={goToNextMonth} aria-label="Bulan berikutnya" disabled={showAllMonths}>
+            <ChevronRight size={20} />
+          </button>
+        </div>
+
+        {/* Filter Pills */}
+        <div className="mobile-filter-pills">
+          <button
+            className={`mobile-pill ${typeFilter === 'semua' ? 'active' : ''}`}
+            onClick={() => setTypeFilter('semua')}
+          >
+            Semua
+          </button>
+          <button
+            className={`mobile-pill ${typeFilter === 'masuk' ? 'active' : ''}`}
+            onClick={() => setTypeFilter('masuk')}
+          >
+            Pemasukan
+          </button>
+          <button
+            className={`mobile-pill ${typeFilter === 'keluar' ? 'active' : ''}`}
+            onClick={() => setTypeFilter('keluar')}
+          >
+            Pengeluaran
+          </button>
+        </div>
+
+        {/* Search input */}
+        <div className="mobile-search-bar">
+          <input
+            type="text"
+            className="mobile-search-input"
+            placeholder="Cari transaksi..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+          />
+        </div>
+
+        {/* Transactions list */}
+        {filtered.length === 0 ? (
+          <div className="empty-state" style={{ padding: '24px 0' }}>
+            <div className="empty-state-icon">💸</div>
+            <h3>Tidak ada transaksi</h3>
+            <p>Coba ubah kata kunci pencarian atau filter Anda.</p>
+          </div>
+        ) : (
+          <div className="mobile-txn-list-v2">
+            {filtered.map(t => {
+              const emoji = getCategoryEmoji(t.category);
+              return (
+                <div key={t.id} className="mobile-txn-v2-item" onClick={() => handleEdit(t)} style={{ cursor: 'pointer' }}>
+                  <div className={`mobile-txn-v2-icon ${t.type}`}>
+                    <span>{emoji}</span>
+                  </div>
+                  <div className="mobile-txn-v2-info">
+                    <div className="mobile-txn-v2-name">{t.note || t.category}</div>
+                    <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
+                  </div>
+                  <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
+                    {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ─── DESKTOP VIEW ─── */}
+      <div className="desktop-only-view">
+        <Header title="Transaksi" subtitle="Kelola semua pemasukan dan pengeluaran" />
+
+        <div className="page-container">
+          {/* Unified Stat Card — Transactions (indigo accent) */}
+          <div className="page-stat-card" style={{
           background: 'linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%)',
           border: '1px solid #C7D2FE',
           marginBottom: 20,
@@ -396,6 +504,7 @@ export default function TransactionsPage() {
             onDelete={handleDeleteRequest}
           />
         </div>
+      </div>
       </div>
 
       {/* FAB: mobile-only floating add button */}

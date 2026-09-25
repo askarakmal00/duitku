@@ -50,13 +50,117 @@ export default function BudgetPage() {
     used: p.used,
   }));
 
+  const totalAllocation = posList.reduce((s, p) => s + p.monthlyAllocation, 0);
+  const totalUsed = posWithUsage.reduce((s, p) => s + p.used, 0);
+  const totalRemaining = totalAllocation - totalUsed;
+
   return (
     <>
-      <Header title="Anggaran" subtitle="Kelola pos anggaran dan pantau penggunaannya" />
+      {/* ─── MOBILE VIEW (Image 2) ─── */}
+      <div className="mobile-only-view page-container" style={{ flexDirection: 'column', gap: 14 }}>
+        <div className="mobile-page-header">
+          <div className="mobile-page-title">Anggaran</div>
+          <div className="mobile-page-subtitle">Kelola pos anggaran dan pantau pemakaian</div>
+        </div>
 
-      <div className="page-container">
-        {/* Unified Stat Card — Budget (amber accent) */}
-        <div className="page-stat-card budget">
+        {/* Grid 2: Total alokasi & Total terpakai */}
+        <div className="mobile-grid-2">
+          <div className="mobile-stat-card">
+            <div className="mobile-stat-label">Total alokasi</div>
+            <div className="mobile-stat-val">{formatCurrency(totalAllocation, true)}</div>
+          </div>
+          <div className="mobile-stat-card">
+            <div className="mobile-stat-label">Total terpakai</div>
+            <div className="mobile-stat-val expense">{formatCurrency(totalUsed, true)}</div>
+          </div>
+        </div>
+
+        {/* Alert/Status Card: Total sisa */}
+        <div className={`mobile-alert-card ${totalRemaining < 0 ? 'danger' : ''}`} style={totalRemaining >= 0 ? { background: '#ECFDF5', border: '1px solid #A7F3D0' } : undefined}>
+          <div>
+            <div className="mobile-alert-label" style={totalRemaining >= 0 ? { color: '#047857' } : undefined}>
+              Total sisa
+            </div>
+            <div className="mobile-alert-val" style={totalRemaining >= 0 ? { color: '#065F46' } : undefined}>
+              {totalRemaining < 0 ? '-' : ''}{formatCurrency(Math.abs(totalRemaining))}{totalRemaining < 0 ? ' (minus)' : ''}
+            </div>
+          </div>
+          {totalRemaining < 0 ? (
+            <AlertTriangle size={24} className="mobile-alert-icon" />
+          ) : (
+            <Coins size={24} style={{ color: '#059669', flexShrink: 0 }} />
+          )}
+        </div>
+
+        {/* Section: Pos anggaran */}
+        <div className="mobile-sec-header">
+          <span className="mobile-sec-title">Pos anggaran ({posList.length})</span>
+          <button
+            className="mobile-sec-action"
+            onClick={() => { setEditTarget(undefined); setShowModal(true); }}
+          >
+            + Tambah
+          </button>
+        </div>
+
+        {/* Pos List */}
+        {posWithUsage.length === 0 ? (
+          <div className="empty-state" style={{ padding: '24px 0' }}>
+            <div className="empty-state-icon">📊</div>
+            <h3>Belum ada pos anggaran</h3>
+            <p>Buat pos anggaran pertama untuk memantau pengeluaran.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {posWithUsage.map(p => {
+              const isOver = p.remaining < 0 || p.pct >= 100;
+              const isWarn = !isOver && p.pct >= 80;
+              const barColor = isOver ? '#DC2626' : isWarn ? '#F59E0B' : '#3B82F6';
+
+              return (
+                <div key={p.id} className="mobile-card-item" onClick={() => handleEdit(p)} style={{ cursor: 'pointer' }}>
+                  <div className="mobile-card-item-top">
+                    <span className="mobile-card-item-name">{p.name}</span>
+                    {isOver ? (
+                      <span className="badge-kontras-melebihi">Melebihi</span>
+                    ) : isWarn ? (
+                      <span className="badge-kontras-hampir">Hampir habis</span>
+                    ) : (
+                      <span className="badge-kontras-aman">Aman</span>
+                    )}
+                  </div>
+
+                  <div className="mobile-progress-bar-wrap" style={{ height: 8 }}>
+                    <div
+                      className="mobile-progress-bar-fill"
+                      style={{ width: `${Math.min(100, p.pct)}%`, background: barColor }}
+                    />
+                  </div>
+
+                  <div className="mobile-card-item-subrow">
+                    <span>Terpakai {formatCurrency(p.used, true)}</span>
+                    {isOver ? (
+                      <span style={{ color: '#DC2626', fontWeight: 700 }}>
+                        Lebih {formatCurrency(Math.abs(p.remaining), true)}
+                      </span>
+                    ) : (
+                      <span>Sisa {formatCurrency(p.remaining, true)}</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* ─── DESKTOP VIEW ─── */}
+      <div className="desktop-only-view">
+        <Header title="Anggaran" subtitle="Kelola pos anggaran dan pantau penggunaannya" />
+
+        <div className="page-container">
+          {/* Unified Stat Card — Budget (amber accent) */}
+          <div className="page-stat-card budget">
           <div className="psc-item">
             <div className="psc-header">
               <div className="psc-icon"><Wallet size={16} /></div>
@@ -213,6 +317,7 @@ export default function BudgetPage() {
             </div>
           </div>
         </div>
+      </div>
       </div>
 
       {showModal && (
