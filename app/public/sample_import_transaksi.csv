@@ -1,0 +1,14 @@
+tanggal,tipe,kategori,jumlah,keterangan,pos_anggaran,target_tabungan
+2026-09-01,masuk,Gaji,7500000,Gaji Pokok Bulanan,,
+2026-09-02,keluar,Makan,45000,Makan siang nasi padang,Kebutuhan Pokok,
+2026-09-02,keluar,Transport,25000,Bensin motor dan parkir,Transportasi,
+2026-09-03,keluar,Tagihan,350000,Tagihan Listrik PLN dan Internet,Tagihan Bulanan,
+2026-09-04,keluar,Kebutuhan Rumah Tangga,185000,Belanja sabun dan perlengkapan rumah,Kebutuhan Pokok,
+2026-09-05,masuk,Bonus,1000000,Bonus project sampingan,,
+2026-09-06,keluar,Kesehatan,85000,Beli multivitamin dan suplemen,Kesehatan,
+2026-09-07,keluar,Hiburan,75000,Nonton bioskop akhir pekan,Hiburan,
+2026-09-08,keluar,Belanja,120000,Beli kemeja kantor baru,Belanja,
+2026-09-09,keluar,Tabungan,500000,Setoran rutin tabungan,,Dana Darurat
+2026-09-10,masuk,Investasi,250000,Dividen reksadana / saham,,
+2026-09-11,keluar,Hutang,200000,Pembayaran cicilan / hutang,,
+2026-09-12,keluar,Lainnya,35000,Biaya admin & donasi,,

@@ -1,9 +1,10 @@
 'use client';
 import { useEffect, useState, useMemo } from 'react';
-import { Plus, Search, ChevronLeft, ChevronRight, X, SlidersHorizontal, Hash, TrendingUp, TrendingDown } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, X, SlidersHorizontal, Hash, TrendingUp, TrendingDown, FileSpreadsheet } from 'lucide-react';
 import Header from '@/components/Header';
 import RecentTransactions from '@/components/RecentTransactions';
 import TransactionModal from '@/components/TransactionModal';
+import BulkImportModal from '@/components/BulkImportModal';
 import {
   getTransactions, addTransaction, updateTransaction, deleteTransaction,
   getCategories, getBudgetPos, getSavingGoals,
@@ -41,6 +42,7 @@ export default function TransactionsPage() {
 
   // Modal state
   const [showModal, setShowModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editTarget, setEditTarget] = useState<Transaction | undefined>();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -286,6 +288,16 @@ export default function TransactionsPage() {
                 )}
               </button>
 
+              <button
+                className="btn btn-ghost"
+                onClick={() => setShowBulkModal(true)}
+                style={{ flexShrink: 0, gap: 6 }}
+                title="Import transaksi dari CSV / Excel"
+              >
+                <FileSpreadsheet size={15} />
+                <span className="desktop-only-inline">Bulk Import</span>
+              </button>
+
               <button className="btn btn-primary desktop-only-inline" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
                 <Plus size={16} /> Tambah
               </button>
@@ -400,6 +412,16 @@ export default function TransactionsPage() {
           existing={editTarget}
           onSave={handleSave}
           onClose={() => { setShowModal(false); setEditTarget(undefined); }}
+        />
+      )}
+
+      {showBulkModal && (
+        <BulkImportModal
+          onSuccess={() => {
+            setShowBulkModal(false);
+            load();
+          }}
+          onClose={() => setShowBulkModal(false)}
         />
       )}
 

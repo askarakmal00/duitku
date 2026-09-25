@@ -390,6 +390,60 @@ export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>
   return newTxn;
 }
 
+export async function addBulkTransactions(items: Omit<Transaction, 'id' | 'createdAt'>[]): Promise<Transaction[]> {
+  if (items.length === 0) return [];
+  const currentTxns = getTransactions();
+  const newTxns: Transaction[] = items.map(item => ({
+    ...item,
+    id: genId(),
+    createdAt: new Date().toISOString(),
+  }));
+
+  save(KEYS.transactions, sortTransactions([...newTxns, ...currentTxns]));
+  
+  for (const t of newTxns) {
+    addPending(PENDING_KEYS.transactions, t.id);
+  }
+
+  try {
+    const payloads = newTxns.map(t => {
+      const p: any = {
+        id: t.id,
+        type: t.type,
+        category: t.category,
+        sub_category: t.subCategory || null,
+        budget_pos_id: t.budgetPosId || null,
+        goal_id: t.goalId || null,
+        amount: t.amount,
+        note: t.note || '',
+        date: t.date,
+        created_at: t.createdAt,
+      };
+      if (t.debtTxnId) p.debt_txn_id = t.debtTxnId;
+      return p;
+    });
+
+    const { error } = await supabase.from('transactions').upsert(payloads);
+    if (!error) {
+      for (const t of newTxns) {
+        removePending(PENDING_KEYS.transactions, t.id);
+      }
+    } else {
+      for (const t of newTxns) {
+        try {
+          await safeInsertTransaction(t);
+          removePending(PENDING_KEYS.transactions, t.id);
+        } catch {}
+      }
+    }
+  } catch (e) {
+    console.warn('Network issue adding bulk transactions, queued locally:', e);
+  }
+
+  notifyDataChanged();
+  return newTxns;
+}
+
 export async function updateTransaction(id: string, data: Partial<Omit<Transaction, 'id' | 'createdAt'>>): Promise<void> {
   const txns = getTransactions().map(t => t.id === id ? { ...t, ...data } : t);
   save(KEYS.transactions, txns);
