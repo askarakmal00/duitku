@@ -1218,134 +1218,21 @@ tr:hover td { background: var(--primary-50); }
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -1px;
-  margin-bottom: 16px;
-  line-height: 1;
+  margin-bottom: 4px;
+  line-height: 1.1;
 }
 
-/* ─── Mobile Balance Breakdown (Free Money vs Uang Anggaran) ─ */
-.mobile-balance-breakdown {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.mobile-breakdown-card {
-  padding: 11px 12px;
-  border-radius: var(--radius-sm);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-  box-sizing: border-box;
-}
-
-.mobile-breakdown-card.free {
-  background: #ECFDF5;
-  border: 1px solid #A7F3D0;
-}
-
-.mobile-breakdown-card.budget {
-  background: #EFF6FF;
-  border: 1px solid #BFDBFE;
-}
-
-.dark .mobile-breakdown-card.free {
-  background: rgba(16, 185, 129, 0.12);
-  border-color: rgba(16, 185, 129, 0.25);
-}
-
-.dark .mobile-breakdown-card.budget {
-  background: rgba(59, 130, 246, 0.12);
-  border-color: rgba(59, 130, 246, 0.25);
-}
-
-.mobile-breakdown-top {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.mobile-breakdown-icon-wrap {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.mobile-breakdown-icon-wrap.free {
-  background: #D1FAE5;
-  color: #059669;
-}
-
-.mobile-breakdown-icon-wrap.budget {
-  background: #DBEAFE;
-  color: #2563EB;
-}
-
-.dark .mobile-breakdown-icon-wrap.free {
-  background: rgba(16, 185, 129, 0.2);
-  color: #34D399;
-}
-
-.dark .mobile-breakdown-icon-wrap.budget {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60A5FA;
-}
-
-.mobile-breakdown-name {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.mobile-breakdown-val {
-  font-size: 13.5px;
-  font-weight: 800;
-  letter-spacing: -0.3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-top: 2px;
-}
-
-.mobile-breakdown-val.positive {
-  color: #059669;
-}
-
-.mobile-breakdown-val.negative {
-  color: #DC2626;
-}
-
-.mobile-breakdown-val.budget {
-  color: #2563EB;
-}
-
-.dark .mobile-breakdown-val.positive { color: #34D399; }
-.dark .mobile-breakdown-val.negative { color: #F87171; }
-.dark .mobile-breakdown-val.budget { color: #60A5FA; }
-
-.mobile-breakdown-desc {
-  font-size: 10px;
+.mobile-balance-sub {
+  font-size: 13px;
   color: var(--text-muted);
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  margin-bottom: 16px;
+  font-weight: 400;
 }
 
 .mobile-balance-divider {
   height: 1px;
   background: var(--divider);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .mobile-balance-row {
@@ -1356,47 +1243,50 @@ tr:hover td { background: var(--primary-50); }
 .mobile-balance-stat {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 1;
 }
 
 .mobile-balance-stat-icon {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   flex-shrink: 0;
 }
 
 .mobile-balance-stat-icon.income {
-  background: var(--success-bg);
-  color: var(--success);
+  background: #DCFCE7;
+  color: #15803D;
 }
 
 .mobile-balance-stat-icon.expense {
-  background: var(--danger-bg);
-  color: var(--danger);
+  background: #FEE2E2;
+  color: #DC2626;
 }
 
+.dark .mobile-balance-stat-icon.income { background: rgba(16, 185, 129, 0.2); color: #34D399; }
+.dark .mobile-balance-stat-icon.expense { background: rgba(239, 68, 68, 0.2); color: #F87171; }
+
 .mobile-balance-stat-label {
-  font-size: 11px;
+  font-size: 12px;
   color: var(--text-muted);
   font-weight: 500;
   margin-bottom: 2px;
 }
 
 .mobile-balance-stat-val {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
   letter-spacing: -0.3px;
 }
 
-.mobile-balance-stat-val.income { color: var(--success); }
-.mobile-balance-stat-val.expense { color: var(--danger); }
+.mobile-balance-stat-val.income { color: var(--text-primary); }
+.mobile-balance-stat-val.expense { color: #DC2626; }
 
 /* ─── Mobile Progress Cards ───────────────────────────────── */
 .mobile-progress-row {
@@ -1424,7 +1314,7 @@ tr:hover td { background: var(--primary-50); }
 }
 
 .mobile-progress-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
   line-height: 1.3;
@@ -1448,17 +1338,24 @@ tr:hover td { background: var(--primary-50); }
   background: #3B82F6;
 }
 
+.mobile-progress-bar-fill.budget-over {
+  background: #EF4444;
+}
+
 .mobile-progress-bar-fill.goal {
   background: #10B981;
 }
 
 .mobile-progress-sub {
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-muted);
   font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.35;
+}
+
+.mobile-progress-sub.is-over {
+  color: #B91C1C;
+  font-weight: 600;
 }
 
 /* ─── Mobile Section Header ───────────────────────────────── */

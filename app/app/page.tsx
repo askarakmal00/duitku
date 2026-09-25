@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
-import { Plus, User, Sparkles, PieChart } from 'lucide-react';
+import { Plus, User } from 'lucide-react';
 import Header from '@/components/Header';
 import SummaryCard from '@/components/SummaryCard';
 import MoneyFlowChart from '@/components/MoneyFlowChart';
@@ -188,34 +188,8 @@ export default function DashboardPage() {
           <div className="mobile-balance-card">
             <div className="mobile-balance-label">Total saldo</div>
             <div className="mobile-balance-amount">{formatCurrency(totalBalance)}</div>
-
-            {/* Split: Free Money vs Uang Anggaran */}
-            <div className="mobile-balance-breakdown">
-              <div className="mobile-breakdown-card free">
-                <div className="mobile-breakdown-top">
-                  <div className="mobile-breakdown-icon-wrap free">
-                    <Sparkles size={12} />
-                  </div>
-                  <span className="mobile-breakdown-name">Free Money</span>
-                </div>
-                <div className={`mobile-breakdown-val ${freeMoney < 0 ? 'negative' : 'positive'}`}>
-                  {freeMoney < 0 ? '-' : ''}{formatCurrency(Math.abs(freeMoney))}
-                </div>
-                <div className="mobile-breakdown-desc">Uang bebas belanja</div>
-              </div>
-
-              <div className="mobile-breakdown-card budget">
-                <div className="mobile-breakdown-top">
-                  <div className="mobile-breakdown-icon-wrap budget">
-                    <PieChart size={12} />
-                  </div>
-                  <span className="mobile-breakdown-name">Uang Anggaran</span>
-                </div>
-                <div className="mobile-breakdown-val budget">
-                  {formatCurrency(remainingBudget)}
-                </div>
-                <div className="mobile-breakdown-desc">Sisa pos anggaran</div>
-              </div>
+            <div className="mobile-balance-sub">
+              Termasuk {formatCurrency(Math.max(0, freeMoney))} uang bebas belanja
             </div>
 
             <div className="mobile-balance-divider" />
@@ -229,7 +203,7 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="mobile-balance-stat">
-                <span className="mobile-balance-stat-icon expense">↙</span>
+                <span className="mobile-balance-stat-icon expense">↘</span>
                 <div>
                   <div className="mobile-balance-stat-label">Pengeluaran</div>
                   <div className="mobile-balance-stat-val expense">{formatCurrency(expense, true)}</div>
@@ -246,12 +220,12 @@ export default function DashboardPage() {
                   <div className="mobile-progress-title">Anggaran bulan ini</div>
                   <div className="mobile-progress-bar-wrap">
                     <div
-                      className="mobile-progress-bar-fill budget"
+                      className={`mobile-progress-bar-fill ${budgetPct >= 100 ? 'budget-over' : 'budget'}`}
                       style={{ width: `${budgetPct}%` }}
                     />
                   </div>
-                  <div className="mobile-progress-sub">
-                    {budgetPct.toFixed(0)}% dari {formatCurrency(totalBudgetAllocated, true)}
+                  <div className={`mobile-progress-sub ${budgetPct >= 100 ? 'is-over' : ''}`}>
+                    Terpakai {formatCurrency(totalBudgetUsed, true)} dari {formatCurrency(totalBudgetAllocated, true)}
                   </div>
                 </Link>
               )}
@@ -265,7 +239,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   <div className="mobile-progress-sub">
-                    {formatCurrency(totalGoalProgress, true)} / {formatCurrency(totalGoalTarget, true)}
+                    {formatCurrency(totalGoalProgress, true)} dari {formatCurrency(totalGoalTarget, true)}
                   </div>
                 </Link>
               )}
