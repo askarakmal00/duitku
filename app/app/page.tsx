@@ -1,6 +1,6 @@
 'use client';
 import { useState, useCallback } from 'react';
-import { Plus, User } from 'lucide-react';
+import { Plus, User, Sparkles, PieChart } from 'lucide-react';
 import Header from '@/components/Header';
 import SummaryCard from '@/components/SummaryCard';
 import MoneyFlowChart from '@/components/MoneyFlowChart';
@@ -188,6 +188,38 @@ export default function DashboardPage() {
           <div className="mobile-balance-card">
             <div className="mobile-balance-label">Total saldo</div>
             <div className="mobile-balance-amount">{formatCurrency(totalBalance)}</div>
+
+            {/* Split: Free Money vs Uang Anggaran */}
+            <div className="mobile-balance-breakdown">
+              <div className="mobile-breakdown-card free">
+                <div className="mobile-breakdown-top">
+                  <div className="mobile-breakdown-icon-wrap free">
+                    <Sparkles size={12} />
+                  </div>
+                  <span className="mobile-breakdown-name">Free Money</span>
+                </div>
+                <div className={`mobile-breakdown-val ${freeMoney < 0 ? 'negative' : 'positive'}`}>
+                  {freeMoney < 0 ? '-' : ''}{formatCurrency(Math.abs(freeMoney))}
+                </div>
+                <div className="mobile-breakdown-desc">Uang bebas belanja</div>
+              </div>
+
+              <div className="mobile-breakdown-card budget">
+                <div className="mobile-breakdown-top">
+                  <div className="mobile-breakdown-icon-wrap budget">
+                    <PieChart size={12} />
+                  </div>
+                  <span className="mobile-breakdown-name">Uang Anggaran</span>
+                </div>
+                <div className="mobile-breakdown-val budget">
+                  {formatCurrency(remainingBudget)}
+                </div>
+                <div className="mobile-breakdown-desc">Sisa pos anggaran</div>
+              </div>
+            </div>
+
+            <div className="mobile-balance-divider" />
+
             <div className="mobile-balance-row">
               <div className="mobile-balance-stat">
                 <span className="mobile-balance-stat-icon income">↗</span>
