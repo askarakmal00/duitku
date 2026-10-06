@@ -22,6 +22,7 @@ create table if not exists transactions (
 );
 
 alter table transactions add column if not exists debt_txn_id uuid;
+alter table transactions add column if not exists space_id text default 'pribadi';
 
 create index if not exists idx_transactions_date on transactions(date desc);
 create index if not exists idx_transactions_type on transactions(type);
@@ -36,12 +37,16 @@ create table if not exists budget_pos (
   created_at          timestamptz default now()
 );
 
+alter table budget_pos add column if not exists space_id text default 'pribadi';
+
 -- ─── Debt Parties ────────────────────────────────────────────
 create table if not exists debt_parties (
   id         uuid primary key default gen_random_uuid(),
   name       text not null,
   created_at timestamptz default now()
 );
+
+alter table debt_parties add column if not exists space_id text default 'pribadi';
 
 -- ─── Debt Transactions ───────────────────────────────────────
 create table if not exists debt_transactions (
@@ -56,6 +61,7 @@ create table if not exists debt_transactions (
 );
 
 alter table debt_transactions add column if not exists txn_id uuid;
+alter table debt_transactions add column if not exists space_id text default 'pribadi';
 
 create index if not exists idx_debt_txn_party on debt_transactions(party_id);
 
@@ -66,6 +72,8 @@ create table if not exists saving_goals (
   target_amount numeric(15,2) not null check (target_amount > 0),
   created_at    timestamptz default now()
 );
+
+alter table saving_goals add column if not exists space_id text default 'pribadi';
 
 -- ─── Categories ──────────────────────────────────────────────
 create table if not exists categories (

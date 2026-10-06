@@ -114,16 +114,19 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
     note: t.note || '',
     date: t.date,
     created_at: t.createdAt,
+    space_id: t.spaceId || 'pribadi',
   };
   if (t.debtTxnId) payload.debt_txn_id = t.debtTxnId;
 
   try {
     const { error } = await supabase.from('transactions').upsert(payload);
-    if (error && (error.code === '42703' || error.message?.includes('column'))) {
-      delete payload.debt_txn_id;
+    if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
+      delete payload.space_id;
+      if (error.message?.includes('debt_txn_id')) delete payload.debt_txn_id;
       await supabase.from('transactions').upsert(payload);
     }
   } catch {
+    delete payload.space_id;
     delete payload.debt_txn_id;
     try {
       await supabase.from('transactions').upsert(payload);
@@ -142,16 +145,19 @@ async function safeInsertDebtTransaction(dt: DebtTransaction): Promise<void> {
     note: dt.note || '',
     date: dt.date,
     created_at: dt.createdAt,
+    space_id: dt.spaceId || 'pribadi',
   };
   if (dt.txnId) payload.txn_id = dt.txnId;
 
   try {
     const { error } = await supabase.from('debt_transactions').upsert(payload);
-    if (error && (error.code === '42703' || error.message?.includes('column'))) {
-      delete payload.txn_id;
+    if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
+      delete payload.space_id;
+      if (error.message?.includes('txn_id')) delete payload.txn_id;
       await supabase.from('debt_transactions').upsert(payload);
     }
   } catch {
+    delete payload.space_id;
     delete payload.txn_id;
     try {
       await supabase.from('debt_transactions').upsert(payload);
@@ -197,22 +203,36 @@ export async function syncWithSupabase(): Promise<void> {
   }
 
   // 1. Transactions Sync
-  const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => ({
-    id: t.id,
-    spaceId: (t.space_id as SpaceId) || 'pribadi',
-    type: t.type,
-    category: t.category,
-    subCategory: t.sub_category || undefined,
-    budgetPosId: t.budget_pos_id || undefined,
-    goalId: t.goal_id || undefined,
-    debtTxnId: t.debt_txn_id || undefined,
-    amount: Number(t.amount),
-    note: t.note || '',
-    date: t.date,
-    createdAt: t.created_at,
-  }));
-
   const localTxns = load<Transaction[]>(KEYS.transactions, []);
+  const localSpaceMap = new Map<string, SpaceId>();
+  localTxns.forEach(t => {
+    if (t.spaceId) localSpaceMap.set(t.id, t.spaceId);
+  });
+
+  const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
+    // Preserve local space, or read from Supabase space_id, or infer from category/note
+    const isFamily =
+      (t.space_id as SpaceId) === 'keluarga' ||
+      localSpaceMap.get(t.id) === 'keluarga' ||
+      (t.category && (t.category.includes('Setoran') || t.category.includes('Keluarga')));
+    const assignedSpace: SpaceId = isFamily ? 'keluarga' : ((t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi');
+
+    return {
+      id: t.id,
+      spaceId: assignedSpace,
+      type: t.type,
+      category: t.category,
+      subCategory: t.sub_category || undefined,
+      budgetPosId: t.budget_pos_id || undefined,
+      goalId: t.goal_id || undefined,
+      debtTxnId: t.debt_txn_id || undefined,
+      amount: Number(t.amount),
+      note: t.note || '',
+      date: t.date,
+      createdAt: t.created_at,
+    };
+  });
+
   const pendingTxnIds = getPending(PENDING_KEYS.transactions);
 
   // Upload pending local transactions
@@ -236,15 +256,19 @@ export async function syncWithSupabase(): Promise<void> {
   save(KEYS.transactions, finalTxnsList);
 
   // 2. Budget Pos Sync
+  const localBudgets = load<BudgetPos[]>(KEYS.budgetPos, []);
+  const localBudgetSpaceMap = new Map<string, SpaceId>();
+  localBudgets.forEach(b => {
+    if (b.spaceId) localBudgetSpaceMap.set(b.id, b.spaceId);
+  });
   const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map(b => ({
     id: b.id,
-    spaceId: (b.space_id as SpaceId) || 'pribadi',
+    spaceId: (b.space_id as SpaceId) || localBudgetSpaceMap.get(b.id) || 'pribadi',
     name: b.name,
     monthlyAllocation: Number(b.monthly_allocation),
     rollover: b.rollover || false,
     createdAt: b.created_at,
   }));
-  const localBudgets = load<BudgetPos[]>(KEYS.budgetPos, []);
   const pendingBudgetIds = getPending(PENDING_KEYS.budgetPos);
   if (pendingBudgetIds.size > 0) {
     for (const id of Array.from(pendingBudgetIds)) {
@@ -270,13 +294,17 @@ export async function syncWithSupabase(): Promise<void> {
   save(KEYS.budgetPos, [...remoteBudgets, ...stillPendingBudgets]);
 
   // 3. Debt Parties Sync
+  const localParties = load<DebtParty[]>(KEYS.debtParties, []);
+  const localPartySpaceMap = new Map<string, SpaceId>();
+  localParties.forEach(p => {
+    if (p.spaceId) localPartySpaceMap.set(p.id, p.spaceId);
+  });
   const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => ({
     id: p.id,
-    spaceId: (p.space_id as SpaceId) || 'pribadi',
+    spaceId: (p.space_id as SpaceId) || localPartySpaceMap.get(p.id) || 'pribadi',
     name: p.name,
     createdAt: p.created_at,
   }));
-  const localParties = load<DebtParty[]>(KEYS.debtParties, []);
   const pendingPartyIds = getPending(PENDING_KEYS.debtParties);
   if (pendingPartyIds.size > 0) {
     for (const id of Array.from(pendingPartyIds)) {
@@ -300,9 +328,14 @@ export async function syncWithSupabase(): Promise<void> {
   save(KEYS.debtParties, [...remoteParties, ...stillPendingParties]);
 
   // 4. Debt Transactions Sync
+  const localDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const localDebtTxnSpaceMap = new Map<string, SpaceId>();
+  localDebtTxns.forEach(dt => {
+    if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
+  });
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => ({
     id: dt.id,
-    spaceId: (dt.space_id as SpaceId) || 'pribadi',
+    spaceId: (dt.space_id as SpaceId) || localDebtTxnSpaceMap.get(dt.id) || 'pribadi',
     partyId: dt.party_id,
     type: dt.type,
     txnId: dt.txn_id || undefined,
@@ -311,7 +344,6 @@ export async function syncWithSupabase(): Promise<void> {
     date: dt.date,
     createdAt: dt.created_at,
   }));
-  const localDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
   const pendingDebtTxnIds = getPending(PENDING_KEYS.debtTransactions);
   if (pendingDebtTxnIds.size > 0) {
     for (const id of Array.from(pendingDebtTxnIds)) {
@@ -331,14 +363,18 @@ export async function syncWithSupabase(): Promise<void> {
   save(KEYS.debtTransactions, [...remoteDebtTxns, ...stillPendingDebtTxns]);
 
   // 5. Saving Goals Sync
+  const localGoals = load<SavingGoal[]>(KEYS.savingGoals, []);
+  const localGoalSpaceMap = new Map<string, SpaceId>();
+  localGoals.forEach(g => {
+    if (g.spaceId) localGoalSpaceMap.set(g.id, g.spaceId);
+  });
   const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => ({
     id: g.id,
-    spaceId: (g.space_id as SpaceId) || 'pribadi',
+    spaceId: (g.space_id as SpaceId) || localGoalSpaceMap.get(g.id) || 'pribadi',
     name: g.name,
     targetAmount: Number(g.target_amount),
     createdAt: g.created_at,
   }));
-  const localGoals = load<SavingGoal[]>(KEYS.savingGoals, []);
   const pendingGoalIds = getPending(PENDING_KEYS.savingGoals);
   if (pendingGoalIds.size > 0) {
     for (const id of Array.from(pendingGoalIds)) {
