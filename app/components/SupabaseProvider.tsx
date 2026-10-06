@@ -42,14 +42,17 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
     return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
 
+  if (!isUnlocked) {
+    return (
+      <SpaceSelectModal
+        isOpen={true}
+        onSelectSpace={(space) => setSpace(space)}
+      />
+    );
+  }
+
   return (
     <MobileMenuContext.Provider value={{ openSidebar: () => setSidebarOpen(true) }}>
-      {!isUnlocked && (
-        <SpaceSelectModal
-          isOpen={!isUnlocked}
-          onSelectSpace={(space) => setSpace(space)}
-        />
-      )}
       <div className="app-layout">
         <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
         <main className="main-content">
@@ -58,6 +61,7 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
       </div>
     </MobileMenuContext.Provider>
   );
+
 }
 
 export default function SupabaseProvider({ children }: { children: React.ReactNode }) {
