@@ -15,7 +15,7 @@ export default function MoneyFlowChart({ months = 7 }: MoneyFlowChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
   const { activeSpace } = useSpace();
-  const [, setRefreshKey] = useState(0);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const handleRefresh = useCallback(() => {
     setRefreshKey(k => k + 1);
