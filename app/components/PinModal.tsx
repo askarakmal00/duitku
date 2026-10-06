@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Delete, X } from 'lucide-react';
 
 interface PinModalProps {
@@ -26,14 +26,51 @@ export default function PinModal({
   const [pin, setPin] = useState('');
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setPin('');
       setIsError(false);
       setErrorMessage('');
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
     }
   }, [isOpen]);
+
+  const handleKeyPress = useCallback((digit: string) => {
+    if (pin.length < 6 && !isError) {
+      setPin(prev => prev + digit);
+    }
+  }, [pin, isError]);
+
+  const handleDelete = useCallback(() => {
+    if (!isError) {
+      setPin(prev => prev.slice(0, -1));
+    }
+  }, [isError]);
+
+  // Physical keyboard support
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        handleKeyPress(e.key);
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleDelete();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        onCancel?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, handleKeyPress, handleDelete, onCancel]);
 
   useEffect(() => {
     if (pin.length === 6) {
@@ -52,24 +89,13 @@ export default function PinModal({
         setTimeout(() => {
           setPin('');
           setIsError(false);
-        }, 800);
+          inputRef.current?.focus();
+        }, 700);
       }
     }
   }, [pin, expectedPin, verifyFn, onSuccess]);
 
   if (!isOpen) return null;
-
-  const handleKeyPress = (digit: string) => {
-    if (pin.length < 6 && !isError) {
-      setPin(prev => prev + digit);
-    }
-  };
-
-  const handleDelete = () => {
-    if (!isError) {
-      setPin(prev => prev.slice(0, -1));
-    }
-  };
 
   return (
     <div className="pin-overlay">
@@ -86,19 +112,63 @@ export default function PinModal({
           {subtitle && <p className="pin-subtitle">{subtitle}</p>}
         </div>
 
-        {/* 6-dot indicator */}
-        <div className={`pin-dots ${isError ? 'pin-dots-shake' : ''}`}>
-          {[0, 1, 2, 3, 4, 5].map(index => (
-            <div
-              key={index}
-              className={`pin-dot ${index < pin.length ? 'filled' : ''} ${isError ? 'error' : ''}`}
-            />
-          ))}
+        {/* Hidden Input for Native Keyboard Support (iOS / iPad / Android) */}
+        <input
+          ref={inputRef}
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
+          maxLength={6}
+          value={pin}
+          onChange={(e) => {
+            const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+            setPin(val);
+          }}
+          style={{
+            position: 'absolute',
+            opacity: 0,
+            pointerEvents: 'none',
+            width: 1,
+            height: 1,
+          }}
+          aria-label="Input PIN"
+        />
+
+        {/* 6 Digit Boxes */}
+        <div
+          className={`pin-boxes ${isError ? 'pin-dots-shake' : ''}`}
+          onClick={() => inputRef.current?.focus()}
+          role="button"
+          tabIndex={0}
+          title="Sentuh untuk mengetik PIN"
+        >
+          {[0, 1, 2, 3, 4, 5].map(index => {
+            const hasValue = index < pin.length;
+            const isCurrent = index === pin.length;
+            return (
+              <div
+                key={index}
+                className={`pin-box-item ${hasValue ? 'filled' : ''} ${isCurrent ? 'active' : ''} ${isError ? 'error' : ''}`}
+              >
+                {hasValue ? '•' : ''}
+              </div>
+            );
+          })}
         </div>
 
-        {errorMessage && <div className="pin-error-text">{errorMessage}</div>}
+        {errorMessage ? (
+          <div className="pin-error-text">{errorMessage}</div>
+        ) : (
+          <div
+            className="space-pin-hint-text"
+            onClick={() => inputRef.current?.focus()}
+            style={{ cursor: 'pointer' }}
+          >
+            Ketuk kolom angka untuk memunculkan keyboard
+          </div>
+        )}
 
-        {/* Numpad */}
+        {/* Numpad with Touch Optimization */}
         <div className="pin-numpad">
           {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(digit => (
             <button
@@ -106,6 +176,10 @@ export default function PinModal({
               type="button"
               className="pin-key"
               onClick={() => handleKeyPress(digit)}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                handleKeyPress(digit);
+              }}
             >
               {digit}
             </button>
@@ -115,6 +189,10 @@ export default function PinModal({
             type="button"
             className="pin-key"
             onClick={() => handleKeyPress('0')}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleKeyPress('0');
+            }}
           >
             0
           </button>
@@ -122,9 +200,13 @@ export default function PinModal({
             type="button"
             className="pin-key pin-key-action"
             onClick={handleDelete}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              handleDelete();
+            }}
             aria-label="Hapus"
           >
-            <Delete size={22} />
+            <Delete size={24} />
           </button>
         </div>
       </div>

@@ -3337,6 +3337,51 @@ button.space-card {
   border-color: var(--danger);
 }
 
+/* ─── Interactive 6 Digit Boxes (iPad / Mobile / Desktop) ─── */
+.pin-boxes {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 18px;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  justify-content: center;
+  width: 100%;
+}
+
+.pin-box-item {
+  width: 44px;
+  height: 52px;
+  border-radius: 12px;
+  border: 1.5px solid var(--border);
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--primary);
+  transition: all 0.15s ease;
+}
+
+.pin-box-item.active {
+  border-color: var(--primary);
+  background: var(--card);
+  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+}
+
+.pin-box-item.filled {
+  border-color: var(--primary);
+  background: var(--card);
+  color: var(--primary);
+}
+
+.pin-box-item.error {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20%, 60% { transform: translateX(-8px); }
@@ -3348,10 +3393,10 @@ button.space-card {
 }
 
 .pin-error-text {
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--danger);
   font-weight: 600;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .pin-numpad {
@@ -3359,21 +3404,28 @@ button.space-card {
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .pin-key {
-  height: 58px;
+  height: 60px;
   background: var(--bg-secondary);
   border: 1px solid var(--border);
   border-radius: 16px;
-  font-size: 20px;
+  font-size: 22px;
   font-weight: 700;
   color: var(--text-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: all 0.1s ease;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: rgba(124, 58, 237, 0.12);
+  outline: none;
 }
 
 .pin-key:hover {
@@ -3382,7 +3434,8 @@ button.space-card {
 }
 
 .pin-key:active {
-  transform: scale(0.95);
+  transform: scale(0.94);
+  background: var(--primary-100);
 }
 
 .pin-key-action {
@@ -3392,7 +3445,42 @@ button.space-card {
 }
 
 .pin-key-dummy {
-  height: 58px;
+  height: 60px;
+}
+
+/* ─── Tablet & iPad Sizing Optimization ─────────────────────── */
+@media (min-width: 640px) {
+  .space-pin-box,
+  .pin-container {
+    max-width: 420px;
+    padding: 36px 32px;
+  }
+
+  .pin-boxes {
+    gap: 12px;
+    margin-bottom: 22px;
+  }
+
+  .pin-box-item {
+    width: 52px;
+    height: 60px;
+    border-radius: 14px;
+    font-size: 28px;
+  }
+
+  .pin-numpad {
+    gap: 14px;
+  }
+
+  .pin-key {
+    height: 68px;
+    font-size: 25px;
+    border-radius: 20px;
+  }
+
+  .pin-key-dummy {
+    height: 68px;
+  }
 }
 
 /* ─── Space Switcher Component ─────────────────────────────── */

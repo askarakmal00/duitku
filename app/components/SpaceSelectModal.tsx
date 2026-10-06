@@ -1,7 +1,7 @@
 'use client';
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { SpaceId, getSpaceMeta, verifyPin } from '@/lib/spaceStore';
-import { ShieldCheck, Users, User, ArrowRight, ArrowLeft, Delete, Lock } from 'lucide-react';
+import { ShieldCheck, Users, User, ArrowRight, ArrowLeft, Delete } from 'lucide-react';
 
 interface SpaceSelectModalProps {
   isOpen: boolean;
@@ -13,6 +13,7 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
   const [pin, setPin] = useState('');
   const [isError, setIsError] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Reset PIN when switching space selection
   const handleChooseSpace = (space: SpaceId) => {
@@ -20,6 +21,9 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
     setPin('');
     setIsError(false);
     setErrorMessage('');
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
   };
 
   const handleBackToSelect = () => {
@@ -62,6 +66,13 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedSpace, handleKeyPress, handleDelete]);
 
+  // Auto focus input when PIN view opens
+  useEffect(() => {
+    if (selectedSpace) {
+      inputRef.current?.focus();
+    }
+  }, [selectedSpace]);
+
   // Verify PIN whenever 6 digits are reached
   useEffect(() => {
     if (!selectedSpace || pin.length !== 6) return;
@@ -75,6 +86,7 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
       const timer = setTimeout(() => {
         setPin('');
         setIsError(false);
+        inputRef.current?.focus();
       }, 700);
       return () => clearTimeout(timer);
     }
@@ -179,27 +191,67 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
               </div>
               <h2 className="space-pin-title">PIN {currentMeta?.name}</h2>
               <p className="space-pin-subtitle">
-                Masukkan 6 digit PIN untuk membuka ruang ini
+                Sentuh kolom di bawah atau ketik 6 digit PIN
               </p>
             </div>
 
-            {/* 6-dot indicator */}
-            <div className={`pin-dots ${isError ? 'pin-dots-shake' : ''}`}>
-              {[0, 1, 2, 3, 4, 5].map(index => (
-                <div
-                  key={index}
-                  className={`pin-dot ${index < pin.length ? 'filled' : ''} ${isError ? 'error' : ''}`}
-                />
-              ))}
+            {/* Hidden Input for Native Keyboard Support (iOS / iPad / Android) */}
+            <input
+              ref={inputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              value={pin}
+              onChange={(e) => {
+                const val = e.target.value.replace(/\D/g, '').slice(0, 6);
+                setPin(val);
+              }}
+              style={{
+                position: 'absolute',
+                opacity: 0,
+                pointerEvents: 'none',
+                width: 1,
+                height: 1,
+              }}
+              aria-label="Input PIN"
+            />
+
+            {/* 6-box indicator: Clickable on iPad to open virtual keypad */}
+            <div
+              className={`pin-boxes ${isError ? 'pin-dots-shake' : ''}`}
+              onClick={() => inputRef.current?.focus()}
+              role="button"
+              tabIndex={0}
+              title="Sentuh untuk mengetik PIN"
+            >
+              {[0, 1, 2, 3, 4, 5].map(index => {
+                const hasValue = index < pin.length;
+                const isCurrent = index === pin.length;
+                return (
+                  <div
+                    key={index}
+                    className={`pin-box-item ${hasValue ? 'filled' : ''} ${isCurrent ? 'active' : ''} ${isError ? 'error' : ''}`}
+                  >
+                    {hasValue ? '•' : ''}
+                  </div>
+                );
+              })}
             </div>
 
             {errorMessage ? (
               <div className="pin-error-text">{errorMessage}</div>
             ) : (
-              <div className="space-pin-hint-text">Ketik di keyboard atau tekan tombol di bawah</div>
+              <div
+                className="space-pin-hint-text"
+                onClick={() => inputRef.current?.focus()}
+                style={{ cursor: 'pointer' }}
+              >
+                Ketuk kolom angka untuk memunculkan keyboard, atau gunakan tombol di bawah
+              </div>
             )}
 
-            {/* Numpad */}
+            {/* Numpad with Touch Optimization */}
             <div className="pin-numpad">
               {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(digit => (
                 <button
@@ -207,6 +259,10 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
                   type="button"
                   className="pin-key"
                   onClick={() => handleKeyPress(digit)}
+                  onTouchEnd={(e) => {
+                    e.preventDefault();
+                    handleKeyPress(digit);
+                  }}
                 >
                   {digit}
                 </button>
@@ -216,6 +272,10 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
                 type="button"
                 className="pin-key"
                 onClick={() => handleKeyPress('0')}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleKeyPress('0');
+                }}
               >
                 0
               </button>
@@ -223,9 +283,13 @@ export default function SpaceSelectModal({ isOpen, onSelectSpace }: SpaceSelectM
                 type="button"
                 className="pin-key pin-key-action"
                 onClick={handleDelete}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  handleDelete();
+                }}
                 aria-label="Hapus"
               >
-                <Delete size={22} />
+                <Delete size={24} />
               </button>
             </div>
           </div>
