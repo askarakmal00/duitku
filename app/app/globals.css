@@ -469,6 +469,10 @@ body {
   color: #34D399;
 }
 
+.hero-breakdown-icon.deficit {
+  color: #F87171;
+}
+
 .hero-breakdown-icon.budget {
   color: #FBBF24;
 }

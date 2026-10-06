@@ -105,10 +105,13 @@ export default function SummaryCard({
             <div className="hero-breakdown-row">
               <span
                 className="hero-breakdown-label"
-                title="Free Money: Saldo kas dikurangi sisa alokasi anggaran bulan ini. Uang yang benar-benar bebas digunakan."
+                title={freeMoney < 0
+                  ? "Defisit Kas: Kas keluarga dalam posisi defisit/kurang bayar."
+                  : "Free Money: Saldo kas dikurangi sisa alokasi anggaran bulan ini. Uang yang benar-benar bebas digunakan."}
                 style={{ cursor: 'help' }}
               >
-                <Sparkles size={11} className="hero-breakdown-icon free" /> Free Money:
+                <Sparkles size={11} className={`hero-breakdown-icon ${freeMoney < 0 ? 'deficit' : 'free'}`} />
+                {freeMoney < 0 ? 'Defisit Kas:' : 'Free Money:'}
                 <Info size={10} style={{ opacity: 0.75, marginLeft: 2 }} />
               </span>
               <span className={`hero-breakdown-val ${freeMoney < 0 ? 'negative' : 'positive'}`}>

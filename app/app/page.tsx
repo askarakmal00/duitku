@@ -202,22 +202,22 @@ export default function DashboardPage() {
             <div className="mobile-balance-amount">{formatCurrency(summary.closingBalance)}</div>
             {summary.initialBalance !== 0 && (
               <div style={{ fontSize: 11, opacity: 0.85, marginTop: -4, marginBottom: 8 }}>
-                Saldo awal: {formatCurrency(summary.initialBalance)} · Bulan ini: {summary.netSurplusThisMonth >= 0 ? '+' : ''}{formatCurrency(summary.netSurplusThisMonth)}
+                Saldo awal: {formatCurrency(summary.initialBalance)} · Bulan ini: {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
               </div>
             )}
             <div className="mobile-balance-row">
               <div className="mobile-balance-stat">
                 <span className="mobile-balance-stat-icon income">↗</span>
                 <div>
-                  <div className="mobile-balance-stat-label">Pemasukan</div>
-                  <div className="mobile-balance-stat-val income">{formatCurrency(summary.incomeThisMonth, true)}</div>
+                  <div className="mobile-balance-stat-label">{isFamily ? 'Setoran Masuk' : 'Pemasukan'}</div>
+                  <div className="mobile-balance-stat-val income">{formatCurrency(summary.totalCashIn, true)}</div>
                 </div>
               </div>
               <div className="mobile-balance-stat">
                 <span className="mobile-balance-stat-icon expense">↙</span>
                 <div>
                   <div className="mobile-balance-stat-label">Pengeluaran</div>
-                  <div className="mobile-balance-stat-val expense">{formatCurrency(summary.expenseThisMonth, true)}</div>
+                  <div className="mobile-balance-stat-val expense">{formatCurrency(summary.totalCashOut, true)}</div>
                 </div>
               </div>
             </div>
@@ -312,7 +312,7 @@ export default function DashboardPage() {
           {/* Consistency Audit Alert (if discrepancy detected) */}
           {!summary.isConsistent && (
             <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>⚠️ Peringatan Audit: Saldo akhir tidak sama dengan Saldo Awal + Pemasukan - Pengeluaran. Periksa integritas data transaksi.</span>
+              <span>⚠️ Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.</span>
             </div>
           )}
 
@@ -323,31 +323,31 @@ export default function DashboardPage() {
               value={summary.closingBalance}
               variant="hero"
               initialBalance={summary.initialBalance}
-              netSurplus={summary.netSurplusThisMonth}
-              freeMoney={summary.freeMoney}
+              netSurplus={summary.netCashFlow}
+              freeMoney={summary.freeMoneyOrDeficit}
               remainingBudget={summary.remainingBudget}
               subtitle={isFamily ? "Akumulasi kas riil keluarga" : undefined}
             />
             <SummaryCard
-              label="Pemasukan (Bulan Ini)"
-              value={summary.incomeThisMonth}
+              label={isFamily ? "Setoran Masuk (Bulan Ini)" : "Pemasukan (Bulan Ini)"}
+              value={summary.totalCashIn}
               growthPct={summary.incomeGrowthPct}
               comparisonLabel={summary.comparisonPeriodLabel}
               variant="income"
             />
             <SummaryCard
               label="Pengeluaran (Bulan Ini)"
-              value={summary.expenseThisMonth}
+              value={summary.totalCashOut}
               growthPct={summary.expenseGrowthPct}
               comparisonLabel={summary.comparisonPeriodLabel}
               variant="expense"
             />
             <SummaryCard
               label={isFamily ? "Tabungan & Dana Cadangan" : "Total Tabungan"}
-              value={summary.savingsBalance}
+              value={summary.totalSavingsStored}
               variant="savings"
               badgeLabel="Akumulasi sampai hari ini"
-              subtitle={isFamily ? "Pos alokasi simpanan khusus keluarga" : "Pos simpanan pribadi"}
+              subtitle={isFamily ? "Uang tersimpan di pos tabungan" : "Pos simpanan pribadi"}
             />
           </div>
 

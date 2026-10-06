@@ -938,32 +938,55 @@ export interface DashboardFinanceSummary {
   month: number;
   isCurrentMonth: boolean;
 
-  // Saldo Utama & Periode
-  initialBalance: number;        // Saldo kumulatif sebelum tanggal 1 bulan ini
-  incomeThisMonth: number;       // Pemasukan tanggal 1 s.d. akhir bulan ini
-  expenseThisMonth: number;      // Pengeluaran tanggal 1 s.d. akhir bulan ini
-  netSurplusThisMonth: number;    // Pemasukan - Pengeluaran bulan ini
-  closingBalance: number;        // Saldo akhir saat ini: initialBalance + netSurplusThisMonth
+  // 1. Kas Masuk (Setoran Anggota & Pemasukan Eksternal)
+  memberContributions: {
+    asykar: number;
+    riska: number;
+    total: number;
+  };
+  otherIncome: number;
+  totalCashIn: number;          // Total kas masuk riil (tidak ada double counting)
+  incomeThisMonth: number;      // Alias untuk totalCashIn
 
-  // Perbandingan vs Bulan Lalu (Apple-to-Apple / Periode Setara)
-  prevIncome: number;            // Pemasukan bulan lalu pada hari yang setara
-  prevExpense: number;           // Pengeluaran bulan lalu pada hari yang setara
-  incomeGrowthPct: number | null;// null jika bulan lalu 0 atau tidak ada data
-  expenseGrowthPct: number | null;// null jika bulan lalu 0 atau tidak ada data
-  comparisonPeriodLabel: string; // misal "vs tgl 1-6 bln lalu" atau "vs bln lalu"
+  // 2. Kas Keluar (Pengeluaran Operasional & Alokasi Tabungan)
+  operationalExpense: number;   // Pengeluaran operasional non-tabungan
+  savingsAllocation: number;    // Alokasi transfer ke pos tabungan
+  totalCashOut: number;         // Total seluruh uang keluar riil
+  expenseThisMonth: number;     // Alias untuk totalCashOut
 
-  // Anggaran & Free Money
-  hasBudget: boolean;            // apakah ada pos anggaran yang dibuat
+  // 3. Arus Kas Bersih (Net Cash Flow)
+  netCashFlow: number;          // totalCashIn - totalCashOut
+  netSurplusThisMonth: number;   // Alias untuk netCashFlow
+
+  // 4. Saldo Kas
+  initialBalance: number;       // Saldo kas sebelum tanggal 1 bulan ini
+  closingBalance: number;       // Saldo akhir kas: initialBalance + netCashFlow
+
+  // 5. Perbandingan vs Bulan Lalu (Apple-to-Apple)
+  prevIncome: number;
+  prevExpense: number;
+  incomeGrowthPct: number | null;
+  expenseGrowthPct: number | null;
+  comparisonPeriodLabel: string;
+
+  // 6. Anggaran & Free Money / Defisit Kas
+  hasBudget: boolean;
   totalBudgetAllocated: number;
   totalBudgetUsed: number;
-  remainingBudget: number | null;// null jika !hasBudget ("Belum diatur")
-  freeMoney: number;             // closingBalance - (remainingBudget ?? 0)
+  remainingBudget: number | null;
+  freeMoneyOrDeficit: number;   // closingBalance - (remainingBudget ?? 0)
+  freeMoney: number;            // Alias untuk freeMoneyOrDeficit
+  isDeficit: boolean;           // true jika closingBalance < 0 atau freeMoneyOrDeficit < 0
 
-  // Dana Cadangan / Tabungan (Keluarga: Tabungan tersimpan)
-  savingsBalance: number;        // Akumulasi tabungan tersimpan
+  // 7. Tabungan & Dana Cadangan
+  totalSavingsStored: number;   // Uang yang benar-benar tersimpan di pos tabungan (non-negatif)
+  savingsBalance: number;       // Alias untuk totalSavingsStored
 
-  // Audit Konsistensi
-  isConsistent: boolean;         // closingBalance === initialBalance + incomeThisMonth - expenseThisMonth
+  // 8. Audit Konsistensi
+  isCashFlowConsistent: boolean;
+  isBalanceConsistent: boolean;
+  isConsistent: boolean;
+  consistencyWarning?: string;
 }
 
 export function getDashboardFinanceSummary(year: number, month: number, spaceId?: SpaceId): DashboardFinanceSummary {
@@ -975,8 +998,12 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
   const currentDay = isCurrentMonth ? today.getDate() : 31;
 
   let initialBalance = 0;
-  let incomeThisMonth = 0;
-  let expenseThisMonth = 0;
+  let totalCashIn = 0;
+  let operationalExpense = 0;
+  let savingsAllocation = 0;
+
+  const memberContributions = { asykar: 0, riska: 0, total: 0 };
+  let otherIncome = 0;
 
   for (const t of allTxns) {
     const dateStr = (t.date || '').slice(0, 10);
@@ -985,18 +1012,36 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     const tMonth = Number(mStr);
 
     if (tYear < year || (tYear === year && tMonth < month)) {
+      // Akumulasi saldo sebelum awal bulan ini
       initialBalance += (t.type === 'masuk' ? t.amount : -t.amount);
     } else if (tYear === year && tMonth === month) {
       if (t.type === 'masuk') {
-        incomeThisMonth += t.amount;
+        totalCashIn += t.amount;
+        const cat = (t.category || '').toLowerCase();
+        const note = (t.note || '').toLowerCase();
+        if (cat.includes('asykar') || note.includes('asykar')) {
+          memberContributions.asykar += t.amount;
+        } else if (cat.includes('riska') || cat.includes('istri') || note.includes('riska') || note.includes('istri')) {
+          memberContributions.riska += t.amount;
+        } else if (cat.includes('setoran')) {
+          memberContributions.asykar += t.amount;
+        } else {
+          otherIncome += t.amount;
+        }
       } else {
-        expenseThisMonth += t.amount;
+        if (t.category === 'Tabungan' || Boolean(t.goalId)) {
+          savingsAllocation += t.amount;
+        } else {
+          operationalExpense += t.amount;
+        }
       }
     }
   }
 
-  const netSurplusThisMonth = incomeThisMonth - expenseThisMonth;
-  const closingBalance = initialBalance + netSurplusThisMonth;
+  memberContributions.total = memberContributions.asykar + memberContributions.riska;
+  const totalCashOut = operationalExpense + savingsAllocation;
+  const netCashFlow = totalCashIn - totalCashOut;
+  const closingBalance = initialBalance + netCashFlow;
 
   // Periode setara bulan lalu (Apple-to-Apple)
   const prevMonth = month === 1 ? 12 : month - 1;
@@ -1018,11 +1063,11 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
   }
 
   const incomeGrowthPct = prevIncome > 0
-    ? ((incomeThisMonth - prevIncome) / prevIncome) * 100
+    ? ((totalCashIn - prevIncome) / prevIncome) * 100
     : null;
 
   const expenseGrowthPct = prevExpense > 0
-    ? ((expenseThisMonth - prevExpense) / prevExpense) * 100
+    ? ((totalCashOut - prevExpense) / prevExpense) * 100
     : null;
 
   const comparisonPeriodLabel = isCurrentMonth
@@ -1042,20 +1087,26 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     remainingBudget = posList.reduce((s, p) => s + Math.max(0, p.monthlyAllocation - getBudgetUsed(p.id, year, month, space)), 0);
   }
 
-  const freeMoney = closingBalance - (remainingBudget ?? 0);
+  const freeMoneyOrDeficit = closingBalance - (remainingBudget ?? 0);
+  const isDeficit = closingBalance < 0 || freeMoneyOrDeficit < 0;
 
   // Tabungan / Dana Cadangan
-  // Menabung = uang keluar dari kas utama (type: keluar) menambah saldo tabungan (+)
-  // Tarik tabungan = uang masuk ke kas utama (type: masuk) mengurangi saldo tabungan (-)
-  const savingsBalance = allTxns
+  // Akumulasi uang yang benar-benar tersimpan di pos tabungan (non-negatif)
+  const rawSavings = allTxns
     .filter(t => t.category === 'Tabungan' || Boolean(t.goalId))
     .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
+  const totalSavingsStored = Math.max(0, rawSavings);
 
-  // Audit Konsistensi: Saldo = Saldo awal + Pemasukan - Pengeluaran
-  const expectedClosing = initialBalance + incomeThisMonth - expenseThisMonth;
-  const isConsistent = Math.abs(closingBalance - expectedClosing) < 0.01;
+  // Audit Validasi & Konsistensi
+  const isCashFlowConsistent = Math.abs(netCashFlow - (totalCashIn - totalCashOut)) < 0.01;
+  const isBalanceConsistent = Math.abs(closingBalance - (initialBalance + netCashFlow)) < 0.01;
+  const isConsistent = isCashFlowConsistent && isBalanceConsistent;
+  const consistencyWarning = isConsistent ? undefined : 'Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.';
+
   if (!isConsistent) {
-    console.warn(`[Finance Audit Inconsistent] Saldo ${closingBalance} !== Awal ${initialBalance} + Masuk ${incomeThisMonth} - Keluar ${expenseThisMonth}`);
+    console.warn('[Finance Audit Warning]', {
+      totalCashIn, totalCashOut, netCashFlow, initialBalance, closingBalance
+    });
   }
 
   return {
@@ -1063,10 +1114,17 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     year,
     month,
     isCurrentMonth,
+    memberContributions,
+    otherIncome,
+    totalCashIn,
+    incomeThisMonth: totalCashIn,
+    operationalExpense,
+    savingsAllocation,
+    totalCashOut,
+    expenseThisMonth: totalCashOut,
+    netCashFlow,
+    netSurplusThisMonth: netCashFlow,
     initialBalance,
-    incomeThisMonth,
-    expenseThisMonth,
-    netSurplusThisMonth,
     closingBalance,
     prevIncome,
     prevExpense,
@@ -1077,9 +1135,15 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     totalBudgetAllocated,
     totalBudgetUsed,
     remainingBudget,
-    freeMoney,
-    savingsBalance,
+    freeMoneyOrDeficit,
+    freeMoney: freeMoneyOrDeficit,
+    isDeficit,
+    totalSavingsStored,
+    savingsBalance: totalSavingsStored,
+    isCashFlowConsistent,
+    isBalanceConsistent,
     isConsistent,
+    consistencyWarning,
   };
 }
 
