@@ -19,7 +19,6 @@ import { getCurrentMonth, formatCurrency, clamp, formatDate } from '@/lib/helper
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import Link from 'next/link';
 import { useSpace } from '@/lib/useSpace';
-import FamilyContributionCard from '@/components/FamilyContributionCard';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
 import FamilyDashboardRedesign from '@/components/FamilyDashboardRedesign';
 
@@ -167,140 +166,198 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* ─── MOBILE HEADER (hidden on desktop) ─── */}
-      <div className="mobile-only-view mobile-dashboard-header">
-        <div className="mobile-db-greeting">
-          <div>
-            <div className="mobile-db-hello">
-              {isFamily ? 'Kas Keluarga' : `Halo, ${userName.split(' ')[0]}`}
+      {/* ─── MOBILE HEADER (hidden on desktop, hidden in family mode because FamilyDashboardRedesign renders its own header) ─── */}
+      {!isFamily && (
+        <div className="mobile-only-view mobile-dashboard-header">
+          <div className="mobile-db-greeting">
+            <div>
+              <div className="mobile-db-hello">
+                Halo, {userName.split(' ')[0]}
+              </div>
+              <div className="mobile-db-appname">
+                Duitku Pribadi
+              </div>
             </div>
-            <div className="mobile-db-appname">
-              {isFamily ? 'Asykar & Istri' : 'Duitku Pribadi'}
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <SpaceSwitcher />
-            <div className="mobile-db-avatar">
-              <User size={20} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <SpaceSwitcher />
+              <div className="mobile-db-avatar">
+                <User size={20} />
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       <div className="page-container">
 
         {/* ─── MOBILE LAYOUT ─── */}
         <div className="mobile-only-view" style={{ flexDirection: 'column', gap: 16 }}>
-
-          {/* Family Contribution Tracker (Keluarga space only) */}
-          {isFamily && (
-            <FamilyContributionCard year={year} month={month} />
-          )}
-
-          {/* Balance Card */}
-          <div className="mobile-balance-card">
-            <div className="mobile-balance-label">
-              {isFamily ? 'Saldo kas bersama (akumulasi)' : 'Total saldo kas'}
-            </div>
-            <div className="mobile-balance-amount">{formatCurrency(summary.closingBalance)}</div>
-            {summary.initialBalance !== 0 && (
-              <div style={{ fontSize: 11, opacity: 0.85, marginTop: -4, marginBottom: 8 }}>
-                Saldo awal: {formatCurrency(summary.initialBalance)} · Bulan ini: {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
-              </div>
-            )}
-            <div className="mobile-balance-row">
-              <div className="mobile-balance-stat">
-                <span className="mobile-balance-stat-icon income">↗</span>
-                <div>
-                  <div className="mobile-balance-stat-label">{isFamily ? 'Setoran Masuk' : 'Pemasukan'}</div>
-                  <div className="mobile-balance-stat-val income">{formatCurrency(summary.totalCashIn, true)}</div>
+          {isFamily ? (
+            <div style={{ width: '100%' }}>
+              {/* Consistency Audit Alert (if discrepancy detected) */}
+              {!summary.isConsistent && (
+                <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>⚠️ Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.</span>
                 </div>
-              </div>
-              <div className="mobile-balance-stat">
-                <span className="mobile-balance-stat-icon expense">↙</span>
-                <div>
-                  <div className="mobile-balance-stat-label">Pengeluaran</div>
-                  <div className="mobile-balance-stat-val expense">{formatCurrency(summary.totalCashOut, true)}</div>
+              )}
+
+              {/* Exact Redesigned Family Dashboard (Mobile View) */}
+              <FamilyDashboardRedesign
+                isMobile={true}
+                year={year}
+                month={month}
+                userName={userName}
+              />
+
+              {/* Mobile Recent Transactions */}
+              <div className="mobile-section" style={{ marginTop: 20 }}>
+                <div className="mobile-section-header">
+                  <span className="mobile-section-title">Transaksi kas terbaru</span>
+                  <Link href="/transactions" className="mobile-section-action">Lihat semua</Link>
                 </div>
+
+                {recentTxns.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '24px 0' }}>
+                    <div className="empty-state-icon">💸</div>
+                    <h3>Belum ada transaksi</h3>
+                    <p>Mulai catat transaksi kas bersama hari ini!</p>
+                  </div>
+                ) : (
+                  <div className="mobile-txn-list-v2">
+                    {recentTxns.map(t => {
+                      const emoji = getCategoryEmoji(t.category);
+                      const isEmoji = emoji.length <= 2 && !/^[A-Z]$/.test(emoji);
+                      return (
+                        <div key={t.id} className="mobile-txn-v2-item">
+                          <div className={`mobile-txn-v2-icon ${t.type}`}>
+                            {isEmoji ? (
+                              <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
+                            ) : (
+                              <span style={{ fontSize: 14, fontWeight: 700 }}>{emoji}</span>
+                            )}
+                          </div>
+                          <div className="mobile-txn-v2-info">
+                            <div className="mobile-txn-v2-name">{t.note || t.category}</div>
+                            <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
+                          </div>
+                          <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
+                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-
-
-          {/* Budget & Goal Progress Cards */}
-          {(budgetPos.length > 0 || goals.length > 0) && (
-            <div className="mobile-progress-row">
-              {budgetPos.length > 0 && (
-                <Link href="/budget" className="mobile-progress-card" style={{ textDecoration: 'none' }}>
-                  <div className="mobile-progress-title">Anggaran bulan ini</div>
-                  <div className="mobile-progress-bar-wrap">
-                    <div
-                      className="mobile-progress-bar-fill budget"
-                      style={{ width: `${budgetPct}%` }}
-                    />
+          ) : (
+            <>
+              {/* Balance Card */}
+              <div className="mobile-balance-card">
+                <div className="mobile-balance-label">
+                  Total saldo kas
+                </div>
+                <div className="mobile-balance-amount">{formatCurrency(summary.closingBalance)}</div>
+                {summary.initialBalance !== 0 && (
+                  <div style={{ fontSize: 11, opacity: 0.85, marginTop: -4, marginBottom: 8 }}>
+                    Saldo awal: {formatCurrency(summary.initialBalance)} · Bulan ini: {summary.netCashFlow >= 0 ? '+' : ''}{formatCurrency(summary.netCashFlow)}
                   </div>
-                  <div className="mobile-progress-sub">
-                    {budgetPct.toFixed(0)}% dari {formatCurrency(totalBudgetAllocated, true)}
-                  </div>
-                </Link>
-              )}
-              {goals.length > 0 && (
-                <Link href="/goals" className="mobile-progress-card" style={{ textDecoration: 'none' }}>
-                  <div className="mobile-progress-title">Target tabungan</div>
-                  <div className="mobile-progress-bar-wrap">
-                    <div
-                      className="mobile-progress-bar-fill goal"
-                      style={{ width: `${totalGoalPct}%` }}
-                    />
-                  </div>
-                  <div className="mobile-progress-sub">
-                    {formatCurrency(totalGoalProgress, true)} / {formatCurrency(totalGoalTarget, true)}
-                  </div>
-                </Link>
-              )}
-            </div>
-          )}
-
-          {/* Recent Transactions */}
-          <div className="mobile-section">
-            <div className="mobile-section-header">
-              <span className="mobile-section-title">Transaksi terbaru</span>
-              <Link href="/transactions" className="mobile-section-action">Lihat semua</Link>
-            </div>
-
-            {recentTxns.length === 0 ? (
-              <div className="empty-state" style={{ padding: '24px 0' }}>
-                <div className="empty-state-icon">💸</div>
-                <h3>Belum ada transaksi</h3>
-                <p>Mulai catat keuanganmu hari ini!</p>
-              </div>
-            ) : (
-              <div className="mobile-txn-list-v2">
-                {recentTxns.map(t => {
-                  const emoji = getCategoryEmoji(t.category);
-                  const isEmoji = emoji.length <= 2 && !/^[A-Z]$/.test(emoji);
-                  return (
-                    <div key={t.id} className="mobile-txn-v2-item">
-                      <div className={`mobile-txn-v2-icon ${t.type}`}>
-                        {isEmoji ? (
-                          <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
-                        ) : (
-                          <span style={{ fontSize: 14, fontWeight: 700 }}>{emoji}</span>
-                        )}
-                      </div>
-                      <div className="mobile-txn-v2-info">
-                        <div className="mobile-txn-v2-name">{t.note || t.category}</div>
-                        <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
-                      </div>
-                      <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
-                        {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
-                      </div>
+                )}
+                <div className="mobile-balance-row">
+                  <div className="mobile-balance-stat">
+                    <span className="mobile-balance-stat-icon income">↗</span>
+                    <div>
+                      <div className="mobile-balance-stat-label">Pemasukan</div>
+                      <div className="mobile-balance-stat-val income">{formatCurrency(summary.totalCashIn, true)}</div>
                     </div>
-                  );
-                })}
+                  </div>
+                  <div className="mobile-balance-stat">
+                    <span className="mobile-balance-stat-icon expense">↙</span>
+                    <div>
+                      <div className="mobile-balance-stat-label">Pengeluaran</div>
+                      <div className="mobile-balance-stat-val expense">{formatCurrency(summary.totalCashOut, true)}</div>
+                    </div>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+
+
+              {/* Budget & Goal Progress Cards */}
+              {(budgetPos.length > 0 || goals.length > 0) && (
+                <div className="mobile-progress-row">
+                  {budgetPos.length > 0 && (
+                    <Link href="/budget" className="mobile-progress-card" style={{ textDecoration: 'none' }}>
+                      <div className="mobile-progress-title">Anggaran bulan ini</div>
+                      <div className="mobile-progress-bar-wrap">
+                        <div
+                          className="mobile-progress-bar-fill budget"
+                          style={{ width: `${budgetPct}%` }}
+                        />
+                      </div>
+                      <div className="mobile-progress-sub">
+                        {budgetPct.toFixed(0)}% dari {formatCurrency(totalBudgetAllocated, true)}
+                      </div>
+                    </Link>
+                  )}
+                  {goals.length > 0 && (
+                    <Link href="/goals" className="mobile-progress-card" style={{ textDecoration: 'none' }}>
+                      <div className="mobile-progress-title">Target tabungan</div>
+                      <div className="mobile-progress-bar-wrap">
+                        <div
+                          className="mobile-progress-bar-fill goal"
+                          style={{ width: `${totalGoalPct}%` }}
+                        />
+                      </div>
+                      <div className="mobile-progress-sub">
+                        {formatCurrency(totalGoalProgress, true)} / {formatCurrency(totalGoalTarget, true)}
+                      </div>
+                    </Link>
+                  )}
+                </div>
+              )}
+
+              {/* Recent Transactions */}
+              <div className="mobile-section">
+                <div className="mobile-section-header">
+                  <span className="mobile-section-title">Transaksi terbaru</span>
+                  <Link href="/transactions" className="mobile-section-action">Lihat semua</Link>
+                </div>
+
+                {recentTxns.length === 0 ? (
+                  <div className="empty-state" style={{ padding: '24px 0' }}>
+                    <div className="empty-state-icon">💸</div>
+                    <h3>Belum ada transaksi</h3>
+                    <p>Mulai catat keuanganmu hari ini!</p>
+                  </div>
+                ) : (
+                  <div className="mobile-txn-list-v2">
+                    {recentTxns.map(t => {
+                      const emoji = getCategoryEmoji(t.category);
+                      const isEmoji = emoji.length <= 2 && !/^[A-Z]$/.test(emoji);
+                      return (
+                        <div key={t.id} className="mobile-txn-v2-item">
+                          <div className={`mobile-txn-v2-icon ${t.type}`}>
+                            {isEmoji ? (
+                              <span style={{ fontSize: 18, lineHeight: 1 }}>{emoji}</span>
+                            ) : (
+                              <span style={{ fontSize: 14, fontWeight: 700 }}>{emoji}</span>
+                            )}
+                          </div>
+                          <div className="mobile-txn-v2-info">
+                            <div className="mobile-txn-v2-name">{t.note || t.category}</div>
+                            <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
+                          </div>
+                          <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
+                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
 
         {/* ─── DESKTOP LAYOUT ─── */}

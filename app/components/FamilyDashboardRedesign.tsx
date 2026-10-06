@@ -27,6 +27,7 @@ interface FamilyDashboardRedesignProps {
   year: number;
   month: number;
   userName?: string;
+  isMobile?: boolean;
   onOpenAddGoal?: () => void;
 }
 
@@ -34,6 +35,7 @@ export default function FamilyDashboardRedesign({
   year,
   month,
   userName = 'Keluarga',
+  isMobile = false,
   onOpenAddGoal,
 }: FamilyDashboardRedesignProps) {
   const router = useRouter();
@@ -145,115 +147,121 @@ export default function FamilyDashboardRedesign({
 
   return (
     <div style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-      {/* ─── TOP BREADCRUMB / UTILITY BAR ─── */}
-      <div style={{
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        padding: '0 4px 14px 4px',
-        color: '#64748B',
-        fontSize: 13,
-        fontWeight: 500,
-      }}>
-        <span>Dashboard</span>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
-          <button style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }} title="Filter">
-            <Sliders size={16} />
-          </button>
-          <button style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }} title="Perbesar">
-            <Maximize2 size={16} />
-          </button>
-          <button style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }} title="Unduh">
-            <Download size={16} />
-          </button>
+      {/* ─── TOP BREADCRUMB / UTILITY BAR (Desktop only) ─── */}
+      {!isMobile && (
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          padding: '0 4px 14px 4px',
+          color: '#64748B',
+          fontSize: 13,
+          fontWeight: 500,
+        }}>
+          <span>Dashboard</span>
+          <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <button style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }} title="Filter">
+              <Sliders size={16} />
+            </button>
+            <button style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }} title="Perbesar">
+              <Maximize2 size={16} />
+            </button>
+            <button style={{ background: 'none', border: 'none', color: '#64748B', cursor: 'pointer', padding: 2 }} title="Unduh">
+              <Download size={16} />
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ─── MAIN HEADER ─── */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'flex-start',
-        marginBottom: 24,
+        marginBottom: isMobile ? 16 : 24,
         flexWrap: 'wrap',
-        gap: 16,
+        gap: 12,
       }}>
-        <div>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
             color: '#4F46E5',
             fontSize: 12,
             fontWeight: 700,
             letterSpacing: '0.06em',
             textTransform: 'uppercase',
-            marginBottom: 4,
+            marginBottom: 2,
           }}>
             {monthLabel.toUpperCase()}
           </div>
           <h1 style={{
-            fontSize: 32,
+            fontSize: isMobile ? 26 : 32,
             fontWeight: 800,
             color: '#0F172A',
             margin: 0,
             letterSpacing: '-0.02em',
             lineHeight: 1.15,
           }}>
-            Dashboard
+            {isMobile ? 'Kas Keluarga' : 'Dashboard'}
           </h1>
           <p style={{
-            fontSize: 14,
+            fontSize: 13,
             color: '#64748B',
-            margin: '4px 0 0 0',
+            margin: '3px 0 0 0',
           }}>
-            Ringkasan keuangan Anda bulan ini
+            {isMobile ? 'Asykar & Istri · Ringkasan kas riil' : 'Ringkasan keuangan Anda bulan ini'}
           </p>
         </div>
 
         {/* Header Right Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <SpaceSwitcher />
 
-          <button
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#475569',
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-            title="Cari"
-          >
-            <Search size={18} />
-          </button>
+          {!isMobile && (
+            <>
+              <button
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                }}
+                title="Cari"
+              >
+                <Search size={18} />
+              </button>
 
-          <button
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: '#FFFFFF',
-              border: '1px solid #E2E8F0',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#475569',
-              cursor: 'pointer',
-              boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
-            }}
-            title="Notifikasi"
-          >
-            <Bell size={18} />
-          </button>
+              <button
+                style={{
+                  width: 40,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: '#FFFFFF',
+                  border: '1px solid #E2E8F0',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#475569',
+                  cursor: 'pointer',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+                }}
+                title="Notifikasi"
+              >
+                <Bell size={18} />
+              </button>
+            </>
+          )}
 
           <div
             style={{
-              width: 40,
-              height: 40,
+              width: isMobile ? 36 : 40,
+              height: isMobile ? 36 : 40,
               borderRadius: '50%',
               background: '#4F46E5',
               color: '#FFFFFF',
@@ -261,7 +269,7 @@ export default function FamilyDashboardRedesign({
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 700,
-              fontSize: 15,
+              fontSize: isMobile ? 14 : 15,
               boxShadow: '0 2px 4px rgba(79,70,229,0.2)',
             }}
             title="Duitku Keluarga"
@@ -272,17 +280,12 @@ export default function FamilyDashboardRedesign({
       </div>
 
       {/* ─── TOP TIER: 2 LARGE CARDS ─── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(420px, 1fr))',
-        gap: 20,
-        marginBottom: 20,
-      }}>
+      <div className="family-top-grid">
         {/* CARD 1: SALDO KAS BERSAMA (Deep Indigo Card) */}
         <div style={{
           background: '#151336',
           borderRadius: 24,
-          padding: '24px 26px',
+          padding: isMobile ? '20px 18px' : '24px 26px',
           color: '#FFFFFF',
           display: 'flex',
           flexDirection: 'column',
@@ -292,7 +295,7 @@ export default function FamilyDashboardRedesign({
         }}>
           <div>
             {/* Header row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{
                 fontSize: 11,
                 fontWeight: 700,
@@ -305,35 +308,41 @@ export default function FamilyDashboardRedesign({
               <span style={{
                 background: 'rgba(255, 255, 255, 0.12)',
                 color: '#FFFFFF',
-                fontSize: 12,
+                fontSize: 11,
                 fontWeight: 600,
-                padding: '4px 12px',
+                padding: '4px 10px',
                 borderRadius: 9999,
+                whiteSpace: 'nowrap',
               }}>
                 {summary.netCashFlow >= 0 ? '+' : ''}{formatRupiah(summary.netCashFlow)} bulan ini
               </span>
             </div>
 
-            {/* Big Amount */}
+            {/* Big Amount (Dynamic: closingBalance from ledger) */}
             <div style={{
-              fontSize: 38,
+              fontSize: 'clamp(28px, 6vw, 38px)',
               fontWeight: 800,
               color: '#FFFFFF',
               letterSpacing: '-0.02em',
               margin: '12px 0 2px 0',
               lineHeight: 1.15,
             }}>
-              {formatRupiah(summary.closingBalance >= 0 ? summary.closingBalance : summary.netCashFlow)}
+              {formatRupiah(summary.closingBalance)}
             </div>
 
             {/* Subtitle */}
             <div style={{
               fontSize: 13,
               color: '#94A3B8',
-              marginBottom: 22,
+              marginBottom: summary.initialBalance !== 0 ? 4 : 20,
             }}>
               Akumulasi kas riil keluarga
             </div>
+            {summary.initialBalance !== 0 && (
+              <div style={{ fontSize: 11, color: '#94A3B8', opacity: 0.85, marginBottom: 18 }}>
+                Saldo awal: {formatRupiah(summary.initialBalance)} · Bulan ini: {summary.netCashFlow >= 0 ? '+' : ''}{formatRupiah(summary.netCashFlow)}
+              </div>
+            )}
 
             {/* Progress Section: Terpakai dari setoran */}
             <div>
@@ -380,23 +389,22 @@ export default function FamilyDashboardRedesign({
           </div>
 
           {/* Bottom 2 Sub-boxes */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 12,
-            marginTop: 20,
-          }}>
+          <div className="family-subboxes-grid">
             {/* Box 1: Free money / Defisit kas */}
             <div style={{
               background: 'rgba(255, 255, 255, 0.08)',
               borderRadius: 14,
-              padding: '12px 16px',
+              padding: isMobile ? '10px 12px' : '12px 16px',
             }}>
               <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 2 }}>
-                {summary.freeMoneyOrDeficit < 0 ? 'Defisit kas' : 'Free money'}
+                {summary.closingBalance < 0 ? 'Defisit kas' : 'Free money'}
               </div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>
-                {formatRupiah(summary.freeMoneyOrDeficit >= 0 ? summary.freeMoneyOrDeficit : summary.netCashFlow)}
+              <div style={{
+                fontSize: 'clamp(14px, 3.8vw, 16px)',
+                fontWeight: 700,
+                color: '#FFFFFF',
+              }}>
+                {formatRupiah(summary.closingBalance < 0 ? summary.closingBalance : summary.freeMoneyOrDeficit)}
               </div>
             </div>
 
@@ -404,16 +412,21 @@ export default function FamilyDashboardRedesign({
             <div style={{
               background: 'rgba(255, 255, 255, 0.08)',
               borderRadius: 14,
-              padding: '12px 16px',
+              padding: isMobile ? '10px 12px' : '12px 16px',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
+              gap: 4,
             }}>
               <div>
                 <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 2 }}>
                   Sisa anggaran
                 </div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: '#FFFFFF' }}>
+                <div style={{
+                  fontSize: 'clamp(14px, 3.8vw, 16px)',
+                  fontWeight: 700,
+                  color: '#FFFFFF',
+                }}>
                   {summary.remainingBudget !== null ? formatRupiah(summary.remainingBudget) : 'Belum diatur'}
                 </div>
               </div>
@@ -423,13 +436,14 @@ export default function FamilyDashboardRedesign({
                 style={{
                   background: '#FFFFFF',
                   color: '#0F172A',
-                  fontSize: 12,
+                  fontSize: 11,
                   fontWeight: 600,
-                  padding: '5px 14px',
+                  padding: '4px 12px',
                   borderRadius: 9999,
                   border: 'none',
                   cursor: 'pointer',
                   boxShadow: '0 1px 2px rgba(0,0,0,0.1)',
+                  flexShrink: 0,
                 }}
               >
                 Atur
@@ -442,7 +456,7 @@ export default function FamilyDashboardRedesign({
         <div style={{
           background: '#FFFFFF',
           borderRadius: 24,
-          padding: '24px 26px',
+          padding: isMobile ? '20px 18px' : '24px 26px',
           border: '1px solid #E2E8F0',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
           display: 'flex',
@@ -452,7 +466,7 @@ export default function FamilyDashboardRedesign({
         }}>
           <div>
             {/* Header row */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
               <span style={{
                 fontSize: 11,
                 fontWeight: 700,
@@ -468,9 +482,9 @@ export default function FamilyDashboardRedesign({
                 style={{
                   background: '#4F46E5',
                   color: '#FFFFFF',
-                  fontSize: 13,
+                  fontSize: isMobile ? 12 : 13,
                   fontWeight: 600,
-                  padding: '8px 16px',
+                  padding: isMobile ? '6px 12px' : '8px 16px',
                   borderRadius: 9999,
                   border: 'none',
                   cursor: 'pointer',
@@ -478,16 +492,17 @@ export default function FamilyDashboardRedesign({
                   alignItems: 'center',
                   gap: 6,
                   boxShadow: '0 2px 4px rgba(79,70,229,0.2)',
+                  flexShrink: 0,
                 }}
               >
-                <Plus size={15} />
+                <Plus size={14} />
                 <span>Tambah setoran</span>
               </button>
             </div>
 
             {/* Big Amount */}
             <div style={{
-              fontSize: 38,
+              fontSize: 'clamp(28px, 6vw, 38px)',
               fontWeight: 800,
               color: '#0F172A',
               letterSpacing: '-0.02em',
@@ -530,23 +545,18 @@ export default function FamilyDashboardRedesign({
           </div>
 
           {/* 2 Member Cards */}
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: 12,
-            marginTop: 4,
-          }}>
+          <div className="family-member-grid">
             {/* Member 1: Asykar */}
             <div style={{
               background: '#F1F4FD',
               borderRadius: 16,
-              padding: '16px 18px',
+              padding: isMobile ? '12px 14px' : '16px 18px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
-                    width: 36,
-                    height: 36,
+                    width: isMobile ? 30 : 36,
+                    height: isMobile ? 30 : 36,
                     borderRadius: '50%',
                     background: '#4F46E5',
                     color: '#FFFFFF',
@@ -554,27 +564,27 @@ export default function FamilyDashboardRedesign({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontSize: 14,
+                    fontSize: isMobile ? 12 : 14,
                   }}>
                     A
                   </div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>Asykar</div>
-                    <div style={{ fontSize: 12, color: '#64748B' }}>Suami</div>
+                    <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>Asykar</div>
+                    <div style={{ fontSize: 11, color: '#64748B' }}>Suami</div>
                   </div>
                 </div>
 
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#4F46E5' }}>
+                <span style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: '#4F46E5' }}>
                   {asykarPct}%
                 </span>
               </div>
 
               <div style={{
-                fontSize: 20,
+                fontSize: isMobile ? 'clamp(14px, 4vw, 18px)' : 20,
                 fontWeight: 800,
                 color: '#0F172A',
                 letterSpacing: '-0.02em',
-                marginTop: 14,
+                marginTop: 12,
               }}>
                 {formatRupiah(asykarAmount)}
               </div>
@@ -584,13 +594,13 @@ export default function FamilyDashboardRedesign({
             <div style={{
               background: '#FDF2F8',
               borderRadius: 16,
-              padding: '16px 18px',
+              padding: isMobile ? '12px 14px' : '16px 18px',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <div style={{
-                    width: 36,
-                    height: 36,
+                    width: isMobile ? 30 : 36,
+                    height: isMobile ? 30 : 36,
                     borderRadius: '50%',
                     background: '#BE185D',
                     color: '#FFFFFF',
@@ -598,27 +608,27 @@ export default function FamilyDashboardRedesign({
                     alignItems: 'center',
                     justifyContent: 'center',
                     fontWeight: 700,
-                    fontSize: 14,
+                    fontSize: isMobile ? 12 : 14,
                   }}>
                     R
                   </div>
                   <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>Riska</div>
-                    <div style={{ fontSize: 12, color: '#64748B' }}>Istri</div>
+                    <div style={{ fontSize: isMobile ? 13 : 14, fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>Riska</div>
+                    <div style={{ fontSize: 11, color: '#64748B' }}>Istri</div>
                   </div>
                 </div>
 
-                <span style={{ fontSize: 13, fontWeight: 700, color: '#BE185D' }}>
+                <span style={{ fontSize: isMobile ? 12 : 13, fontWeight: 700, color: '#BE185D' }}>
                   {istriPct}%
                 </span>
               </div>
 
               <div style={{
-                fontSize: 20,
+                fontSize: isMobile ? 'clamp(14px, 4vw, 18px)' : 20,
                 fontWeight: 800,
                 color: '#0F172A',
                 letterSpacing: '-0.02em',
-                marginTop: 14,
+                marginTop: 12,
               }}>
                 {formatRupiah(istriAmount)}
               </div>
@@ -628,16 +638,12 @@ export default function FamilyDashboardRedesign({
       </div>
 
       {/* ─── BOTTOM TIER: 3 METRIC CARDS ─── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: 20,
-      }}>
+      <div className="family-bottom-grid">
         {/* CARD 1: PENGELUARAN BULAN INI */}
         <div style={{
           background: '#FFFFFF',
           borderRadius: 20,
-          padding: '22px 24px',
+          padding: isMobile ? '18px 18px' : '22px 24px',
           border: '1px solid #E2E8F0',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
           display: 'flex',
@@ -670,7 +676,7 @@ export default function FamilyDashboardRedesign({
             </div>
 
             <div style={{
-              fontSize: 30,
+              fontSize: 'clamp(24px, 5.5vw, 30px)',
               fontWeight: 800,
               color: '#C2410C',
               letterSpacing: '-0.02em',
@@ -710,7 +716,7 @@ export default function FamilyDashboardRedesign({
         <div style={{
           background: '#FFFFFF',
           borderRadius: 20,
-          padding: '22px 24px',
+          padding: isMobile ? '18px 18px' : '22px 24px',
           border: '1px solid #E2E8F0',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
           display: 'flex',
@@ -743,7 +749,7 @@ export default function FamilyDashboardRedesign({
             </div>
 
             <div style={{
-              fontSize: 30,
+              fontSize: 'clamp(24px, 5.5vw, 30px)',
               fontWeight: 800,
               color: '#047857',
               letterSpacing: '-0.02em',
@@ -766,7 +772,7 @@ export default function FamilyDashboardRedesign({
         <div style={{
           background: '#FFFFFF',
           borderRadius: 20,
-          padding: '22px 24px',
+          padding: isMobile ? '18px 18px' : '22px 24px',
           border: '1.5px dashed #A78BFA',
           boxShadow: '0 1px 3px rgba(0, 0, 0, 0.04)',
           display: 'flex',
@@ -799,7 +805,7 @@ export default function FamilyDashboardRedesign({
             </div>
 
             <div style={{
-              fontSize: 30,
+              fontSize: 'clamp(24px, 5.5vw, 30px)',
               fontWeight: 800,
               color: '#0F172A',
               letterSpacing: '-0.02em',

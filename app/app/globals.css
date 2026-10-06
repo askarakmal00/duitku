@@ -3925,3 +3925,55 @@ button.space-card {
   align-self: flex-end;
 }
 
+/* ─── Family Dashboard Redesign (Full Responsive) ────────── */
+.family-top-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+
+.family-bottom-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.family-member-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.family-subboxes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+@media (max-width: 900px) {
+  .family-top-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .family-bottom-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .family-subboxes-grid {
+    gap: 8px !important;
+  }
+  
+  .family-member-grid {
+    gap: 8px !important;
+  }
+}
+
+
