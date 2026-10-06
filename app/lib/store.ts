@@ -888,27 +888,27 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
 }
 
 // ─── Dashboard Calculations ────────────────────────────────────
-export function getTotalBalance(): number {
-  return getTransactions().reduce((sum, t) =>
+export function getTotalBalance(spaceId?: SpaceId): number {
+  return getTransactions(spaceId).reduce((sum, t) =>
     sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
 }
 
-export function getRemainingBudget(year: number, month: number): number {
-  const posList = getBudgetPos();
+export function getRemainingBudget(year: number, month: number, spaceId?: SpaceId): number {
+  const posList = getBudgetPos(spaceId);
   return posList.reduce((sum, p) => {
-    const used = getBudgetUsed(p.id, year, month);
+    const used = getBudgetUsed(p.id, year, month, spaceId);
     return sum + Math.max(0, p.monthlyAllocation - used);
   }, 0);
 }
 
-export function getFreeMoney(year: number, month: number): number {
-  const totalBalance = getTotalBalance();
-  const remainingBudget = getRemainingBudget(year, month);
+export function getFreeMoney(year: number, month: number, spaceId?: SpaceId): number {
+  const totalBalance = getTotalBalance(spaceId);
+  const remainingBudget = getRemainingBudget(year, month, spaceId);
   return totalBalance - remainingBudget;
 }
 
-export function getMonthlyIncome(year: number, month: number): number {
-  return getTransactions()
+export function getMonthlyIncome(year: number, month: number, spaceId?: SpaceId): number {
+  return getTransactions(spaceId)
     .filter(t => {
       if (t.type !== 'masuk') return false;
       const d = new Date(t.date);
@@ -917,8 +917,8 @@ export function getMonthlyIncome(year: number, month: number): number {
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
-export function getMonthlyExpense(year: number, month: number): number {
-  return getTransactions()
+export function getMonthlyExpense(year: number, month: number, spaceId?: SpaceId): number {
+  return getTransactions(spaceId)
     .filter(t => {
       if (t.type !== 'keluar') return false;
       const d = new Date(t.date);
@@ -927,13 +927,13 @@ export function getMonthlyExpense(year: number, month: number): number {
     .reduce((sum, t) => sum + t.amount, 0);
 }
 
-export function getTotalSavings(): number {
-  return getTransactions()
+export function getTotalSavings(spaceId?: SpaceId): number {
+  return getTransactions(spaceId)
     .filter(t => t.category === 'Tabungan')
     .reduce((sum, t) => sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
 }
 
-export function getMonthlyFlowData(months: number = 7): { labels: string[]; income: number[]; expense: number[] } {
+export function getMonthlyFlowData(months: number = 7, spaceId?: SpaceId): { labels: string[]; income: number[]; expense: number[] } {
   const labels: string[] = [];
   const income: number[] = [];
   const expense: number[] = [];
@@ -942,8 +942,8 @@ export function getMonthlyFlowData(months: number = 7): { labels: string[]; inco
   for (let i = months - 1; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     labels.push(d.toLocaleDateString('id-ID', { month: 'short' }));
-    income.push(getMonthlyIncome(d.getFullYear(), d.getMonth() + 1));
-    expense.push(getMonthlyExpense(d.getFullYear(), d.getMonth() + 1));
+    income.push(getMonthlyIncome(d.getFullYear(), d.getMonth() + 1, spaceId));
+    expense.push(getMonthlyExpense(d.getFullYear(), d.getMonth() + 1, spaceId));
   }
 
   return { labels, income, expense };
