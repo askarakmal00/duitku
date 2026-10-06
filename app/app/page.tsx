@@ -10,12 +10,12 @@ import SavingGoalsList from '@/components/SavingGoalsList';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import TransactionModal from '@/components/TransactionModal';
 import {
-  getTransactions, addTransaction, updateTransaction, deleteTransaction, getTotalBalance,
-  getMonthlyIncome, getMonthlyExpense, getTotalSavings, getRemainingBudget, getFreeMoney,
+  getTransactions, addTransaction, updateTransaction, deleteTransaction,
   getBudgetPos, getBudgetUsed, getSavingGoals, getGoalProgress, getSettings,
+  getDashboardFinanceSummary
 } from '@/lib/store';
 import { Transaction, BudgetPos, SavingGoal } from '@/lib/types';
-import { getCurrentMonth, getPreviousMonth, formatCurrency, clamp, formatDate } from '@/lib/helpers';
+import { getCurrentMonth, formatCurrency, clamp, formatDate } from '@/lib/helpers';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import Link from 'next/link';
 import { useSpace } from '@/lib/useSpace';
@@ -84,7 +84,6 @@ export default function DashboardPage() {
   const [userName, setUserName] = useState('Pengguna');
 
   const { year, month } = getCurrentMonth();
-  const prev = getPreviousMonth();
 
   const loadData = useCallback(() => {
     setTransactions(getTransactions());
@@ -96,16 +95,8 @@ export default function DashboardPage() {
 
   useDataRefresh(loadData);
 
-
-  const totalBalance = getTotalBalance();
-  const remainingBudget = getRemainingBudget(year, month);
-  const freeMoney = getFreeMoney(year, month);
-
-  const income = getMonthlyIncome(year, month);
-  const expense = getMonthlyExpense(year, month);
-  const savings = getTotalSavings();
-  const prevIncome = getMonthlyIncome(prev.year, prev.month);
-  const prevExpense = getMonthlyExpense(prev.year, prev.month);
+  // Satu-satunya sumber perhitungan terpadu untuk semua kartu dashboard
+  const summary = getDashboardFinanceSummary(year, month);
 
   const budgetItems = budgetPos.map(p => ({
     name: p.name,
@@ -206,22 +197,27 @@ export default function DashboardPage() {
           {/* Balance Card */}
           <div className="mobile-balance-card">
             <div className="mobile-balance-label">
-              {isFamily ? 'Saldo kas bersama' : 'Total saldo'}
+              {isFamily ? 'Saldo kas bersama (akumulasi)' : 'Total saldo kas'}
             </div>
-            <div className="mobile-balance-amount">{formatCurrency(totalBalance)}</div>
+            <div className="mobile-balance-amount">{formatCurrency(summary.closingBalance)}</div>
+            {summary.initialBalance !== 0 && (
+              <div style={{ fontSize: 11, opacity: 0.85, marginTop: -4, marginBottom: 8 }}>
+                Saldo awal: {formatCurrency(summary.initialBalance)} · Bulan ini: {summary.netSurplusThisMonth >= 0 ? '+' : ''}{formatCurrency(summary.netSurplusThisMonth)}
+              </div>
+            )}
             <div className="mobile-balance-row">
               <div className="mobile-balance-stat">
                 <span className="mobile-balance-stat-icon income">↗</span>
                 <div>
                   <div className="mobile-balance-stat-label">Pemasukan</div>
-                  <div className="mobile-balance-stat-val income">{formatCurrency(income, true)}</div>
+                  <div className="mobile-balance-stat-val income">{formatCurrency(summary.incomeThisMonth, true)}</div>
                 </div>
               </div>
               <div className="mobile-balance-stat">
                 <span className="mobile-balance-stat-icon expense">↙</span>
                 <div>
                   <div className="mobile-balance-stat-label">Pengeluaran</div>
-                  <div className="mobile-balance-stat-val expense">{formatCurrency(expense, true)}</div>
+                  <div className="mobile-balance-stat-val expense">{formatCurrency(summary.expenseThisMonth, true)}</div>
                 </div>
               </div>
             </div>
@@ -313,18 +309,46 @@ export default function DashboardPage() {
             </div>
           )}
 
+          {/* Consistency Audit Alert (if discrepancy detected) */}
+          {!summary.isConsistent && (
+            <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>⚠️ Peringatan Audit: Saldo akhir tidak sama dengan Saldo Awal + Pemasukan - Pengeluaran. Periksa integritas data transaksi.</span>
+            </div>
+          )}
+
           {/* Summary Cards */}
           <div className="summary-grid mb-5">
             <SummaryCard
-              label={isFamily ? "Saldo Kas Bersama" : "Total Saldo"}
-              value={totalBalance}
+              label={isFamily ? "Saldo Kas Bersama" : "Total Saldo Kas"}
+              value={summary.closingBalance}
               variant="hero"
-              freeMoney={freeMoney}
-              remainingBudget={remainingBudget}
+              initialBalance={summary.initialBalance}
+              netSurplus={summary.netSurplusThisMonth}
+              freeMoney={summary.freeMoney}
+              remainingBudget={summary.remainingBudget}
+              subtitle={isFamily ? "Akumulasi kas riil keluarga" : undefined}
             />
-            <SummaryCard label="Pemasukan (Bulan Ini)" value={income} prevValue={prevIncome} variant="income" />
-            <SummaryCard label="Pengeluaran (Bulan Ini)" value={expense} prevValue={prevExpense} variant="expense" />
-            <SummaryCard label={isFamily ? "Dana Bersama" : "Total Tabungan"} value={savings} variant="savings" />
+            <SummaryCard
+              label="Pemasukan (Bulan Ini)"
+              value={summary.incomeThisMonth}
+              growthPct={summary.incomeGrowthPct}
+              comparisonLabel={summary.comparisonPeriodLabel}
+              variant="income"
+            />
+            <SummaryCard
+              label="Pengeluaran (Bulan Ini)"
+              value={summary.expenseThisMonth}
+              growthPct={summary.expenseGrowthPct}
+              comparisonLabel={summary.comparisonPeriodLabel}
+              variant="expense"
+            />
+            <SummaryCard
+              label={isFamily ? "Tabungan & Dana Cadangan" : "Total Tabungan"}
+              value={summary.savingsBalance}
+              variant="savings"
+              badgeLabel="Akumulasi sampai hari ini"
+              subtitle={isFamily ? "Pos alokasi simpanan khusus keluarga" : "Pos simpanan pribadi"}
+            />
           </div>
 
 

@@ -98,7 +98,7 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
 
   const totalCollected = asykarAmount + istriAmount;
   const asykarPct = totalCollected > 0 ? Math.round((asykarAmount / totalCollected) * 100) : 0;
-  const istriPct = totalCollected > 0 ? Math.round((istriAmount / totalCollected) * 100) : 0;
+  const istriPct = totalCollected > 0 ? (100 - asykarPct) : 0;
 
   return (
     <div className="family-contrib-card">
@@ -108,7 +108,7 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
             <Users size={16} />
             <span>Setoran Kas Bersama</span>
           </div>
-          <span className="family-contrib-month">{getMonthName(year, month)} {year}</span>
+          <span className="family-contrib-month">{getMonthName(year, month)}</span>
         </div>
         <button
           type="button"
@@ -137,7 +137,7 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
               style={{ flex: 1, padding: '8px' }}
               onClick={() => setPerson('istri')}
             >
-              Setoran Istri
+              Setoran Riska (Istri)
             </button>
           </div>
 
@@ -160,7 +160,7 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
                 type="text"
                 value={noteInput}
                 onChange={e => setNoteInput(e.target.value)}
-                placeholder={`Setoran ${person === 'asykar' ? 'Asykar' : 'Istri'}`}
+                placeholder={`Setoran ${person === 'asykar' ? 'Asykar' : 'Riska'}`}
                 className="family-input"
               />
             </div>
@@ -200,13 +200,13 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
               <div className="family-person-amount">{formatCurrency(asykarAmount)}</div>
             </div>
 
-            {/* Istri */}
+            {/* Istri / Riska */}
             <div className="family-person-card">
               <div className="family-person-header">
                 <div className="family-person-info">
-                  <div className="family-person-avatar istri">I</div>
+                  <div className="family-person-avatar istri">R</div>
                   <div>
-                    <span className="family-person-name">Istri</span>
+                    <span className="family-person-name">Riska</span>
                     <span className="family-person-role">Istri</span>
                   </div>
                 </div>

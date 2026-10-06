@@ -1,16 +1,24 @@
+export function formatRupiah(amount: number): string {
+  if (isNaN(amount) || amount === null || amount === undefined) return 'Rp 0';
+  const isNegative = amount < 0;
+  const abs = Math.round(Math.abs(amount));
+  const formatted = new Intl.NumberFormat('id-ID').format(abs);
+  return isNegative ? `-Rp ${formatted}` : `Rp ${formatted}`;
+}
+
 export function formatCurrency(amount: number, compact = false): string {
-  if (compact && Math.abs(amount) >= 1_000_000) {
-    return 'Rp ' + (amount / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'jt';
+  if (isNaN(amount) || amount === null || amount === undefined) return 'Rp 0';
+  const isNegative = amount < 0;
+  const abs = Math.abs(amount);
+  const prefix = isNegative ? '-Rp ' : 'Rp ';
+
+  if (compact && abs >= 1_000_000) {
+    return prefix + (abs / 1_000_000).toFixed(1).replace(/\.0$/, '') + 'jt';
   }
-  if (compact && Math.abs(amount) >= 1_000) {
-    return 'Rp ' + (amount / 1_000).toFixed(0) + 'rb';
+  if (compact && abs >= 1_000) {
+    return prefix + (abs / 1_000).toFixed(0) + 'rb';
   }
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
+  return formatRupiah(amount);
 }
 
 

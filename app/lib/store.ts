@@ -1,6 +1,5 @@
 import {
-  Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings, SpaceId,
-  FAMILY_EXPENSE_CATEGORIES, FAMILY_INCOME_CATEGORIES
+  Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings, SpaceId
 } from './types';
 import { getActiveSpace, migrateExistingData } from './spaceStore';
 import { supabase } from './supabase';
@@ -218,21 +217,9 @@ export async function syncWithSupabase(): Promise<void> {
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
     const hasSpaceTag = rawNote.includes('[space:keluarga]');
-    const isFamilyCat =
-      FAMILY_EXPENSE_CATEGORIES.includes(t.category) ||
-      FAMILY_INCOME_CATEGORIES.includes(t.category);
-
-    const familyKeywords = ['persalinan', 'istri', 'riska', 'keluarga', 'setoran', 'bersama', 'anak', 'dapur', 'kpr'];
-    const hasFamilyKeyword = familyKeywords.some(kw =>
-      rawNote.toLowerCase().includes(kw) || (t.category || '').toLowerCase().includes(kw)
-    );
-
-    // Preserve local space, or read from Supabase space_id, or infer from note tag/category/keywords
     const isFamily =
       (t.space_id as SpaceId) === 'keluarga' ||
       hasSpaceTag ||
-      isFamilyCat ||
-      hasFamilyKeyword ||
       localSpaceMap.get(t.id) === 'keluarga';
 
     const assignedSpace: SpaceId = isFamily ? 'keluarga' : ((t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi');
@@ -944,7 +931,156 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   notifyDataChanged();
 }
 
-// ─── Dashboard Calculations ────────────────────────────────────
+// ─── Dashboard Unified Financial Selector ──────────────────────
+export interface DashboardFinanceSummary {
+  spaceId: SpaceId;
+  year: number;
+  month: number;
+  isCurrentMonth: boolean;
+
+  // Saldo Utama & Periode
+  initialBalance: number;        // Saldo kumulatif sebelum tanggal 1 bulan ini
+  incomeThisMonth: number;       // Pemasukan tanggal 1 s.d. akhir bulan ini
+  expenseThisMonth: number;      // Pengeluaran tanggal 1 s.d. akhir bulan ini
+  netSurplusThisMonth: number;    // Pemasukan - Pengeluaran bulan ini
+  closingBalance: number;        // Saldo akhir saat ini: initialBalance + netSurplusThisMonth
+
+  // Perbandingan vs Bulan Lalu (Apple-to-Apple / Periode Setara)
+  prevIncome: number;            // Pemasukan bulan lalu pada hari yang setara
+  prevExpense: number;           // Pengeluaran bulan lalu pada hari yang setara
+  incomeGrowthPct: number | null;// null jika bulan lalu 0 atau tidak ada data
+  expenseGrowthPct: number | null;// null jika bulan lalu 0 atau tidak ada data
+  comparisonPeriodLabel: string; // misal "vs tgl 1-6 bln lalu" atau "vs bln lalu"
+
+  // Anggaran & Free Money
+  hasBudget: boolean;            // apakah ada pos anggaran yang dibuat
+  totalBudgetAllocated: number;
+  totalBudgetUsed: number;
+  remainingBudget: number | null;// null jika !hasBudget ("Belum diatur")
+  freeMoney: number;             // closingBalance - (remainingBudget ?? 0)
+
+  // Dana Cadangan / Tabungan (Keluarga: Tabungan tersimpan)
+  savingsBalance: number;        // Akumulasi tabungan tersimpan
+
+  // Audit Konsistensi
+  isConsistent: boolean;         // closingBalance === initialBalance + incomeThisMonth - expenseThisMonth
+}
+
+export function getDashboardFinanceSummary(year: number, month: number, spaceId?: SpaceId): DashboardFinanceSummary {
+  const space = spaceId || getActiveSpaceId();
+  const allTxns = getTransactions(space);
+
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && (today.getMonth() + 1) === month;
+  const currentDay = isCurrentMonth ? today.getDate() : 31;
+
+  let initialBalance = 0;
+  let incomeThisMonth = 0;
+  let expenseThisMonth = 0;
+
+  for (const t of allTxns) {
+    const dateStr = (t.date || '').slice(0, 10);
+    const [yStr, mStr] = dateStr.split('-');
+    const tYear = Number(yStr);
+    const tMonth = Number(mStr);
+
+    if (tYear < year || (tYear === year && tMonth < month)) {
+      initialBalance += (t.type === 'masuk' ? t.amount : -t.amount);
+    } else if (tYear === year && tMonth === month) {
+      if (t.type === 'masuk') {
+        incomeThisMonth += t.amount;
+      } else {
+        expenseThisMonth += t.amount;
+      }
+    }
+  }
+
+  const netSurplusThisMonth = incomeThisMonth - expenseThisMonth;
+  const closingBalance = initialBalance + netSurplusThisMonth;
+
+  // Periode setara bulan lalu (Apple-to-Apple)
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  let prevIncome = 0;
+  let prevExpense = 0;
+
+  for (const t of allTxns) {
+    const dateStr = (t.date || '').slice(0, 10);
+    const [yStr, mStr, dStr] = dateStr.split('-');
+    const tYear = Number(yStr);
+    const tMonth = Number(mStr);
+    const tDay = Number(dStr);
+
+    if (tYear === prevYear && tMonth === prevMonth && tDay <= currentDay) {
+      if (t.type === 'masuk') prevIncome += t.amount;
+      else prevExpense += t.amount;
+    }
+  }
+
+  const incomeGrowthPct = prevIncome > 0
+    ? ((incomeThisMonth - prevIncome) / prevIncome) * 100
+    : null;
+
+  const expenseGrowthPct = prevExpense > 0
+    ? ((expenseThisMonth - prevExpense) / prevExpense) * 100
+    : null;
+
+  const comparisonPeriodLabel = isCurrentMonth
+    ? `vs tgl 1-${currentDay} bln lalu`
+    : 'vs bln lalu';
+
+  // Anggaran
+  const posList = getBudgetPos(space);
+  const hasBudget = posList.length > 0;
+  let totalBudgetAllocated = 0;
+  let totalBudgetUsed = 0;
+  let remainingBudget: number | null = null;
+
+  if (hasBudget) {
+    totalBudgetAllocated = posList.reduce((s, p) => s + p.monthlyAllocation, 0);
+    totalBudgetUsed = posList.reduce((s, p) => s + getBudgetUsed(p.id, year, month, space), 0);
+    remainingBudget = posList.reduce((s, p) => s + Math.max(0, p.monthlyAllocation - getBudgetUsed(p.id, year, month, space)), 0);
+  }
+
+  const freeMoney = closingBalance - (remainingBudget ?? 0);
+
+  // Tabungan / Dana Cadangan
+  const savingsBalance = allTxns
+    .filter(t => t.category === 'Tabungan')
+    .reduce((sum, t) => sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
+
+  // Audit Konsistensi: Saldo = Saldo awal + Pemasukan - Pengeluaran
+  const expectedClosing = initialBalance + incomeThisMonth - expenseThisMonth;
+  const isConsistent = Math.abs(closingBalance - expectedClosing) < 0.01;
+  if (!isConsistent) {
+    console.warn(`[Finance Audit Inconsistent] Saldo ${closingBalance} !== Awal ${initialBalance} + Masuk ${incomeThisMonth} - Keluar ${expenseThisMonth}`);
+  }
+
+  return {
+    spaceId: space,
+    year,
+    month,
+    isCurrentMonth,
+    initialBalance,
+    incomeThisMonth,
+    expenseThisMonth,
+    netSurplusThisMonth,
+    closingBalance,
+    prevIncome,
+    prevExpense,
+    incomeGrowthPct,
+    expenseGrowthPct,
+    comparisonPeriodLabel,
+    hasBudget,
+    totalBudgetAllocated,
+    totalBudgetUsed,
+    remainingBudget,
+    freeMoney,
+    savingsBalance,
+    isConsistent,
+  };
+}
+
 export function getTotalBalance(spaceId?: SpaceId): number {
   return getTransactions(spaceId).reduce((sum, t) =>
     sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);

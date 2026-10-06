@@ -415,8 +415,19 @@ body {
   border-radius: 50%;
 }
 .summary-card.variant-hero .summary-card-label { color: rgba(255,255,255,0.75); }
-.summary-card.variant-hero .summary-card-value { color: white; }
-.summary-card.variant-hero .summary-badge { background: rgba(255,255,255,0.2); color: white; }
+.summary-card.variant-hero.is-negative-card {
+  background: linear-gradient(135deg, #7c2d12 0%, #991b1b 50%, #7f1d1d 100%);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.summary-card.is-negative-card:not(.variant-hero) {
+  border-color: rgba(239, 68, 68, 0.35);
+}
+.text-negative-bold {
+  color: #ef4444 !important;
+}
+.summary-card.variant-hero .text-negative-bold {
+  color: #fecaca !important;
+}
 
 /* Hero breakdown box for Free Money & Sisa Anggaran */
 .summary-hero-breakdown {
