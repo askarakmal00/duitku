@@ -1,4 +1,5 @@
-import { Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings } from './types';
+import { Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings, SpaceId } from './types';
+import { getActiveSpace, migrateExistingData } from './spaceStore';
 import { supabase } from './supabase';
 
 const KEYS = {
@@ -24,6 +25,18 @@ export function notifyDataChanged(): void {
     window.dispatchEvent(new CustomEvent('pf_data_changed'));
   }
 }
+
+// ─── Active Space Helper ────────────────────────────────────────────────────
+export function getActiveSpaceId(): SpaceId {
+  return getActiveSpace() || 'pribadi';
+}
+
+// Run migration on module load (client-side)
+if (typeof window !== 'undefined') {
+  migrateExistingData();
+}
+
+
 
 function genId(): string {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.randomUUID) {
@@ -368,16 +381,25 @@ export async function syncWithSupabase(): Promise<void> {
 }
 
 // ─── Transactions ─────────────────────────────────────────────
-export function getTransactions(): Transaction[] {
-  return sortTransactions(load<Transaction[]>(KEYS.transactions, []));
+export function getTransactions(spaceId?: SpaceId): Transaction[] {
+  const all = sortTransactions(load<Transaction[]>(KEYS.transactions, []));
+  const space = spaceId || getActiveSpaceId();
+  return all.filter(t => !t.spaceId || t.spaceId === space);
 }
 
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
-  const txns = getTransactions();
-  const newTxn: Transaction = { ...data, id: genId(), createdAt: new Date().toISOString() };
+  const allTxns = sortTransactions(load<Transaction[]>(KEYS.transactions, []));
+  const newTxn: Transaction = {
+    ...data,
+    spaceId: data.spaceId || getActiveSpaceId(),
+    id: genId(),
+    createdAt: new Date().toISOString()
+  };
+
   
-  save(KEYS.transactions, sortTransactions([newTxn, ...txns]));
+  save(KEYS.transactions, sortTransactions([newTxn, ...allTxns]));
   addPending(PENDING_KEYS.transactions, newTxn.id);
+
 
   try {
     await safeInsertTransaction(newTxn);
@@ -392,14 +414,17 @@ export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>
 
 export async function addBulkTransactions(items: Omit<Transaction, 'id' | 'createdAt'>[]): Promise<Transaction[]> {
   if (items.length === 0) return [];
-  const currentTxns = getTransactions();
+  const activeSpace = getActiveSpaceId();
+  const currentTxns = load<Transaction[]>(KEYS.transactions, []);
   const newTxns: Transaction[] = items.map(item => ({
     ...item,
+    spaceId: item.spaceId || activeSpace,
     id: genId(),
     createdAt: new Date().toISOString(),
   }));
 
   save(KEYS.transactions, sortTransactions([...newTxns, ...currentTxns]));
+
   
   for (const t of newTxns) {
     addPending(PENDING_KEYS.transactions, t.id);
@@ -445,7 +470,8 @@ export async function addBulkTransactions(items: Omit<Transaction, 'id' | 'creat
 }
 
 export async function updateTransaction(id: string, data: Partial<Omit<Transaction, 'id' | 'createdAt'>>): Promise<void> {
-  const txns = getTransactions().map(t => t.id === id ? { ...t, ...data } : t);
+  const allTxns = load<Transaction[]>(KEYS.transactions, []);
+  const txns = allTxns.map(t => t.id === id ? { ...t, ...data } : t);
   save(KEYS.transactions, txns);
 
   const updateData: any = {};
@@ -470,7 +496,7 @@ export async function updateTransaction(id: string, data: Partial<Omit<Transacti
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  const current = getTransactions();
+  const current = load<Transaction[]>(KEYS.transactions, []);
   const targetTxn = current.find(t => t.id === id);
   const updated = current.filter(t => t.id !== id);
   
@@ -484,11 +510,11 @@ export async function deleteTransaction(id: string): Promise<void> {
   }
 
   // Cross-module sync: Delete linked debt_transaction if exists
-  const debtTxns = getDebtTransactions();
-  const linkedDebtTxns = debtTxns.filter(dt => dt.id === targetTxn?.debtTxnId || dt.txnId === id);
+  const allDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const linkedDebtTxns = allDebtTxns.filter(dt => dt.id === targetTxn?.debtTxnId || dt.txnId === id);
   if (linkedDebtTxns.length > 0) {
     const linkedIds = new Set(linkedDebtTxns.map(dt => dt.id));
-    save(KEYS.debtTransactions, debtTxns.filter(dt => !linkedIds.has(dt.id)));
+    save(KEYS.debtTransactions, allDebtTxns.filter(dt => !linkedIds.has(dt.id)));
     for (const dt of linkedDebtTxns) {
       removePending(PENDING_KEYS.debtTransactions, dt.id);
       try {
@@ -500,15 +526,23 @@ export async function deleteTransaction(id: string): Promise<void> {
   notifyDataChanged();
 }
 
+
 // ─── Budget Pos ────────────────────────────────────────────────
-export function getBudgetPos(): BudgetPos[] {
-  return load<BudgetPos[]>(KEYS.budgetPos, []);
+export function getBudgetPos(spaceId?: SpaceId): BudgetPos[] {
+  const all = load<BudgetPos[]>(KEYS.budgetPos, []);
+  const space = spaceId || getActiveSpaceId();
+  return all.filter(p => !p.spaceId || p.spaceId === space);
 }
 
 export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): Promise<BudgetPos> {
-  const list = getBudgetPos();
-  const newPos: BudgetPos = { ...data, id: genId(), createdAt: new Date().toISOString() };
-  save(KEYS.budgetPos, [...list, newPos]);
+  const all = load<BudgetPos[]>(KEYS.budgetPos, []);
+  const newPos: BudgetPos = {
+    ...data,
+    spaceId: data.spaceId || getActiveSpaceId(),
+    id: genId(),
+    createdAt: new Date().toISOString()
+  };
+  save(KEYS.budgetPos, [...all, newPos]);
   addPending(PENDING_KEYS.budgetPos, newPos.id);
 
   try {
@@ -527,7 +561,8 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
 }
 
 export async function updateBudgetPos(id: string, data: Partial<Omit<BudgetPos, 'id' | 'createdAt'>>): Promise<void> {
-  save(KEYS.budgetPos, getBudgetPos().map(p => p.id === id ? { ...p, ...data } : p));
+  const all = load<BudgetPos[]>(KEYS.budgetPos, []);
+  save(KEYS.budgetPos, all.map(p => p.id === id ? { ...p, ...data } : p));
 
   const updateData: any = {};
   if (data.name !== undefined) updateData.name = data.name;
@@ -541,12 +576,13 @@ export async function updateBudgetPos(id: string, data: Partial<Omit<BudgetPos, 
 }
 
 export async function deleteBudgetPos(id: string): Promise<void> {
-  save(KEYS.budgetPos, getBudgetPos().filter(p => p.id !== id));
+  const all = load<BudgetPos[]>(KEYS.budgetPos, []);
+  save(KEYS.budgetPos, all.filter(p => p.id !== id));
   removePending(PENDING_KEYS.budgetPos, id);
   
   // Unlink budgetPosId from transactions
-  const txns = getTransactions();
-  const updatedTxns = txns.map(t => t.budgetPosId === id ? { ...t, budgetPosId: undefined } : t);
+  const allTxns = load<Transaction[]>(KEYS.transactions, []);
+  const updatedTxns = allTxns.map(t => t.budgetPosId === id ? { ...t, budgetPosId: undefined } : t);
   save(KEYS.transactions, updatedTxns);
 
   try {
@@ -556,8 +592,8 @@ export async function deleteBudgetPos(id: string): Promise<void> {
   notifyDataChanged();
 }
 
-export function getBudgetUsed(posId: string, year: number, month: number): number {
-  const txns = getTransactions();
+export function getBudgetUsed(posId: string, year: number, month: number, spaceId?: SpaceId): number {
+  const txns = getTransactions(spaceId);
   return txns
     .filter(t => {
       if (t.type !== 'keluar' || t.budgetPosId !== posId) return false;
@@ -568,16 +604,19 @@ export function getBudgetUsed(posId: string, year: number, month: number): numbe
 }
 
 // ─── Debt ──────────────────────────────────────────────────────
-export function getDebtParties(): DebtParty[] {
-  return load<DebtParty[]>(KEYS.debtParties, []);
+export function getDebtParties(spaceId?: SpaceId): DebtParty[] {
+  const all = load<DebtParty[]>(KEYS.debtParties, []);
+  const space = spaceId || getActiveSpaceId();
+  return all.filter(p => !p.spaceId || p.spaceId === space);
 }
 
-export async function addDebtParty(name: string): Promise<DebtParty> {
-  const list = getDebtParties();
-  const existing = list.find(p => p.name.toLowerCase() === name.toLowerCase());
+export async function addDebtParty(name: string, spaceId?: SpaceId): Promise<DebtParty> {
+  const all = load<DebtParty[]>(KEYS.debtParties, []);
+  const space = spaceId || getActiveSpaceId();
+  const existing = all.find(p => (!p.spaceId || p.spaceId === space) && p.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing;
-  const newParty: DebtParty = { id: genId(), name, createdAt: new Date().toISOString() };
-  save(KEYS.debtParties, [...list, newParty]);
+  const newParty: DebtParty = { id: genId(), spaceId: space, name, createdAt: new Date().toISOString() };
+  save(KEYS.debtParties, [...all, newParty]);
   addPending(PENDING_KEYS.debtParties, newParty.id);
 
   try {
@@ -594,12 +633,13 @@ export async function addDebtParty(name: string): Promise<DebtParty> {
 }
 
 export async function deleteDebtParty(id: string): Promise<void> {
-  const partyDebtTxns = getDebtTransactions().filter(t => t.partyId === id);
+  const allDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const partyDebtTxns = allDebtTxns.filter(t => t.partyId === id);
   const partyDebtTxnIds = new Set(partyDebtTxns.map(t => t.id));
 
   // Delete linked transactions in main transactions module
-  const txns = getTransactions();
-  const remainingTxns = txns.filter(t => !t.debtTxnId || !partyDebtTxnIds.has(t.debtTxnId));
+  const allTxns = load<Transaction[]>(KEYS.transactions, []);
+  const remainingTxns = allTxns.filter(t => !t.debtTxnId || !partyDebtTxnIds.has(t.debtTxnId));
   save(KEYS.transactions, remainingTxns);
 
   for (const dt of partyDebtTxns) {
@@ -611,8 +651,9 @@ export async function deleteDebtParty(id: string): Promise<void> {
     }
   }
 
-  save(KEYS.debtParties, getDebtParties().filter(p => p.id !== id));
-  save(KEYS.debtTransactions, getDebtTransactions().filter(t => t.partyId !== id));
+  const allParties = load<DebtParty[]>(KEYS.debtParties, []);
+  save(KEYS.debtParties, allParties.filter(p => p.id !== id));
+  save(KEYS.debtTransactions, allDebtTxns.filter(t => t.partyId !== id));
   removePending(PENDING_KEYS.debtParties, id);
 
   try {
@@ -621,14 +662,21 @@ export async function deleteDebtParty(id: string): Promise<void> {
   notifyDataChanged();
 }
 
-export function getDebtTransactions(): DebtTransaction[] {
-  return load<DebtTransaction[]>(KEYS.debtTransactions, []);
+export function getDebtTransactions(spaceId?: SpaceId): DebtTransaction[] {
+  const all = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const space = spaceId || getActiveSpaceId();
+  return all.filter(t => !t.spaceId || t.spaceId === space);
 }
 
 export async function addDebtTransaction(data: Omit<DebtTransaction, 'id' | 'createdAt'>): Promise<DebtTransaction> {
-  const list = getDebtTransactions();
-  const newTxn: DebtTransaction = { ...data, id: genId(), createdAt: new Date().toISOString() };
-  save(KEYS.debtTransactions, [newTxn, ...list]);
+  const all = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const newTxn: DebtTransaction = {
+    ...data,
+    spaceId: data.spaceId || getActiveSpaceId(),
+    id: genId(),
+    createdAt: new Date().toISOString()
+  };
+  save(KEYS.debtTransactions, [newTxn, ...all]);
   addPending(PENDING_KEYS.debtTransactions, newTxn.id);
 
   try {
@@ -641,7 +689,8 @@ export async function addDebtTransaction(data: Omit<DebtTransaction, 'id' | 'cre
 }
 
 export async function updateDebtTransaction(id: string, data: Partial<Omit<DebtTransaction, 'id' | 'createdAt'>>): Promise<void> {
-  save(KEYS.debtTransactions, getDebtTransactions().map(dt => dt.id === id ? { ...dt, ...data } : dt));
+  const all = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  save(KEYS.debtTransactions, all.map(dt => dt.id === id ? { ...dt, ...data } : dt));
 
   const updateData: any = {};
   if (data.txnId !== undefined) updateData.txn_id = data.txnId || null;
@@ -660,9 +709,9 @@ export async function updateDebtTransaction(id: string, data: Partial<Omit<DebtT
 }
 
 export async function deleteDebtTransaction(id: string): Promise<void> {
-  const debtTxns = getDebtTransactions();
-  const targetDebt = debtTxns.find(dt => dt.id === id);
-  save(KEYS.debtTransactions, debtTxns.filter(t => t.id !== id));
+  const allDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const targetDebt = allDebtTxns.find(dt => dt.id === id);
+  save(KEYS.debtTransactions, allDebtTxns.filter(t => t.id !== id));
   removePending(PENDING_KEYS.debtTransactions, id);
 
   try {
@@ -670,10 +719,10 @@ export async function deleteDebtTransaction(id: string): Promise<void> {
   } catch {}
 
   // Cross-module sync: Delete linked main transaction if exists
-  const txns = getTransactions();
-  const linkedTxn = txns.find(t => t.debtTxnId === id || (targetDebt?.txnId && t.id === targetDebt.txnId));
+  const allTxns = load<Transaction[]>(KEYS.transactions, []);
+  const linkedTxn = allTxns.find(t => t.debtTxnId === id || (targetDebt?.txnId && t.id === targetDebt.txnId));
   if (linkedTxn) {
-    save(KEYS.transactions, txns.filter(t => t.id !== linkedTxn.id));
+    save(KEYS.transactions, allTxns.filter(t => t.id !== linkedTxn.id));
     removePending(PENDING_KEYS.transactions, linkedTxn.id);
     try {
       await supabase.from('transactions').delete().eq('id', linkedTxn.id);
@@ -683,25 +732,32 @@ export async function deleteDebtTransaction(id: string): Promise<void> {
   notifyDataChanged();
 }
 
-export function getDebtBalance(partyId: string): number {
-  return getDebtTransactions()
+export function getDebtBalance(partyId: string, spaceId?: SpaceId): number {
+  return getDebtTransactions(spaceId)
     .filter(t => t.partyId === partyId)
     .reduce((sum, t) => sum + (t.type === 'tambah' ? t.amount : -t.amount), 0);
 }
 
-export function getTotalDebt(): number {
-  return getDebtParties().reduce((sum, p) => sum + Math.max(0, getDebtBalance(p.id)), 0);
+export function getTotalDebt(spaceId?: SpaceId): number {
+  return getDebtParties(spaceId).reduce((sum, p) => sum + Math.max(0, getDebtBalance(p.id, spaceId)), 0);
 }
 
 // ─── Saving Goals ──────────────────────────────────────────────
-export function getSavingGoals(): SavingGoal[] {
-  return load<SavingGoal[]>(KEYS.savingGoals, []);
+export function getSavingGoals(spaceId?: SpaceId): SavingGoal[] {
+  const all = load<SavingGoal[]>(KEYS.savingGoals, []);
+  const space = spaceId || getActiveSpaceId();
+  return all.filter(g => !g.spaceId || g.spaceId === space);
 }
 
 export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>): Promise<SavingGoal> {
-  const list = getSavingGoals();
-  const newGoal: SavingGoal = { ...data, id: genId(), createdAt: new Date().toISOString() };
-  save(KEYS.savingGoals, [...list, newGoal]);
+  const all = load<SavingGoal[]>(KEYS.savingGoals, []);
+  const newGoal: SavingGoal = {
+    ...data,
+    spaceId: data.spaceId || getActiveSpaceId(),
+    id: genId(),
+    createdAt: new Date().toISOString()
+  };
+  save(KEYS.savingGoals, [...all, newGoal]);
   addPending(PENDING_KEYS.savingGoals, newGoal.id);
 
   try {
@@ -719,7 +775,8 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
 }
 
 export async function updateSavingGoal(id: string, data: Partial<Omit<SavingGoal, 'id' | 'createdAt'>>): Promise<void> {
-  save(KEYS.savingGoals, getSavingGoals().map(g => g.id === id ? { ...g, ...data } : g));
+  const all = load<SavingGoal[]>(KEYS.savingGoals, []);
+  save(KEYS.savingGoals, all.map(g => g.id === id ? { ...g, ...data } : g));
 
   const updateData: any = {};
   if (data.name !== undefined) updateData.name = data.name;
@@ -732,12 +789,13 @@ export async function updateSavingGoal(id: string, data: Partial<Omit<SavingGoal
 }
 
 export async function deleteSavingGoal(id: string): Promise<void> {
-  save(KEYS.savingGoals, getSavingGoals().filter(g => g.id !== id));
+  const all = load<SavingGoal[]>(KEYS.savingGoals, []);
+  save(KEYS.savingGoals, all.filter(g => g.id !== id));
   removePending(PENDING_KEYS.savingGoals, id);
 
   // Unlink goal_id from transactions
-  const txns = getTransactions();
-  const updatedTxns = txns.map(t => t.goalId === id ? { ...t, goalId: undefined } : t);
+  const allTxns = load<Transaction[]>(KEYS.transactions, []);
+  const updatedTxns = allTxns.map(t => t.goalId === id ? { ...t, goalId: undefined } : t);
   save(KEYS.transactions, updatedTxns);
 
   try {
@@ -747,8 +805,8 @@ export async function deleteSavingGoal(id: string): Promise<void> {
   notifyDataChanged();
 }
 
-export function getGoalProgress(goalId: string): number {
-  return getTransactions()
+export function getGoalProgress(goalId: string, spaceId?: SpaceId): number {
+  return getTransactions(spaceId)
     .filter(t => t.goalId === goalId)
     .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
 }

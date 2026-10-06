@@ -1,5 +1,8 @@
+export type SpaceId = 'pribadi' | 'keluarga';
+
 export interface Transaction {
   id: string;
+  spaceId?: SpaceId;
   type: 'masuk' | 'keluar';
   category: string;
   subCategory?: string;
@@ -10,10 +13,14 @@ export interface Transaction {
   note: string;
   date: string;
   createdAt: string;
+  // Family-space fields
+  paidBy?: 'asykar' | 'istri' | 'bersama';
+  reimbursed?: boolean;
 }
 
 export interface BudgetPos {
   id: string;
+  spaceId?: SpaceId;
   name: string;
   monthlyAllocation: number;
   rollover: boolean;
@@ -22,12 +29,14 @@ export interface BudgetPos {
 
 export interface DebtParty {
   id: string;
+  spaceId?: SpaceId;
   name: string;
   createdAt: string;
 }
 
 export interface DebtTransaction {
   id: string;
+  spaceId?: SpaceId;
   partyId: string;
   type: 'tambah' | 'bayar';
   amount: number;
@@ -39,6 +48,7 @@ export interface DebtTransaction {
 
 export interface SavingGoal {
   id: string;
+  spaceId?: SpaceId;
   name: string;
   targetAmount: number;
   createdAt: string;
@@ -59,3 +69,10 @@ export interface AppSettings {
 export const DEFAULT_INCOME_CATEGORIES = ['Gaji', 'Bonus', 'Investasi', 'Tabungan', 'Hutang', 'Lainnya'];
 export const DEFAULT_EXPENSE_CATEGORIES = ['Makan', 'Transport', 'Tagihan', 'Kebutuhan Rumah Tangga', 'Kesehatan', 'Hiburan', 'Belanja', 'Tabungan', 'Hutang', 'Lainnya'];
 
+// Family-specific categories
+export const FAMILY_INCOME_CATEGORIES = ['Setoran Asykar', 'Setoran Istri', 'Penghasilan Tambahan', 'Lainnya'];
+export const FAMILY_EXPENSE_CATEGORIES = [
+  'Belanja Dapur', 'Utilitas Rumah', 'Kebutuhan Anak', 'Operasional Rumah',
+  'Kesehatan Keluarga', 'Makan Bersama', 'Rekreasi Keluarga', 'Dana Darurat',
+  'KPR / Cicilan Rumah', 'Cicilan Kendaraan', 'Pendidikan', 'Lainnya'
+];

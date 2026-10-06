@@ -4,6 +4,8 @@ import { syncWithSupabase } from '@/lib/store';
 import { supabase } from '@/lib/supabase';
 import { Database, AlertTriangle, RefreshCw, ServerOff, FileText } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
+import { SpaceProvider, useSpace } from '@/lib/useSpace';
+import SpaceSelectModal from '@/components/SpaceSelectModal';
 
 interface SupabaseContextType {
   isSynced: boolean;
@@ -17,11 +19,51 @@ export interface MobileMenuContextType {
 const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
 export const MobileMenuContext = createContext<MobileMenuContextType>({ openSidebar: () => {} });
 
+function MainLayoutContent({ children }: { children: React.ReactNode }) {
+  const { isUnlocked, setSpace } = useSpace();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close sidebar with Escape key
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setSidebarOpen(false);
+    };
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, []);
+
+  // Prevent body scroll when sidebar is open on mobile
+  useEffect(() => {
+    if (sidebarOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
+
+  return (
+    <MobileMenuContext.Provider value={{ openSidebar: () => setSidebarOpen(true) }}>
+      {!isUnlocked && (
+        <SpaceSelectModal
+          isOpen={!isUnlocked}
+          onSelectSpace={(space) => setSpace(space)}
+        />
+      )}
+      <div className="app-layout">
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
+    </MobileMenuContext.Provider>
+  );
+}
+
 export default function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorType, setErrorType] = useState<'schema_missing' | 'connection_failed' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const sync = async () => {
     setIsLoading(true);
@@ -79,25 +121,6 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
       document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, []);
-
-  // Close sidebar with Escape key
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setSidebarOpen(false);
-    };
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, []);
-
-  // Prevent body scroll when sidebar is open on mobile
-  useEffect(() => {
-    if (sidebarOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => { document.body.style.overflow = ''; };
-  }, [sidebarOpen]);
 
   if (isLoading) {
     return (
@@ -185,14 +208,9 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
 
   return (
     <SupabaseContext.Provider value={{ isSynced: true, syncData: sync }}>
-      <MobileMenuContext.Provider value={{ openSidebar: () => setSidebarOpen(true) }}>
-        <div className="app-layout">
-          <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-          <main className="main-content">
-            {children}
-          </main>
-        </div>
-      </MobileMenuContext.Provider>
+      <SpaceProvider>
+        <MainLayoutContent>{children}</MainLayoutContent>
+      </SpaceProvider>
     </SupabaseContext.Provider>
   );
 }

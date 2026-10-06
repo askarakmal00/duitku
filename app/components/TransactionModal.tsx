@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { X, Check } from 'lucide-react';
-import { Transaction, BudgetPos, SavingGoal, Category } from '@/lib/types';
+import { Transaction, BudgetPos, SavingGoal, Category, FAMILY_INCOME_CATEGORIES, FAMILY_EXPENSE_CATEGORIES } from '@/lib/types';
 import { getCategories, getBudgetPos, getSavingGoals } from '@/lib/store';
 import { toInputDate } from '@/lib/helpers';
+import { useSpace } from '@/lib/useSpace';
 
 interface TransactionModalProps {
   existing?: Transaction;
@@ -12,6 +13,9 @@ interface TransactionModalProps {
 }
 
 export default function TransactionModal({ existing, onSave, onClose }: TransactionModalProps) {
+  const { activeSpace } = useSpace();
+  const isFamily = activeSpace === 'keluarga';
+
   const [type, setType] = useState<'masuk' | 'keluar'>(existing?.type || 'keluar');
   const [category, setCategory] = useState(existing?.category || '');
   const [budgetPosId, setBudgetPosId] = useState(existing?.budgetPosId || '');
@@ -22,6 +26,9 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
   );
   const [note, setNote] = useState(existing?.note || '');
   const [date, setDate] = useState(existing?.date || toInputDate());
+  const [paidBy, setPaidBy] = useState<'asykar' | 'istri' | 'bersama'>(existing?.paidBy || 'bersama');
+  const [reimbursed, setReimbursed] = useState<boolean>(existing?.reimbursed ?? false);
+
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgetPosList, setBudgetPosList] = useState<BudgetPos[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
@@ -32,7 +39,10 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     setGoals(getSavingGoals());
   }, []);
 
-  const filteredCats = categories.filter(c => c.type === type || c.type === 'both');
+  // Use tailored categories for family space
+  const categoryOptions = isFamily
+    ? (type === 'masuk' ? FAMILY_INCOME_CATEGORIES : FAMILY_EXPENSE_CATEGORIES)
+    : categories.filter(c => c.type === type || c.type === 'both').map(c => c.name);
 
   // Format number with thousand separators as user types
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -49,7 +59,9 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     e.preventDefault();
     const numAmount = Number(amount);
     if (!category || !amount || !date || numAmount <= 0) return;
-    onSave({
+    
+    const dataToSave: any = {
+      spaceId: activeSpace || 'pribadi',
       type,
       category,
       budgetPosId: budgetPosId || undefined,
@@ -57,14 +69,25 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
       amount: numAmount,
       note,
       date,
-    });
+    };
+
+    if (isFamily) {
+      dataToSave.paidBy = paidBy;
+      if (paidBy !== 'bersama') {
+        dataToSave.reimbursed = reimbursed;
+      }
+    }
+
+    onSave(dataToSave);
   };
 
   return (
     <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal">
         <div className="modal-header">
-          <span className="modal-title">{existing ? 'Edit Transaksi' : 'Tambah Transaksi'}</span>
+          <span className="modal-title">
+            {existing ? 'Edit Transaksi' : 'Tambah Transaksi'} {isFamily ? '(Keluarga)' : ''}
+          </span>
           <button className="modal-close" onClick={onClose}><X size={16} /></button>
         </div>
 
@@ -85,6 +108,51 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
                 ↓ Pengeluaran
               </div>
             </div>
+
+            {/* Family Space Paid By Selector */}
+            {isFamily && (
+              <div className="form-group">
+                <label className="form-label">Sumber Dana / Pelaku Transaksi</label>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                  <button
+                    type="button"
+                    className={`budget-btn ${paidBy === 'bersama' ? 'selected' : ''}`}
+                    onClick={() => setPaidBy('bersama')}
+                    style={{ textAlign: 'center', justifyContent: 'center' }}
+                  >
+                    <span>Kas Bersama</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`budget-btn ${paidBy === 'asykar' ? 'selected' : ''}`}
+                    onClick={() => setPaidBy('asykar')}
+                    style={{ textAlign: 'center', justifyContent: 'center' }}
+                  >
+                    <span>Talangan Asykar</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`budget-btn ${paidBy === 'istri' ? 'selected' : ''}`}
+                    onClick={() => setPaidBy('istri')}
+                    style={{ textAlign: 'center', justifyContent: 'center' }}
+                  >
+                    <span>Talangan Istri</span>
+                  </button>
+                </div>
+                {paidBy !== 'bersama' && (
+                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={reimbursed}
+                        onChange={e => setReimbursed(e.target.checked)}
+                      />
+                      Sudah diganti dari Kas Bersama (Reimbursed)
+                    </label>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div className="form-row">
               <div className="form-group">
@@ -126,8 +194,8 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
                 required
               >
                 <option value="">Pilih kategori...</option>
-                {filteredCats.map(c => (
-                  <option key={c.id} value={c.name}>{c.name}</option>
+                {categoryOptions.map(catName => (
+                  <option key={catName} value={catName}>{catName}</option>
                 ))}
               </select>
             </div>
@@ -203,4 +271,3 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     </div>
   );
 }
-

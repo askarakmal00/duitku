@@ -4,6 +4,8 @@ import { Search, Bell, Menu } from 'lucide-react';
 import { getSettings } from '@/lib/store';
 import { getMonthName, getCurrentMonth } from '@/lib/helpers';
 import { useMobileMenu } from '@/components/SupabaseProvider';
+import SpaceSwitcher from '@/components/SpaceSwitcher';
+import { useSpace } from '@/lib/useSpace';
 
 interface HeaderProps {
   title: string;
@@ -14,13 +16,15 @@ export default function Header({ title, subtitle }: HeaderProps) {
   const [userName, setUserName] = useState('Pengguna');
   const { year, month } = getCurrentMonth();
   const { openSidebar } = useMobileMenu();
+  const { activeSpace } = useSpace();
 
   useEffect(() => {
     const s = getSettings();
     setUserName(s.userName);
   }, []);
 
-  const initials = userName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  const displayName = activeSpace === 'keluarga' ? 'Keluarga' : userName;
+  const initials = displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
 
   return (
     <header className="page-header">
@@ -35,17 +39,20 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </button>
         <div style={{ minWidth: 0, overflow: 'hidden', flex: 1 }}>
           <h1>{title}</h1>
-          <p>{subtitle || `Selamat datang, ${userName} · ${getMonthName(year, month)}`}</p>
+          <p>{subtitle || `Selamat datang, ${displayName} · ${getMonthName(year, month)}`}</p>
         </div>
       </div>
       <div className="header-right">
+        {/* Space Switcher */}
+        <SpaceSwitcher />
+
         <button className="header-btn" title="Cari">
           <Search size={18} />
         </button>
         <button className="header-btn notif-btn" title="Notifikasi">
           <Bell size={18} />
         </button>
-        <div className="avatar" title={userName}>{initials}</div>
+        <div className="avatar" title={displayName}>{initials}</div>
       </div>
     </header>
   );

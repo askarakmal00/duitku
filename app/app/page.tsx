@@ -18,6 +18,9 @@ import { Transaction, BudgetPos, SavingGoal } from '@/lib/types';
 import { getCurrentMonth, getPreviousMonth, formatCurrency, clamp, formatDate } from '@/lib/helpers';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import Link from 'next/link';
+import { useSpace } from '@/lib/useSpace';
+import FamilyContributionCard from '@/components/FamilyContributionCard';
+import SpaceSwitcher from '@/components/SpaceSwitcher';
 
 
 // Category to emoji map for mobile transaction icons
@@ -68,6 +71,9 @@ function getRelativeTime(dateStr: string, createdAt?: string): string {
 }
 
 export default function DashboardPage() {
+  const { activeSpace } = useSpace();
+  const isFamily = activeSpace === 'keluarga';
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [budgetPos, setBudgetPos] = useState<BudgetPos[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
@@ -89,6 +95,7 @@ export default function DashboardPage() {
   }, []);
 
   useDataRefresh(loadData);
+
 
   const totalBalance = getTotalBalance();
   const remainingBudget = getRemainingBudget(year, month);
@@ -170,11 +177,18 @@ export default function DashboardPage() {
       <div className="mobile-only-view mobile-dashboard-header">
         <div className="mobile-db-greeting">
           <div>
-            <div className="mobile-db-hello">Halo, {userName.split(' ')[0]}</div>
-            <div className="mobile-db-appname">Duitku</div>
+            <div className="mobile-db-hello">
+              {isFamily ? 'Kas Keluarga' : `Halo, ${userName.split(' ')[0]}`}
+            </div>
+            <div className="mobile-db-appname">
+              {isFamily ? 'Asykar & Istri' : 'Duitku Pribadi'}
+            </div>
           </div>
-          <div className="mobile-db-avatar">
-            <User size={22} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <SpaceSwitcher />
+            <div className="mobile-db-avatar">
+              <User size={20} />
+            </div>
           </div>
         </div>
       </div>
@@ -184,9 +198,16 @@ export default function DashboardPage() {
         {/* ─── MOBILE LAYOUT ─── */}
         <div className="mobile-only-view" style={{ flexDirection: 'column', gap: 16 }}>
 
+          {/* Family Contribution Tracker (Keluarga space only) */}
+          {isFamily && (
+            <FamilyContributionCard year={year} month={month} />
+          )}
+
           {/* Balance Card */}
           <div className="mobile-balance-card">
-            <div className="mobile-balance-label">Total saldo</div>
+            <div className="mobile-balance-label">
+              {isFamily ? 'Saldo kas bersama' : 'Total saldo'}
+            </div>
             <div className="mobile-balance-amount">{formatCurrency(totalBalance)}</div>
             <div className="mobile-balance-row">
               <div className="mobile-balance-stat">
@@ -205,6 +226,7 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
+
 
           {/* Budget & Goal Progress Cards */}
           {(budgetPos.length > 0 || goals.length > 0) && (
@@ -284,10 +306,17 @@ export default function DashboardPage() {
 
         {/* ─── DESKTOP LAYOUT (existing) ─── */}
         <div className="desktop-only-view" style={{ width: '100%' }}>
+          {/* Family Contribution Tracker on Desktop */}
+          {isFamily && (
+            <div style={{ marginBottom: 20 }}>
+              <FamilyContributionCard year={year} month={month} />
+            </div>
+          )}
+
           {/* Summary Cards */}
           <div className="summary-grid mb-5">
             <SummaryCard
-              label="Total Saldo"
+              label={isFamily ? "Saldo Kas Bersama" : "Total Saldo"}
               value={totalBalance}
               variant="hero"
               freeMoney={freeMoney}
@@ -295,8 +324,9 @@ export default function DashboardPage() {
             />
             <SummaryCard label="Pemasukan (Bulan Ini)" value={income} prevValue={prevIncome} variant="income" />
             <SummaryCard label="Pengeluaran (Bulan Ini)" value={expense} prevValue={prevExpense} variant="expense" />
-            <SummaryCard label="Total Tabungan" value={savings} variant="savings" />
+            <SummaryCard label={isFamily ? "Dana Bersama" : "Total Tabungan"} value={savings} variant="savings" />
           </div>
+
 
           {/* Main Grid */}
           <div className="dashboard-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>

@@ -262,7 +262,35 @@ export default function TransactionsPage() {
                     <span>{emoji}</span>
                   </div>
                   <div className="mobile-txn-v2-info">
-                    <div className="mobile-txn-v2-name">{t.note || t.category}</div>
+                    <div className="mobile-txn-v2-name">
+                      {t.note || t.category}
+                      {t.paidBy && (
+                        <span style={{
+                          marginLeft: 6,
+                          fontSize: 10,
+                          padding: '2px 6px',
+                          borderRadius: 6,
+                          background: t.paidBy === 'asykar' ? '#EEF2FF' : t.paidBy === 'istri' ? '#FDF2F8' : '#ECFDF5',
+                          color: t.paidBy === 'asykar' ? '#4F46E5' : t.paidBy === 'istri' ? '#DB2777' : '#059669',
+                          fontWeight: 600
+                        }}>
+                          {t.paidBy === 'asykar' ? 'Asykar' : t.paidBy === 'istri' ? 'Istri' : 'Bersama'}
+                        </span>
+                      )}
+                      {t.paidBy && t.paidBy !== 'bersama' && !t.reimbursed && (
+                        <span style={{
+                          marginLeft: 4,
+                          fontSize: 9,
+                          padding: '1px 5px',
+                          borderRadius: 4,
+                          background: '#FFFBEB',
+                          color: '#D97706',
+                          fontWeight: 600
+                        }}>
+                          Talangan
+                        </span>
+                      )}
+                    </div>
                     <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
                   </div>
                   <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
