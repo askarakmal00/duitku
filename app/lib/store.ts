@@ -831,6 +831,8 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c11', name: 'Tabungan', type: 'both', isDefault: true },
   { id: 'c12', name: 'Hutang', type: 'both', isDefault: true },
   { id: 'c13', name: 'Lainnya', type: 'both', isDefault: true },
+  { id: 'c14', name: 'Setoran Asykar', type: 'masuk', isDefault: true },
+  { id: 'c15', name: 'Setoran Istri', type: 'masuk', isDefault: true },
 ];
 
 export function getCategories(): Category[] {

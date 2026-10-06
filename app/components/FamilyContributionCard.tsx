@@ -1,9 +1,10 @@
 'use client';
-import React, { useState, useEffect } from 'react';
-import { getFamilyContributions, saveFamilyContribution, FamilyContribution } from '@/lib/spaceStore';
-import { formatCurrency, getCurrentMonth, getMonthName } from '@/lib/helpers';
-import { Users, CheckCircle2, AlertCircle, Edit2, ChevronRight, TrendingUp } from 'lucide-react';
-import { notifyDataChanged } from '@/lib/store';
+import React, { useState, useEffect, useCallback } from 'react';
+import { getFamilyContributions, saveFamilyContribution } from '@/lib/spaceStore';
+import { getTransactions, addTransaction, notifyDataChanged } from '@/lib/store';
+import { formatCurrency, getMonthName } from '@/lib/helpers';
+import { Users, Plus, Check } from 'lucide-react';
+import { useDataRefresh } from '@/lib/useDataRefresh';
 
 interface FamilyContributionCardProps {
   year: number;
@@ -12,59 +13,92 @@ interface FamilyContributionCardProps {
 
 export default function FamilyContributionCard({ year, month }: FamilyContributionCardProps) {
   const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-  const [contribution, setContribution] = useState<FamilyContribution | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
-  const [asykarInput, setAsykarInput] = useState('');
-  const [istriInput, setIstriInput] = useState('');
-  const [targetInput, setTargetInput] = useState('');
+  const [asykarAmount, setAsykarAmount] = useState(0);
+  const [istriAmount, setIstriAmount] = useState(0);
+  const [isAdding, setIsAdding] = useState(false);
+  const [person, setPerson] = useState<'asykar' | 'istri'>('asykar');
+  const [amountInput, setAmountInput] = useState('');
+  const [noteInput, setNoteInput] = useState('');
 
-  const loadData = () => {
+  const loadData = useCallback(() => {
+    // 1. Ambil transaksi masuk di ruang keluarga pada bulan terkait
+    const txns = getTransactions('keluarga').filter(t => {
+      if (t.type !== 'masuk') return false;
+      const d = new Date(t.date);
+      return d.getFullYear() === year && d.getMonth() + 1 === month;
+    });
+
+    const asykarTxn = txns
+      .filter(t => {
+        const cat = (t.category || '').toLowerCase();
+        const note = (t.note || '').toLowerCase();
+        return cat.includes('asykar') || note.includes('asykar');
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    const istriTxn = txns
+      .filter(t => {
+        const cat = (t.category || '').toLowerCase();
+        const note = (t.note || '').toLowerCase();
+        return cat.includes('istri') || note.includes('istri') || note.includes('riska');
+      })
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    // 2. Cek juga data manual jika ada
     const list = getFamilyContributions();
     const item = list.find(c => c.month === monthKey);
-    if (item) {
-      setContribution(item);
-      setAsykarInput(String(item.asykarAmount || 0));
-      setIstriInput(String(item.istriAmount || 0));
-      setTargetInput(String(item.targetPerPerson || 0));
-    } else {
-      // Default initial state
-      setContribution(null);
-      setAsykarInput('');
-      setIstriInput('');
-      setTargetInput('5000000'); // default 5jt per person
-    }
-  };
+    const manualAsykar = item?.asykarAmount || 0;
+    const manualIstri = item?.istriAmount || 0;
+
+    // Utamakan hasil kalkulasi transaksi nyata, jika kosong gunakan catatan manual
+    const finalAsykar = asykarTxn > 0 ? asykarTxn : manualAsykar;
+    const finalIstri = istriTxn > 0 ? istriTxn : manualIstri;
+
+    setAsykarAmount(finalAsykar);
+    setIstriAmount(finalIstri);
+  }, [year, month, monthKey]);
 
   useEffect(() => {
     loadData();
-  }, [monthKey]);
+  }, [loadData]);
 
-  const handleSave = (e: React.FormEvent) => {
+  useDataRefresh(loadData);
+
+  const handleSaveSetoran = async (e: React.FormEvent) => {
     e.preventDefault();
-    const asykarAmount = Number(asykarInput) || 0;
-    const istriAmount = Number(istriInput) || 0;
-    const targetPerPerson = Number(targetInput) || 0;
+    const val = Number(amountInput);
+    if (!val || val <= 0) return;
 
-    const saved = saveFamilyContribution({
-      month: monthKey,
-      asykarAmount,
-      istriAmount,
-      targetPerPerson,
+    const isAsykar = person === 'asykar';
+    const catName = isAsykar ? 'Setoran Asykar' : 'Setoran Istri';
+    const noteText = noteInput.trim() || (isAsykar ? 'Setoran Asykar' : 'Setoran Istri');
+
+    // Catat sebagai transaksi nyata di kas keluarga
+    await addTransaction({
+      type: 'masuk',
+      amount: val,
+      category: catName,
+      note: noteText,
+      date: new Date().toISOString(),
+      spaceId: 'keluarga',
     });
-    setContribution(saved);
-    setIsEditing(false);
+
+    // Simpan juga ke tracking kontribusi
+    saveFamilyContribution({
+      month: monthKey,
+      asykarAmount: isAsykar ? asykarAmount + val : asykarAmount,
+      istriAmount: !isAsykar ? istriAmount + val : istriAmount,
+    });
+
+    setAmountInput('');
+    setNoteInput('');
+    setIsAdding(false);
     notifyDataChanged();
   };
 
-  const targetPerPerson = contribution?.targetPerPerson || 5000000;
-  const asykarAmount = contribution?.asykarAmount || 0;
-  const istriAmount = contribution?.istriAmount || 0;
   const totalCollected = asykarAmount + istriAmount;
-  const totalTarget = targetPerPerson * 2;
-  const progressPercent = totalTarget > 0 ? Math.min(100, Math.round((totalCollected / totalTarget) * 100)) : 0;
-
-  const asykarLunas = targetPerPerson > 0 && asykarAmount >= targetPerPerson;
-  const istriLunas = targetPerPerson > 0 && istriAmount >= targetPerPerson;
+  const asykarPct = totalCollected > 0 ? Math.round((asykarAmount / totalCollected) * 100) : 0;
+  const istriPct = totalCollected > 0 ? Math.round((istriAmount / totalCollected) * 100) : 0;
 
   return (
     <div className="family-contrib-card">
@@ -79,81 +113,76 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
         <button
           type="button"
           className="family-contrib-edit-btn"
-          onClick={() => setIsEditing(prev => !prev)}
+          onClick={() => setIsAdding(prev => !prev)}
         >
-          <Edit2 size={14} />
-          <span>{isEditing ? 'Batal' : 'Update'}</span>
+          <Plus size={14} />
+          <span>{isAdding ? 'Batal' : 'Tambah Setoran'}</span>
         </button>
       </div>
 
-      {isEditing ? (
-        <form onSubmit={handleSave} className="family-contrib-form">
-          <div className="family-form-grid">
+      {isAdding ? (
+        <form onSubmit={handleSaveSetoran} className="family-contrib-form" style={{ animation: 'fadeIn 0.2s ease' }}>
+          <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+            <button
+              type="button"
+              className={`btn btn-sm ${person === 'asykar' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ flex: 1, padding: '8px' }}
+              onClick={() => setPerson('asykar')}
+            >
+              Setoran Asykar (Suami)
+            </button>
+            <button
+              type="button"
+              className={`btn btn-sm ${person === 'istri' ? 'btn-primary' : 'btn-outline'}`}
+              style={{ flex: 1, padding: '8px' }}
+              onClick={() => setPerson('istri')}
+            >
+              Setoran Istri
+            </button>
+          </div>
+
+          <div className="family-form-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
             <div className="family-input-group">
-              <label>Target Setoran / Orang (Rp)</label>
+              <label>Nominal Setoran (Rp)</label>
               <input
                 type="number"
-                value={targetInput}
-                onChange={e => setTargetInput(e.target.value)}
-                placeholder="5000000"
+                value={amountInput}
+                onChange={e => setAmountInput(e.target.value)}
+                placeholder="Contoh: 3000000"
                 className="family-input"
+                autoFocus
+                required
               />
             </div>
             <div className="family-input-group">
-              <label>Setoran Asykar (Rp)</label>
+              <label>Keterangan (Opsional)</label>
               <input
-                type="number"
-                value={asykarInput}
-                onChange={e => setAsykarInput(e.target.value)}
-                placeholder="0"
-                className="family-input"
-              />
-            </div>
-            <div className="family-input-group">
-              <label>Setoran Istri (Rp)</label>
-              <input
-                type="number"
-                value={istriInput}
-                onChange={e => setIstriInput(e.target.value)}
-                placeholder="0"
+                type="text"
+                value={noteInput}
+                onChange={e => setNoteInput(e.target.value)}
+                placeholder={`Setoran ${person === 'asykar' ? 'Asykar' : 'Istri'}`}
                 className="family-input"
               />
             </div>
           </div>
-          <button type="submit" className="family-submit-btn">
-            Simpan Setoran
+          <button type="submit" className="family-submit-btn" style={{ marginTop: 12 }}>
+            <Check size={16} /> Simpan Setoran ke Kas Bersama
           </button>
         </form>
       ) : (
         <>
-          {/* Progress overview */}
+          {/* Total Terkumpul */}
           <div className="family-contrib-summary">
             <div>
-              <div className="family-summary-label">Total Terkumpul</div>
+              <div className="family-summary-label">Total Setoran Terkumpul</div>
               <div className="family-summary-val">{formatCurrency(totalCollected)}</div>
             </div>
-            <div style={{ textAlign: 'right' }}>
-              <div className="family-summary-label">Target Bulan Ini</div>
-              <div className="family-summary-target">{formatCurrency(totalTarget)}</div>
-            </div>
           </div>
 
-          <div className="family-progress-bar-bg">
-            <div
-              className="family-progress-bar-fill"
-              style={{ width: `${progressPercent}%` }}
-            />
-          </div>
-          <div className="family-progress-sub">
-            <span>{progressPercent}% dari target terkumpul</span>
-            <span>{formatCurrency(Math.max(0, totalTarget - totalCollected))} tersisa</span>
-          </div>
-
-
-          {/* Breakdown Per Person */}
+          {/* Breakdown Per Orang (Tanpa Target) */}
           <div className="family-contrib-people">
             {/* Asykar */}
-            <div className={`family-person-card ${asykarLunas ? 'complete' : ''}`}>
+            <div className="family-person-card">
               <div className="family-person-header">
                 <div className="family-person-info">
                   <div className="family-person-avatar asykar">A</div>
@@ -162,22 +191,17 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
                     <span className="family-person-role">Suami</span>
                   </div>
                 </div>
-                {asykarLunas ? (
-                  <span className="family-status-badge success">
-                    <CheckCircle2 size={13} /> Lunas
-                  </span>
-                ) : (
-                  <span className="family-status-badge pending">
-                    <AlertCircle size={13} /> Belum
+                {totalCollected > 0 && (
+                  <span className="family-status-badge info">
+                    {asykarPct}%
                   </span>
                 )}
               </div>
               <div className="family-person-amount">{formatCurrency(asykarAmount)}</div>
-              <div className="family-person-target">Target: {formatCurrency(targetPerPerson)}</div>
             </div>
 
             {/* Istri */}
-            <div className={`family-person-card ${istriLunas ? 'complete' : ''}`}>
+            <div className="family-person-card">
               <div className="family-person-header">
                 <div className="family-person-info">
                   <div className="family-person-avatar istri">I</div>
@@ -186,20 +210,14 @@ export default function FamilyContributionCard({ year, month }: FamilyContributi
                     <span className="family-person-role">Istri</span>
                   </div>
                 </div>
-                {istriLunas ? (
-                  <span className="family-status-badge success">
-                    <CheckCircle2 size={13} /> Lunas
-                  </span>
-                ) : (
-                  <span className="family-status-badge pending">
-                    <AlertCircle size={13} /> Belum
+                {totalCollected > 0 && (
+                  <span className="family-status-badge info">
+                    {istriPct}%
                   </span>
                 )}
               </div>
               <div className="family-person-amount">{formatCurrency(istriAmount)}</div>
-              <div className="family-person-target">Target: {formatCurrency(targetPerPerson)}</div>
             </div>
-
           </div>
         </>
       )}

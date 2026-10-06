@@ -129,7 +129,7 @@ export interface FamilyContribution {
   month: string; // YYYY-MM
   asykarAmount: number;
   istriAmount: number;
-  targetPerPerson: number;
+  targetPerPerson?: number;
   note?: string;
   createdAt: string;
 }
