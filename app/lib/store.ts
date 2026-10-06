@@ -1092,6 +1092,8 @@ export interface DashboardFinanceSummary {
   // 7. Tabungan & Dana Cadangan
   totalSavingsStored: number;   // Uang yang benar-benar tersimpan di pos tabungan (non-negatif)
   savingsBalance: number;       // Alias untuk totalSavingsStored
+  totalGoalTarget: number;      // Total target akumulasi pos tabungan
+  goalCount: number;            // Jumlah pos tabungan aktif
 
   // 8. Audit Konsistensi
   isCashFlowConsistent: boolean;
@@ -1203,10 +1205,11 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
 
   // Tabungan / Dana Cadangan
   // Akumulasi uang yang benar-benar tersimpan di pos tabungan (non-negatif)
-  const rawSavings = allTxns
-    .filter(t => t.category === 'Tabungan' || Boolean(t.goalId))
-    .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
-  const totalSavingsStored = Math.max(0, rawSavings);
+  // Bersumber langsung dari pos tabungan aktif pada space ini
+  const goals = getSavingGoals(space);
+  const goalCount = goals.length;
+  const totalGoalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
+  const totalSavingsStored = goals.reduce((s, g) => s + Math.max(0, getGoalProgress(g.id, space)), 0);
 
   // Audit Validasi & Konsistensi
   const isCashFlowConsistent = Math.abs(netCashFlow - (totalCashIn - totalCashOut)) < 0.01;
@@ -1251,6 +1254,8 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     isDeficit,
     totalSavingsStored,
     savingsBalance: totalSavingsStored,
+    totalGoalTarget,
+    goalCount,
     isCashFlowConsistent,
     isBalanceConsistent,
     isConsistent,
@@ -1298,9 +1303,9 @@ export function getMonthlyExpense(year: number, month: number, spaceId?: SpaceId
 }
 
 export function getTotalSavings(spaceId?: SpaceId): number {
-  return getTransactions(spaceId)
-    .filter(t => t.category === 'Tabungan' || Boolean(t.goalId))
-    .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
+  const space = spaceId || getActiveSpaceId();
+  const goals = getSavingGoals(space);
+  return goals.reduce((sum, g) => sum + Math.max(0, getGoalProgress(g.id, space)), 0);
 }
 
 export function getMonthlyFlowData(months: number = 7, spaceId?: SpaceId): { labels: string[]; income: number[]; expense: number[] } {

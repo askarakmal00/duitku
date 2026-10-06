@@ -40,7 +40,7 @@ export default function FamilyDashboardRedesign({
 }: FamilyDashboardRedesignProps) {
   const router = useRouter();
   const monthKey = `${year}-${String(month).padStart(2, '0')}`;
-  const monthLabel = `${getMonthName(year, month)} ${year}`;
+  const monthLabel = getMonthName(year, month);
 
   const [asykarAmount, setAsykarAmount] = useState(6000000);
   const [istriAmount, setIstriAmount] = useState(3000000);
@@ -397,14 +397,18 @@ export default function FamilyDashboardRedesign({
               padding: isMobile ? '10px 12px' : '12px 16px',
             }}>
               <div style={{ fontSize: 11, color: '#94A3B8', marginBottom: 2 }}>
-                {summary.closingBalance < 0 ? 'Defisit kas' : 'Free money'}
+                {summary.closingBalance < 0 || (summary.remainingBudget !== null && summary.freeMoneyOrDeficit < 0) ? 'Defisit kas' : 'Free money'}
               </div>
               <div style={{
                 fontSize: 'clamp(14px, 3.8vw, 16px)',
                 fontWeight: 700,
                 color: '#FFFFFF',
               }}>
-                {formatRupiah(summary.closingBalance < 0 ? summary.closingBalance : summary.freeMoneyOrDeficit)}
+                {formatRupiah(
+                  summary.closingBalance < 0
+                    ? summary.closingBalance
+                    : (summary.remainingBudget !== null ? summary.freeMoneyOrDeficit : summary.closingBalance)
+                )}
               </div>
             </div>
 
@@ -814,17 +818,41 @@ export default function FamilyDashboardRedesign({
               {formatRupiah(summary.totalSavingsStored)}
             </div>
 
-            <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.45, marginBottom: 14 }}>
-              {summary.totalSavingsStored > 0
-                ? 'Total akumulasi uang yang telah dialokasikan ke pos tabungan.'
-                : 'Belum ada pos tabungan. Mulai dari dana darurat atau persiapan si kecil.'}
+            <div style={{ fontSize: 13, color: '#64748B', lineHeight: 1.45, marginBottom: 10 }}>
+              {summary.goalCount > 0 ? (
+                summary.totalSavingsStored > 0
+                  ? `Terkumpul ${formatRupiah(summary.totalSavingsStored)} dari target ${formatRupiah(summary.totalGoalTarget)} (${summary.goalCount} pos tabungan)`
+                  : `Target tabungan ${formatRupiah(summary.totalGoalTarget)} (${summary.goalCount} pos tabungan aktif, belum ada setoran)`
+              ) : (
+                'Belum ada pos tabungan. Mulai dari dana darurat atau persiapan si kecil.'
+              )}
             </div>
+
+            {/* Progress bar jika target tabungan ada */}
+            {summary.goalCount > 0 && summary.totalGoalTarget > 0 && (
+              <div style={{
+                width: '100%',
+                height: 8,
+                background: '#F1F5F9',
+                borderRadius: 9999,
+                overflow: 'hidden',
+                margin: '6px 0 14px 0',
+              }}>
+                <div style={{
+                  width: `${clamp(Math.round((summary.totalSavingsStored / summary.totalGoalTarget) * 100), 0, 100)}%`,
+                  height: '100%',
+                  background: '#7C3AED',
+                  borderRadius: 9999,
+                  transition: 'width 0.4s ease',
+                }} />
+              </div>
+            )}
           </div>
 
           <div>
             <button
               onClick={() => {
-                if (onOpenAddGoal) onOpenAddGoal();
+                if (onOpenAddGoal && summary.goalCount === 0) onOpenAddGoal();
                 else router.push('/goals');
               }}
               style={{
@@ -838,7 +866,7 @@ export default function FamilyDashboardRedesign({
                 cursor: 'pointer',
               }}
             >
-              Buat pos tabungan
+              {summary.goalCount > 0 ? 'Lihat pos tabungan →' : 'Buat pos tabungan'}
             </button>
           </div>
         </div>
