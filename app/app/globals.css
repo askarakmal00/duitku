@@ -2983,13 +2983,14 @@ canvas {
   height: 100vh;
   min-height: 100vh;
   background: var(--bg);
-  z-index: 99999;
+  z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 24px 20px;
   overflow-y: auto;
 }
+
 
 
 .space-select-container {
@@ -3139,6 +3140,16 @@ canvas {
   transform: translateX(4px);
 }
 
+button.space-card {
+  appearance: none;
+  -webkit-appearance: none;
+  font-family: inherit;
+  color: inherit;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  outline: none;
+}
+
 .space-select-note {
   display: flex;
   align-items: center;
@@ -3147,19 +3158,106 @@ canvas {
   color: var(--text-muted);
 }
 
+/* ─── Inline PIN Box (Inside SpaceSelectModal) ─────────────── */
+.space-pin-box {
+  width: 100%;
+  max-width: 360px;
+  background: var(--card);
+  border: 1.5px solid var(--border);
+  border-radius: 28px;
+  padding: 28px 24px;
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.space-pin-back-btn {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  margin-bottom: 16px;
+  transition: all 0.15s ease;
+}
+
+.space-pin-back-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.space-pin-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 20px;
+}
+
+.space-pin-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.space-pin-avatar.keluarga {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.space-pin-avatar.pribadi {
+  background: rgba(79, 70, 229, 0.12);
+  color: #4f46e5;
+}
+
+.space-pin-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+  letter-spacing: -0.4px;
+}
+
+.space-pin-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.space-pin-hint-text {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-bottom: 14px;
+}
+
 /* ─── PIN Keypad Modal ─────────────────────────────────────── */
 .pin-overlay {
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.7);
   backdrop-filter: blur(8px);
-  z-index: 11000;
+  z-index: 100000;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
   animation: fadeIn 0.2s ease-out;
 }
+
 
 .pin-container {
   position: relative;
