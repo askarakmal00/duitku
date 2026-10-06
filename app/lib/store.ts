@@ -1,4 +1,7 @@
-import { Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings, SpaceId } from './types';
+import {
+  Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings, SpaceId,
+  FAMILY_EXPENSE_CATEGORIES, FAMILY_INCOME_CATEGORIES
+} from './types';
 import { getActiveSpace, migrateExistingData } from './spaceStore';
 import { supabase } from './supabase';
 
@@ -215,12 +218,23 @@ export async function syncWithSupabase(): Promise<void> {
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
     const hasSpaceTag = rawNote.includes('[space:keluarga]');
-    // Preserve local space, or read from Supabase space_id, or infer from note tag/category
+    const isFamilyCat =
+      FAMILY_EXPENSE_CATEGORIES.includes(t.category) ||
+      FAMILY_INCOME_CATEGORIES.includes(t.category);
+
+    const familyKeywords = ['persalinan', 'istri', 'riska', 'keluarga', 'setoran', 'bersama', 'anak', 'dapur', 'kpr'];
+    const hasFamilyKeyword = familyKeywords.some(kw =>
+      rawNote.toLowerCase().includes(kw) || (t.category || '').toLowerCase().includes(kw)
+    );
+
+    // Preserve local space, or read from Supabase space_id, or infer from note tag/category/keywords
     const isFamily =
       (t.space_id as SpaceId) === 'keluarga' ||
       hasSpaceTag ||
-      localSpaceMap.get(t.id) === 'keluarga' ||
-      (t.category && (t.category.includes('Setoran') || t.category.includes('Keluarga')));
+      isFamilyCat ||
+      hasFamilyKeyword ||
+      localSpaceMap.get(t.id) === 'keluarga';
+
     const assignedSpace: SpaceId = isFamily ? 'keluarga' : ((t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi');
     const cleanNote = rawNote.replace(/\s*\[space:keluarga\]/g, '').trim();
 
