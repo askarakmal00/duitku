@@ -14,7 +14,7 @@ const PIN_STORAGE_KEYS: Record<SpaceId, string> = {
 };
 
 const SESSION_KEY = 'pf_active_space';
-const MIGRATED_KEY = 'pf_migrated_v1';
+const MIGRATED_KEY = 'pf_migrated_v2';
 
 // ─── PIN Management ────────────────────────────────────────────────────────────
 

@@ -17,8 +17,12 @@ export default function BudgetDonut({ items }: BudgetDonutProps) {
   const totalAlloc = items.reduce((s, i) => s + i.allocated, 0);
 
   useEffect(() => {
-    if (!chartRef.current || items.length === 0) return;
-    if (chartInstanceRef.current) chartInstanceRef.current.destroy();
+    if (!chartRef.current) return;
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.destroy();
+      chartInstanceRef.current = null;
+    }
+    if (items.length === 0) return;
 
     const ctx = chartRef.current.getContext('2d');
     if (!ctx) return;

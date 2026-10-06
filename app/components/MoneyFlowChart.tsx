@@ -1,7 +1,9 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { getMonthlyFlowData } from '@/lib/store';
+import { useSpace } from '@/lib/useSpace';
+import { useDataRefresh } from '@/lib/useDataRefresh';
 
 Chart.register(...registerables);
 
@@ -12,10 +14,18 @@ interface MoneyFlowChartProps {
 export default function MoneyFlowChart({ months = 7 }: MoneyFlowChartProps) {
   const chartRef = useRef<HTMLCanvasElement>(null);
   const chartInstanceRef = useRef<Chart | null>(null);
+  const { activeSpace } = useSpace();
+  const [, setRefreshKey] = useState(0);
+
+  const handleRefresh = useCallback(() => {
+    setRefreshKey(k => k + 1);
+  }, []);
+
+  useDataRefresh(handleRefresh);
 
   useEffect(() => {
     if (!chartRef.current) return;
-    const data = getMonthlyFlowData(months);
+    const data = getMonthlyFlowData(months, activeSpace || undefined);
 
     if (chartInstanceRef.current) chartInstanceRef.current.destroy();
 
@@ -98,7 +108,7 @@ export default function MoneyFlowChart({ months = 7 }: MoneyFlowChartProps) {
     });
 
     return () => { chartInstanceRef.current?.destroy(); };
-  }, [months]);
+  }, [months, activeSpace, refreshKey]);
 
   return (
     <div className="chart-responsive-wrap">

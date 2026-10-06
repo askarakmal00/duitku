@@ -199,6 +199,7 @@ export async function syncWithSupabase(): Promise<void> {
   // 1. Transactions Sync
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => ({
     id: t.id,
+    spaceId: (t.space_id as SpaceId) || 'pribadi',
     type: t.type,
     category: t.category,
     subCategory: t.sub_category || undefined,
@@ -237,6 +238,7 @@ export async function syncWithSupabase(): Promise<void> {
   // 2. Budget Pos Sync
   const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map(b => ({
     id: b.id,
+    spaceId: (b.space_id as SpaceId) || 'pribadi',
     name: b.name,
     monthlyAllocation: Number(b.monthly_allocation),
     rollover: b.rollover || false,
@@ -270,6 +272,7 @@ export async function syncWithSupabase(): Promise<void> {
   // 3. Debt Parties Sync
   const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => ({
     id: p.id,
+    spaceId: (p.space_id as SpaceId) || 'pribadi',
     name: p.name,
     createdAt: p.created_at,
   }));
@@ -299,6 +302,7 @@ export async function syncWithSupabase(): Promise<void> {
   // 4. Debt Transactions Sync
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => ({
     id: dt.id,
+    spaceId: (dt.space_id as SpaceId) || 'pribadi',
     partyId: dt.party_id,
     type: dt.type,
     txnId: dt.txn_id || undefined,
@@ -329,6 +333,7 @@ export async function syncWithSupabase(): Promise<void> {
   // 5. Saving Goals Sync
   const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => ({
     id: g.id,
+    spaceId: (g.space_id as SpaceId) || 'pribadi',
     name: g.name,
     targetAmount: Number(g.target_amount),
     createdAt: g.created_at,
@@ -384,7 +389,7 @@ export async function syncWithSupabase(): Promise<void> {
 export function getTransactions(spaceId?: SpaceId): Transaction[] {
   const all = sortTransactions(load<Transaction[]>(KEYS.transactions, []));
   const space = spaceId || getActiveSpaceId();
-  return all.filter(t => !t.spaceId || t.spaceId === space);
+  return all.filter(t => (t.spaceId || 'pribadi') === space);
 }
 
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
@@ -531,7 +536,7 @@ export async function deleteTransaction(id: string): Promise<void> {
 export function getBudgetPos(spaceId?: SpaceId): BudgetPos[] {
   const all = load<BudgetPos[]>(KEYS.budgetPos, []);
   const space = spaceId || getActiveSpaceId();
-  return all.filter(p => !p.spaceId || p.spaceId === space);
+  return all.filter(p => (p.spaceId || 'pribadi') === space);
 }
 
 export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): Promise<BudgetPos> {
@@ -607,13 +612,13 @@ export function getBudgetUsed(posId: string, year: number, month: number, spaceI
 export function getDebtParties(spaceId?: SpaceId): DebtParty[] {
   const all = load<DebtParty[]>(KEYS.debtParties, []);
   const space = spaceId || getActiveSpaceId();
-  return all.filter(p => !p.spaceId || p.spaceId === space);
+  return all.filter(p => (p.spaceId || 'pribadi') === space);
 }
 
 export async function addDebtParty(name: string, spaceId?: SpaceId): Promise<DebtParty> {
   const all = load<DebtParty[]>(KEYS.debtParties, []);
   const space = spaceId || getActiveSpaceId();
-  const existing = all.find(p => (!p.spaceId || p.spaceId === space) && p.name.toLowerCase() === name.toLowerCase());
+  const existing = all.find(p => (p.spaceId || 'pribadi') === space && p.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing;
   const newParty: DebtParty = { id: genId(), spaceId: space, name, createdAt: new Date().toISOString() };
   save(KEYS.debtParties, [...all, newParty]);
@@ -665,7 +670,7 @@ export async function deleteDebtParty(id: string): Promise<void> {
 export function getDebtTransactions(spaceId?: SpaceId): DebtTransaction[] {
   const all = load<DebtTransaction[]>(KEYS.debtTransactions, []);
   const space = spaceId || getActiveSpaceId();
-  return all.filter(t => !t.spaceId || t.spaceId === space);
+  return all.filter(t => (t.spaceId || 'pribadi') === space);
 }
 
 export async function addDebtTransaction(data: Omit<DebtTransaction, 'id' | 'createdAt'>): Promise<DebtTransaction> {
@@ -746,7 +751,7 @@ export function getTotalDebt(spaceId?: SpaceId): number {
 export function getSavingGoals(spaceId?: SpaceId): SavingGoal[] {
   const all = load<SavingGoal[]>(KEYS.savingGoals, []);
   const space = spaceId || getActiveSpaceId();
-  return all.filter(g => !g.spaceId || g.spaceId === space);
+  return all.filter(g => (g.spaceId || 'pribadi') === space);
 }
 
 export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>): Promise<SavingGoal> {
