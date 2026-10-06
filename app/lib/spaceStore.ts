@@ -42,7 +42,7 @@ export function changePin(space: SpaceId, oldPin: string, newPin: string): boole
 
 export function getActiveSpace(): SpaceId | null {
   if (typeof window === 'undefined') return null;
-  const val = sessionStorage.getItem(SESSION_KEY);
+  const val = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
   if (val === 'pribadi' || val === 'keluarga') return val;
   return null;
 }
@@ -50,11 +50,13 @@ export function getActiveSpace(): SpaceId | null {
 export function setActiveSpace(space: SpaceId): void {
   if (typeof window === 'undefined') return;
   sessionStorage.setItem(SESSION_KEY, space);
+  localStorage.setItem(SESSION_KEY, space);
 }
 
 export function clearActiveSpace(): void {
   if (typeof window === 'undefined') return;
   sessionStorage.removeItem(SESSION_KEY);
+  localStorage.removeItem(SESSION_KEY);
 }
 
 // ─── Data Migration ────────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ export default function SavingGoalsList({ goals, onEdit, onDelete }: SavingGoals
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {goals.map(goal => {
-        const progress = getGoalProgress(goal.id);
+        const progress = getGoalProgress(goal.id, goal.spaceId);
         const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
         const progressColor = pct >= 100 ? 'var(--success)' : 'var(--primary)';
 

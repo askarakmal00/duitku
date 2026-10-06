@@ -33,9 +33,49 @@ export function getActiveSpaceId(): SpaceId {
   return getActiveSpace() || 'pribadi';
 }
 
-// Run migration on module load (client-side)
+export function fixSpaceAssignments(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    // 1. Relocate saving goals that belong to keluarga
+    const goals = load<SavingGoal[]>(KEYS.savingGoals, []);
+    let goalsChanged = false;
+    const updatedGoals = goals.map(g => {
+      const nameLower = (g.name || '').toLowerCase();
+      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('bayi') || nameLower.includes('anak')) {
+        if (g.spaceId !== 'keluarga') {
+          goalsChanged = true;
+          return { ...g, spaceId: 'keluarga' as SpaceId };
+        }
+      }
+      return g;
+    });
+    if (goalsChanged) {
+      save(KEYS.savingGoals, updatedGoals);
+    }
+
+    // 2. Relocate budget pos that belong to keluarga
+    const budgets = load<BudgetPos[]>(KEYS.budgetPos, []);
+    let budgetsChanged = false;
+    const updatedBudgets = budgets.map(b => {
+      const nameLower = (b.name || '').toLowerCase();
+      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('dapur')) {
+        if (b.spaceId !== 'keluarga') {
+          budgetsChanged = true;
+          return { ...b, spaceId: 'keluarga' as SpaceId };
+        }
+      }
+      return b;
+    });
+    if (budgetsChanged) {
+      save(KEYS.budgetPos, updatedBudgets);
+    }
+  } catch {}
+}
+
+// Run migration & space fix on module load (client-side)
 if (typeof window !== 'undefined') {
   migrateExistingData();
+  fixSpaceAssignments();
 }
 
 
@@ -216,11 +256,20 @@ export async function syncWithSupabase(): Promise<void> {
 
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
+    const noteLower = rawNote.toLowerCase();
     const hasSpaceTag = rawNote.includes('[space:keluarga]');
     const isFamily =
       (t.space_id as SpaceId) === 'keluarga' ||
       hasSpaceTag ||
-      localSpaceMap.get(t.id) === 'keluarga';
+      localSpaceMap.get(t.id) === 'keluarga' ||
+      noteLower.includes('persalinan') ||
+      noteLower.includes('melahirkan');
+
+    if (isFamily && t.space_id !== 'keluarga') {
+      try {
+        supabase.from('transactions').update({ space_id: 'keluarga' }).eq('id', t.id).then();
+      } catch {}
+    }
 
     const assignedSpace: SpaceId = isFamily ? 'keluarga' : ((t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi');
     const cleanNote = rawNote.replace(/\s*\[space:keluarga\]/g, '').trim();
@@ -282,14 +331,20 @@ export async function syncWithSupabase(): Promise<void> {
     for (const id of Array.from(pendingBudgetIds)) {
       const b = localBudgets.find(item => item.id === id);
       if (b) {
+        const bPayload: any = {
+          id: b.id,
+          name: b.name,
+          monthly_allocation: b.monthlyAllocation,
+          rollover: b.rollover,
+          created_at: b.createdAt,
+          space_id: b.spaceId || 'pribadi',
+        };
         try {
-          await supabase.from('budget_pos').upsert({
-            id: b.id,
-            name: b.name,
-            monthly_allocation: b.monthlyAllocation,
-            rollover: b.rollover,
-            created_at: b.createdAt,
-          });
+          const { error } = await supabase.from('budget_pos').upsert(bPayload);
+          if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
+            delete bPayload.space_id;
+            await supabase.from('budget_pos').upsert(bPayload);
+          }
           removePending(PENDING_KEYS.budgetPos, id);
         } catch {}
       } else {
@@ -318,12 +373,18 @@ export async function syncWithSupabase(): Promise<void> {
     for (const id of Array.from(pendingPartyIds)) {
       const p = localParties.find(item => item.id === id);
       if (p) {
+        const pPayload: any = {
+          id: p.id,
+          name: p.name,
+          created_at: p.createdAt,
+          space_id: p.spaceId || 'pribadi',
+        };
         try {
-          await supabase.from('debt_parties').upsert({
-            id: p.id,
-            name: p.name,
-            created_at: p.createdAt,
-          });
+          const { error } = await supabase.from('debt_parties').upsert(pPayload);
+          if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
+            delete pPayload.space_id;
+            await supabase.from('debt_parties').upsert(pPayload);
+          }
           removePending(PENDING_KEYS.debtParties, id);
         } catch {}
       } else {
@@ -376,25 +437,47 @@ export async function syncWithSupabase(): Promise<void> {
   localGoals.forEach(g => {
     if (g.spaceId) localGoalSpaceMap.set(g.id, g.spaceId);
   });
-  const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => ({
-    id: g.id,
-    spaceId: (g.space_id as SpaceId) || localGoalSpaceMap.get(g.id) || 'pribadi',
-    name: g.name,
-    targetAmount: Number(g.target_amount),
-    createdAt: g.created_at,
-  }));
+  const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => {
+    const nameLower = (g.name || '').toLowerCase();
+    const isFamily =
+      (g.space_id as SpaceId) === 'keluarga' ||
+      localGoalSpaceMap.get(g.id) === 'keluarga' ||
+      nameLower.includes('melahirkan') ||
+      nameLower.includes('persalinan') ||
+      nameLower.includes('keluarga');
+
+    if (isFamily && g.space_id !== 'keluarga') {
+      try {
+        supabase.from('saving_goals').update({ space_id: 'keluarga' }).eq('id', g.id).then();
+      } catch {}
+    }
+
+    return {
+      id: g.id,
+      spaceId: isFamily ? 'keluarga' : ((g.space_id as SpaceId) || localGoalSpaceMap.get(g.id) || 'pribadi'),
+      name: g.name,
+      targetAmount: Number(g.target_amount),
+      createdAt: g.created_at,
+    };
+  });
   const pendingGoalIds = getPending(PENDING_KEYS.savingGoals);
   if (pendingGoalIds.size > 0) {
     for (const id of Array.from(pendingGoalIds)) {
       const g = localGoals.find(item => item.id === id);
       if (g) {
+        const gPayload: any = {
+          id: g.id,
+          name: g.name,
+          target_amount: g.targetAmount,
+          created_at: g.createdAt,
+          space_id: g.spaceId || 'pribadi',
+        };
         try {
-          await supabase.from('saving_goals').upsert({
-            id: g.id,
-            name: g.name,
-            target_amount: g.targetAmount,
-            created_at: g.createdAt,
-          });
+          const { error } = await supabase.from('saving_goals').upsert(gPayload);
+          if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
+            delete gPayload.space_id;
+            await supabase.from('saving_goals').upsert(gPayload);
+          }
           removePending(PENDING_KEYS.savingGoals, id);
         } catch {}
       } else {
@@ -595,13 +678,19 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
   addPending(PENDING_KEYS.budgetPos, newPos.id);
 
   try {
-    await supabase.from('budget_pos').insert({
+    const payload: any = {
       id: newPos.id,
       name: newPos.name,
       monthly_allocation: newPos.monthlyAllocation,
       rollover: newPos.rollover,
       created_at: newPos.createdAt,
-    });
+      space_id: newPos.spaceId || 'pribadi',
+    };
+    const { error } = await supabase.from('budget_pos').insert(payload);
+    if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
+      delete payload.space_id;
+      await supabase.from('budget_pos').insert(payload);
+    }
     removePending(PENDING_KEYS.budgetPos, newPos.id);
   } catch {}
 
@@ -617,9 +706,14 @@ export async function updateBudgetPos(id: string, data: Partial<Omit<BudgetPos, 
   if (data.name !== undefined) updateData.name = data.name;
   if (data.monthlyAllocation !== undefined) updateData.monthly_allocation = data.monthlyAllocation;
   if (data.rollover !== undefined) updateData.rollover = data.rollover;
+  if (data.spaceId !== undefined) updateData.space_id = data.spaceId;
 
   try {
-    await supabase.from('budget_pos').update(updateData).eq('id', id);
+    const { error } = await supabase.from('budget_pos').update(updateData).eq('id', id);
+    if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
+      delete updateData.space_id;
+      await supabase.from('budget_pos').update(updateData).eq('id', id);
+    }
   } catch {}
   notifyDataChanged();
 }
@@ -669,11 +763,17 @@ export async function addDebtParty(name: string, spaceId?: SpaceId): Promise<Deb
   addPending(PENDING_KEYS.debtParties, newParty.id);
 
   try {
-    await supabase.from('debt_parties').insert({
+    const payload: any = {
       id: newParty.id,
       name: newParty.name,
       created_at: newParty.createdAt,
-    });
+      space_id: space,
+    };
+    const { error } = await supabase.from('debt_parties').insert(payload);
+    if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
+      delete payload.space_id;
+      await supabase.from('debt_parties').insert(payload);
+    }
     removePending(PENDING_KEYS.debtParties, newParty.id);
   } catch {}
 
@@ -810,12 +910,18 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
   addPending(PENDING_KEYS.savingGoals, newGoal.id);
 
   try {
-    await supabase.from('saving_goals').insert({
+    const payload: any = {
       id: newGoal.id,
       name: newGoal.name,
       target_amount: newGoal.targetAmount,
       created_at: newGoal.createdAt,
-    });
+      space_id: newGoal.spaceId || 'pribadi',
+    };
+    const { error } = await supabase.from('saving_goals').insert(payload);
+    if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
+      delete payload.space_id;
+      await supabase.from('saving_goals').insert(payload);
+    }
     removePending(PENDING_KEYS.savingGoals, newGoal.id);
   } catch {}
 
@@ -830,9 +936,14 @@ export async function updateSavingGoal(id: string, data: Partial<Omit<SavingGoal
   const updateData: any = {};
   if (data.name !== undefined) updateData.name = data.name;
   if (data.targetAmount !== undefined) updateData.target_amount = data.targetAmount;
+  if (data.spaceId !== undefined) updateData.space_id = data.spaceId;
 
   try {
-    await supabase.from('saving_goals').update(updateData).eq('id', id);
+    const { error } = await supabase.from('saving_goals').update(updateData).eq('id', id);
+    if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
+      delete updateData.space_id;
+      await supabase.from('saving_goals').update(updateData).eq('id', id);
+    }
   } catch {}
   notifyDataChanged();
 }
@@ -1220,9 +1331,9 @@ export interface DailyNetSummary {
  * Returns a map of dateStr (YYYY-MM-DD) → net cash flow summary for the given month.
  * Net = income - expense.
  */
-export function getDailyNetMap(year: number, month: number): Record<string, DailyNetSummary> {
+export function getDailyNetMap(year: number, month: number, spaceId?: SpaceId): Record<string, DailyNetSummary> {
   const map: Record<string, DailyNetSummary> = {};
-  getTransactions().forEach(t => {
+  getTransactions(spaceId).forEach(t => {
     const d = new Date(t.date);
     if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
     const key = t.date.slice(0, 10); // YYYY-MM-DD
@@ -1245,9 +1356,9 @@ export function getDailyNetMap(year: number, month: number): Record<string, Dail
  * Returns a map of dateStr (YYYY-MM-DD) → total pengeluaran for the given month.
  * Only includes expense transactions.
  */
-export function getDailyExpenseMap(year: number, month: number): Record<string, number> {
+export function getDailyExpenseMap(year: number, month: number, spaceId?: SpaceId): Record<string, number> {
   const map: Record<string, number> = {};
-  getTransactions().forEach(t => {
+  getTransactions(spaceId).forEach(t => {
     if (t.type !== 'keluar') return;
     const d = new Date(t.date);
     if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
@@ -1260,8 +1371,8 @@ export function getDailyExpenseMap(year: number, month: number): Record<string, 
 /**
  * Returns all transactions (both types) for a specific date (YYYY-MM-DD).
  */
-export function getTransactionsByDate(dateStr: string): Transaction[] {
-  return getTransactions().filter(t => t.date.slice(0, 10) === dateStr);
+export function getTransactionsByDate(dateStr: string, spaceId?: SpaceId): Transaction[] {
+  return getTransactions(spaceId).filter(t => t.date.slice(0, 10) === dateStr);
 }
 
 export async function clearAllData(): Promise<void> {

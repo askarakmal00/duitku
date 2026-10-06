@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useSpace } from '@/lib/useSpace';
 import FamilyContributionCard from '@/components/FamilyContributionCard';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
+import FamilyDashboardRedesign from '@/components/FamilyDashboardRedesign';
 
 
 // Category to emoji map for mobile transaction icons
@@ -86,12 +87,12 @@ export default function DashboardPage() {
   const { year, month } = getCurrentMonth();
 
   const loadData = useCallback(() => {
-    setTransactions(getTransactions());
-    setBudgetPos(getBudgetPos());
-    setGoals(getSavingGoals());
+    setTransactions(getTransactions(activeSpace || undefined));
+    setBudgetPos(getBudgetPos(activeSpace || undefined));
+    setGoals(getSavingGoals(activeSpace || undefined));
     const s = getSettings();
     setUserName(s.userName);
-  }, []);
+  }, [activeSpace]);
 
   useDataRefresh(loadData);
 
@@ -101,23 +102,23 @@ export default function DashboardPage() {
   const budgetItems = budgetPos.map(p => ({
     name: p.name,
     allocated: p.monthlyAllocation,
-    used: getBudgetUsed(p.id, year, month),
+    used: getBudgetUsed(p.id, year, month, p.spaceId || activeSpace || undefined),
   }));
 
   // Budget summary for mobile
   const totalBudgetAllocated = budgetPos.reduce((s, p) => s + p.monthlyAllocation, 0);
-  const totalBudgetUsed = budgetPos.reduce((s, p) => s + getBudgetUsed(p.id, year, month), 0);
+  const totalBudgetUsed = budgetPos.reduce((s, p) => s + getBudgetUsed(p.id, year, month, p.spaceId || activeSpace || undefined), 0);
   const budgetPct = totalBudgetAllocated > 0
     ? clamp((totalBudgetUsed / totalBudgetAllocated) * 100, 0, 100)
     : 0;
 
   // Goal summary for mobile (first goal only or total)
   const firstGoal = goals[0] || null;
-  const firstGoalProgress = firstGoal ? getGoalProgress(firstGoal.id) : 0;
+  const firstGoalProgress = firstGoal ? getGoalProgress(firstGoal.id, firstGoal.spaceId || activeSpace || undefined) : 0;
   const firstGoalPct = firstGoal
     ? clamp((firstGoalProgress / firstGoal.targetAmount) * 100, 0, 100)
     : 0;
-  const totalGoalProgress = goals.reduce((s, g) => s + getGoalProgress(g.id), 0);
+  const totalGoalProgress = goals.reduce((s, g) => s + getGoalProgress(g.id, g.spaceId || activeSpace || undefined), 0);
   const totalGoalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
   const totalGoalPct = totalGoalTarget > 0
     ? clamp((totalGoalProgress / totalGoalTarget) * 100, 0, 100)
@@ -125,9 +126,9 @@ export default function DashboardPage() {
 
   const handleSaveTransaction = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
     if (editTarget) {
-      await updateTransaction(editTarget.id, data);
+      await updateTransaction(editTarget.id, { ...data, spaceId: editTarget.spaceId || activeSpace || 'pribadi' });
     } else {
-      await addTransaction(data);
+      await addTransaction({ ...data, spaceId: data.spaceId || activeSpace || 'pribadi' });
     }
     setShowModal(false);
     setEditTarget(undefined);
@@ -159,10 +160,12 @@ export default function DashboardPage() {
 
   return (
     <>
-      {/* ─── DESKTOP HEADER (hidden on mobile) ─── */}
-      <div className="desktop-only-view">
-        <Header title="Dashboard" subtitle="Ringkasan keuangan Anda bulan ini" />
-      </div>
+      {/* ─── DESKTOP HEADER (hidden on mobile, and hidden when isFamily so FamilyDashboardRedesign renders its exact header) ─── */}
+      {!isFamily && (
+        <div className="desktop-only-view">
+          <Header title="Dashboard" subtitle="Ringkasan keuangan Anda bulan ini" />
+        </div>
+      )}
 
       {/* ─── MOBILE HEADER (hidden on desktop) ─── */}
       <div className="mobile-only-view mobile-dashboard-header">
@@ -300,113 +303,152 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ─── DESKTOP LAYOUT (existing) ─── */}
+        {/* ─── DESKTOP LAYOUT ─── */}
         <div className="desktop-only-view" style={{ width: '100%' }}>
-          {/* Family Contribution Tracker on Desktop */}
-          {isFamily && (
-            <div style={{ marginBottom: 20 }}>
-              <FamilyContributionCard year={year} month={month} />
-            </div>
-          )}
+          {isFamily ? (
+            <div>
+              {/* Consistency Audit Alert (if discrepancy detected) */}
+              {!summary.isConsistent && (
+                <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>⚠️ Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.</span>
+                </div>
+              )}
 
-          {/* Consistency Audit Alert (if discrepancy detected) */}
-          {!summary.isConsistent && (
-            <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span>⚠️ Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.</span>
-            </div>
-          )}
+              {/* Exact Redesigned Family Dashboard (Screenshot Match) */}
+              <FamilyDashboardRedesign
+                year={year}
+                month={month}
+                userName={userName}
+              />
 
-          {/* Summary Cards */}
-          <div className="summary-grid mb-5">
-            <SummaryCard
-              label={isFamily ? "Saldo Kas Bersama" : "Total Saldo Kas"}
-              value={summary.closingBalance}
-              variant="hero"
-              initialBalance={summary.initialBalance}
-              netSurplus={summary.netCashFlow}
-              freeMoney={summary.freeMoneyOrDeficit}
-              remainingBudget={summary.remainingBudget}
-              subtitle={isFamily ? "Akumulasi kas riil keluarga" : undefined}
-            />
-            <SummaryCard
-              label={isFamily ? "Setoran Masuk (Bulan Ini)" : "Pemasukan (Bulan Ini)"}
-              value={summary.totalCashIn}
-              growthPct={summary.incomeGrowthPct}
-              comparisonLabel={summary.comparisonPeriodLabel}
-              variant="income"
-            />
-            <SummaryCard
-              label="Pengeluaran (Bulan Ini)"
-              value={summary.totalCashOut}
-              growthPct={summary.expenseGrowthPct}
-              comparisonLabel={summary.comparisonPeriodLabel}
-              variant="expense"
-            />
-            <SummaryCard
-              label={isFamily ? "Tabungan & Dana Cadangan" : "Total Tabungan"}
-              value={summary.totalSavingsStored}
-              variant="savings"
-              badgeLabel="Akumulasi sampai hari ini"
-              subtitle={isFamily ? "Uang tersimpan di pos tabungan" : "Pos simpanan pribadi"}
-            />
-          </div>
-
-
-          {/* Main Grid */}
-          <div className="dashboard-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-            {/* Left Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-              {/* Money Flow */}
-              <div className="card">
-                <div className="card-header" style={{ minWidth: 0 }}>
-                  <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Arus Uang (Money Flow)</span>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
-                    <span className="text-sm text-muted">7 bulan terakhir</span>
+              {/* Secondary Sections: Recent Transactions & Money Flow */}
+              <div className="dashboard-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 24 }}>
+                {/* Left Column: Recent Transactions */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <div className="card">
+                    <div className="card-header" style={{ minWidth: 0 }}>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaksi Terbaru</span>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
+                          <Plus size={14} /> Tambah
+                        </button>
+                      </div>
+                    </div>
+                    <RecentTransactions
+                      transactions={transactions}
+                      limit={5}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteRequest}
+                    />
                   </div>
                 </div>
-                <MoneyFlowChart months={7} />
+
+                {/* Right Column: Arus Uang */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <div className="card">
+                    <div className="card-header" style={{ minWidth: 0 }}>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Arus Uang (Money Flow)</span>
+                      <span className="text-sm text-muted">7 bulan terakhir</span>
+                    </div>
+                    <MoneyFlowChart months={7} />
+                  </div>
+                </div>
               </div>
-
-              {/* Recent Transactions */}
-              <div className="card">
-                <div className="card-header" style={{ minWidth: 0 }}>
-                  <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaksi Terbaru</span>
-                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
-                    <button className="btn btn-primary btn-sm" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-                      <Plus size={14} /> Tambah
-                    </button>
-                  </div>
+            </div>
+          ) : (
+            <>
+              {/* Consistency Audit Alert (if discrepancy detected) */}
+              {!summary.isConsistent && (
+                <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span>⚠️ Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.</span>
                 </div>
-                <RecentTransactions
-                  transactions={transactions}
-                  limit={5}
-                  onEdit={handleEdit}
-                  onDelete={handleDeleteRequest}
+              )}
+
+              {/* Personal Summary Cards */}
+              <div className="summary-grid mb-5">
+                <SummaryCard
+                  label="Total Saldo Kas"
+                  value={summary.closingBalance}
+                  variant="hero"
+                  initialBalance={summary.initialBalance}
+                  netSurplus={summary.netCashFlow}
+                  freeMoney={summary.freeMoneyOrDeficit}
+                  remainingBudget={summary.remainingBudget}
+                />
+                <SummaryCard
+                  label="Pemasukan (Bulan Ini)"
+                  value={summary.totalCashIn}
+                  growthPct={summary.incomeGrowthPct}
+                  comparisonLabel={summary.comparisonPeriodLabel}
+                  variant="income"
+                />
+                <SummaryCard
+                  label="Pengeluaran (Bulan Ini)"
+                  value={summary.totalCashOut}
+                  growthPct={summary.expenseGrowthPct}
+                  comparisonLabel={summary.comparisonPeriodLabel}
+                  variant="expense"
+                />
+                <SummaryCard
+                  label="Total Tabungan"
+                  value={summary.totalSavingsStored}
+                  variant="savings"
+                  badgeLabel="Akumulasi sampai hari ini"
+                  subtitle="Pos simpanan pribadi"
                 />
               </div>
-            </div>
 
-            {/* Right Column */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-              {/* Budget */}
-              <div className="card">
-                <div className="card-header" style={{ minWidth: 0 }}>
-                  <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Anggaran</span>
-                  <a href="/budget" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
-                </div>
-                <BudgetDonut items={budgetItems} />
-              </div>
+              {/* Personal Main Grid */}
+              <div className="dashboard-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <div className="card">
+                    <div className="card-header" style={{ minWidth: 0 }}>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Arus Uang (Money Flow)</span>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
+                        <span className="text-sm text-muted">7 bulan terakhir</span>
+                      </div>
+                    </div>
+                    <MoneyFlowChart months={7} />
+                  </div>
 
-              {/* Saving Goals */}
-              <div className="card">
-                <div className="card-header" style={{ minWidth: 0 }}>
-                  <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Target Tabungan</span>
-                  <a href="/goals" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
+                  <div className="card">
+                    <div className="card-header" style={{ minWidth: 0 }}>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaksi Terbaru</span>
+                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
+                        <button className="btn btn-primary btn-sm" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
+                          <Plus size={14} /> Tambah
+                        </button>
+                      </div>
+                    </div>
+                    <RecentTransactions
+                      transactions={transactions}
+                      limit={5}
+                      onEdit={handleEdit}
+                      onDelete={handleDeleteRequest}
+                    />
+                  </div>
                 </div>
-                <SavingGoalsList goals={goals.slice(0, 4)} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+                  <div className="card">
+                    <div className="card-header" style={{ minWidth: 0 }}>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Anggaran</span>
+                      <a href="/budget" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
+                    </div>
+                    <BudgetDonut items={budgetItems} />
+                  </div>
+
+                  <div className="card">
+                    <div className="card-header" style={{ minWidth: 0 }}>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Target Tabungan</span>
+                      <a href="/goals" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
+                    </div>
+                    <SavingGoalsList goals={goals.slice(0, 4)} />
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            </>
+          )}
         </div>
       </div>
 

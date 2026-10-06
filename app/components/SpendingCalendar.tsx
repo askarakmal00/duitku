@@ -5,6 +5,8 @@ import { getDailyNetMap, DailyNetSummary, getTransactionsByDate, getMonthlyExpen
 import { Transaction } from '@/lib/types';
 import { formatCurrency, formatDate, getCurrentMonth } from '@/lib/helpers';
 
+import { useSpace } from '@/lib/useSpace';
+
 const DAY_HEADERS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'];
 
 /** Compact amount formatter for calendar cells (e.g. +400000 → "+400rb", -216800 → "-217rb") */
@@ -45,6 +47,7 @@ interface SpendingCalendarProps {
 }
 
 export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps) {
+  const { activeSpace } = useSpace();
   const now = getCurrentMonth();
   const [viewYear, setViewYear] = useState(now.year);
   const [viewMonth, setViewMonth] = useState(now.month);
@@ -53,8 +56,8 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
   const [selectedTxns, setSelectedTxns] = useState<Transaction[]>([]);
 
   const loadData = useCallback(() => {
-    setNetMap(getDailyNetMap(viewYear, viewMonth));
-  }, [viewYear, viewMonth]);
+    setNetMap(getDailyNetMap(viewYear, viewMonth, activeSpace || undefined));
+  }, [viewYear, viewMonth, activeSpace]);
 
   useEffect(() => {
     loadData();
@@ -67,7 +70,7 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
   const maxNetExpense = Math.max(0, ...netSummaries.map(s => Math.max(0, -s.net)));
   const maxNetIncome = Math.max(0, ...netSummaries.map(s => Math.max(0, s.net)));
 
-  const monthlyTotal = getMonthlyExpense(viewYear, viewMonth);
+  const monthlyTotal = getMonthlyExpense(viewYear, viewMonth, activeSpace || undefined);
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
   const daysWithExpense = netSummaries.filter(s => s.expense > 0).length;
   const avgDaily = daysWithExpense > 0 ? monthlyTotal / daysWithExpense : 0;
@@ -101,7 +104,7 @@ export default function SpendingCalendar({ onDateClick }: SpendingCalendarProps)
       return;
     }
     setSelectedDate(dateStr);
-    const txns = getTransactionsByDate(dateStr);
+    const txns = getTransactionsByDate(dateStr, activeSpace || undefined);
     setSelectedTxns(txns);
     onDateClick?.(dateStr, txns);
   };

@@ -18,6 +18,8 @@ import { Category, BudgetPos, SavingGoal } from '@/lib/types';
 import { getCategories, getBudgetPos, getSavingGoals, addBulkTransactions } from '@/lib/store';
 import { formatCurrency, toInputDate } from '@/lib/helpers';
 
+import { useSpace } from '@/lib/useSpace';
+
 interface BulkImportModalProps {
   onSuccess: () => void;
   onClose: () => void;
@@ -42,6 +44,7 @@ interface ParsedRow {
 }
 
 export default function BulkImportModal({ onSuccess, onClose }: BulkImportModalProps) {
+  const { activeSpace } = useSpace();
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgetPosList, setBudgetPosList] = useState<BudgetPos[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
@@ -58,9 +61,9 @@ export default function BulkImportModal({ onSuccess, onClose }: BulkImportModalP
 
   useEffect(() => {
     setCategories(getCategories());
-    setBudgetPosList(getBudgetPos());
-    setGoals(getSavingGoals());
-  }, []);
+    setBudgetPosList(getBudgetPos(activeSpace || undefined));
+    setGoals(getSavingGoals(activeSpace || undefined));
+  }, [activeSpace]);
 
   // Category lists
   const incomeCategoryNames = useMemo(() => {
@@ -398,6 +401,7 @@ export default function BulkImportModal({ onSuccess, onClose }: BulkImportModalP
         date: r.data.date,
         budgetPosId: r.data.budgetPosId,
         goalId: r.data.goalId,
+        spaceId: activeSpace || 'pribadi',
       }));
 
       await addBulkTransactions(itemsToInsert);

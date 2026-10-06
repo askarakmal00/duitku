@@ -12,28 +12,32 @@ import { formatCurrency, getCurrentMonth, clamp } from '@/lib/helpers';
 
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useCallback } from 'react';
+import { useSpace } from '@/lib/useSpace';
 
 export default function BudgetPage() {
+  const { activeSpace } = useSpace();
+  const currentSpace = activeSpace || 'pribadi';
+
   const [posList, setPosList] = useState<BudgetPos[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<BudgetPos | undefined>();
   const { year, month } = getCurrentMonth();
 
-  const load = useCallback(() => setPosList(getBudgetPos()), []);
+  const load = useCallback(() => setPosList(getBudgetPos(activeSpace || undefined)), [activeSpace]);
   useDataRefresh(load);
 
   const posWithUsage = posList.map(p => ({
     ...p,
-    used: getBudgetUsed(p.id, year, month),
-    remaining: p.monthlyAllocation - getBudgetUsed(p.id, year, month),
+    used: getBudgetUsed(p.id, year, month, p.spaceId || currentSpace),
+    remaining: p.monthlyAllocation - getBudgetUsed(p.id, year, month, p.spaceId || currentSpace),
     pct: p.monthlyAllocation > 0
-      ? clamp((getBudgetUsed(p.id, year, month) / p.monthlyAllocation) * 100, 0, 200)
+      ? clamp((getBudgetUsed(p.id, year, month, p.spaceId || currentSpace) / p.monthlyAllocation) * 100, 0, 200)
       : 0,
   }));
 
   const handleSave = async (data: Omit<BudgetPos, 'id' | 'createdAt'>) => {
-    if (editTarget) await updateBudgetPos(editTarget.id, data);
-    else await addBudgetPos(data);
+    if (editTarget) await updateBudgetPos(editTarget.id, { ...data, spaceId: editTarget.spaceId || currentSpace });
+    else await addBudgetPos({ ...data, spaceId: currentSpace });
     setShowModal(false);
     setEditTarget(undefined);
     load();

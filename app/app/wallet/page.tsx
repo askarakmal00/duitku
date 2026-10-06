@@ -12,8 +12,12 @@ import { formatCurrency, formatDate } from '@/lib/helpers';
 
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useCallback } from 'react';
+import { useSpace } from '@/lib/useSpace';
 
 export default function WalletPage() {
+  const { activeSpace } = useSpace();
+  const currentSpace = activeSpace || 'pribadi';
+
   const [parties, setParties] = useState<DebtParty[]>([]);
   const [debtTxns, setDebtTxns] = useState<DebtTransaction[]>([]);
   const [expanded, setExpanded] = useState<string[]>([]);
@@ -23,15 +27,22 @@ export default function WalletPage() {
   const [activePartyMenu, setActivePartyMenu] = useState(false);
 
   const load = useCallback(() => {
-    setParties(getDebtParties());
-    setDebtTxns(getDebtTransactions());
-  }, []);
+    setParties(getDebtParties(activeSpace || undefined));
+    setDebtTxns(getDebtTransactions(activeSpace || undefined));
+  }, [activeSpace]);
   useDataRefresh(load);
 
   const handleSave = async (partyName: string, amount: number, note: string, date: string) => {
-    const party = await addDebtParty(partyName);
+    const party = await addDebtParty(partyName, currentSpace);
     const debtType = showModal === 'tambah' ? 'tambah' : 'bayar';
-    const newDebtTxn = await addDebtTransaction({ partyId: party.id, type: debtType, amount, note, date });
+    const newDebtTxn = await addDebtTransaction({
+      partyId: party.id,
+      type: debtType,
+      amount,
+      note,
+      date,
+      spaceId: currentSpace,
+    });
 
     if (debtType === 'tambah') {
       // Catat hutang (pinjam uang) → tambah ke saldo utama (uang masuk)
@@ -42,6 +53,7 @@ export default function WalletPage() {
         amount,
         note: note || `Hutang dari ${partyName}`,
         date,
+        spaceId: currentSpace,
       });
       await updateDebtTransaction(newDebtTxn.id, { txnId: newTxn.id });
     } else if (debtType === 'bayar') {
@@ -53,6 +65,7 @@ export default function WalletPage() {
         amount,
         note: note || `Bayar hutang ke ${partyName}`,
         date,
+        spaceId: currentSpace,
       });
       await updateDebtTransaction(newDebtTxn.id, { txnId: newTxn.id });
     }
@@ -73,11 +86,11 @@ export default function WalletPage() {
     setExpanded(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const totalDebt = getTotalDebt();
+  const totalDebt = getTotalDebt(activeSpace || undefined);
 
   const selectedParty = parties.find(p => p.id === selectedPartyId);
   const selectedPartyTxns = selectedParty ? debtTxns.filter(t => t.partyId === selectedParty.id) : [];
-  const selectedPartyBalance = selectedParty ? getDebtBalance(selectedParty.id) : 0;
+  const selectedPartyBalance = selectedParty ? getDebtBalance(selectedParty.id, activeSpace || undefined) : 0;
 
   // Calculate chronological running balance for selected party
   const txnsWithRunning = (() => {
@@ -117,7 +130,7 @@ export default function WalletPage() {
               <div className="mobile-stat-card">
                 <div className="mobile-stat-label">Pihak lunas</div>
                 <div className="mobile-stat-val income">
-                  {parties.filter(p => getDebtBalance(p.id) <= 0).length}
+                  {parties.filter(p => getDebtBalance(p.id, activeSpace || undefined) <= 0).length}
                 </div>
               </div>
             </div>
@@ -145,7 +158,7 @@ export default function WalletPage() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {parties.map(party => {
-                    const balance = getDebtBalance(party.id);
+                    const balance = getDebtBalance(party.id, activeSpace || undefined);
                     const partyTxns = debtTxns.filter(t => t.partyId === party.id);
                     const initial = party.name ? party.name[0].toUpperCase() : '?';
 
@@ -334,7 +347,7 @@ export default function WalletPage() {
               <span className="psc-label">Pihak Lunas</span>
             </div>
             <div className="psc-value" style={{ color: 'var(--success)' }}>
-              {parties.filter(p => getDebtBalance(p.id) <= 0).length}
+              {parties.filter(p => getDebtBalance(p.id, activeSpace || undefined) <= 0).length}
             </div>
             <div className="psc-sub">Sudah lunas</div>
           </div>
@@ -366,7 +379,7 @@ export default function WalletPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {parties.map(party => {
-              const balance = getDebtBalance(party.id);
+              const balance = getDebtBalance(party.id, activeSpace || undefined);
               const isExpanded = expanded.includes(party.id);
               const partyTxns = debtTxns.filter(t => t.partyId === party.id);
               let running = 0;

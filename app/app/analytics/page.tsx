@@ -5,18 +5,22 @@ import Header from '@/components/Header';
 import { getMonthlyFlowData, getTransactions } from '@/lib/store';
 import { formatCurrency, CHART_COLORS } from '@/lib/helpers';
 import { Transaction } from '@/lib/types';
+import { useSpace } from '@/lib/useSpace';
+import { useDataRefresh } from '@/lib/useDataRefresh';
+import { useCallback } from 'react';
+import { SpaceId } from '@/lib/spaceStore';
 import { TrendingUp, TrendingDown, BarChart2, Percent } from 'lucide-react';
 
 Chart.register(...registerables);
 
-function BarChart({ months }: { months: number }) {
+function BarChart({ months, spaceId }: { months: number; spaceId?: SpaceId }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const inst = useRef<Chart | null>(null);
 
   useEffect(() => {
     if (!ref.current) return;
     inst.current?.destroy();
-    const data = getMonthlyFlowData(months);
+    const data = getMonthlyFlowData(months, spaceId);
     const ctx = ref.current.getContext('2d');
     if (!ctx) return;
 
@@ -75,7 +79,7 @@ function BarChart({ months }: { months: number }) {
       },
     });
     return () => { inst.current?.destroy(); };
-  }, [months]);
+  }, [months, spaceId]);
 
   // Use chart-responsive-wrap for consistent responsive behavior
   return <div className="chart-responsive-wrap"><canvas ref={ref} /></div>;
@@ -130,10 +134,14 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
 }
 
 export default function AnalyticsPage() {
+  const { activeSpace } = useSpace();
   const [period, setPeriod] = useState<6 | 12>(12);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
-  useEffect(() => { setTransactions(getTransactions()); }, []);
+  const load = useCallback(() => {
+    setTransactions(getTransactions(activeSpace || undefined));
+  }, [activeSpace]);
+  useDataRefresh(load);
 
   const now = new Date();
   const year = now.getFullYear();
@@ -157,7 +165,7 @@ export default function AnalyticsPage() {
     .map(([label, value]) => ({ label, value }));
 
   // Monthly stats
-  const flowData = getMonthlyFlowData(period);
+  const flowData = getMonthlyFlowData(period, activeSpace || undefined);
   const totalIncome = flowData.income.reduce((s, v) => s + v, 0);
   const totalExpense = flowData.expense.reduce((s, v) => s + v, 0);
   const avgIncome = totalIncome / period;
@@ -210,7 +218,7 @@ export default function AnalyticsPage() {
                   ))}
                 </div>
               </div>
-              <BarChart months={period} />
+              <BarChart months={period} spaceId={activeSpace || undefined} />
             </div>
 
             {/* Monthly Table */}

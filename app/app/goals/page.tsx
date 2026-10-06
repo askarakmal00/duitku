@@ -15,8 +15,12 @@ import { formatCurrency, clamp } from '@/lib/helpers';
 
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useCallback } from 'react';
+import { useSpace } from '@/lib/useSpace';
 
 export default function GoalsPage() {
+  const { activeSpace } = useSpace();
+  const currentSpace = activeSpace || 'pribadi';
+
   const [goals, setGoals] = useState<SavingGoal[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editTarget, setEditTarget] = useState<SavingGoal | undefined>();
@@ -24,12 +28,12 @@ export default function GoalsPage() {
   const [withdrawGoal, setWithdrawGoal] = useState<SavingGoal | null>(null);
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
-  const load = useCallback(() => setGoals(getSavingGoals()), []);
+  const load = useCallback(() => setGoals(getSavingGoals(activeSpace || undefined)), [activeSpace]);
   useDataRefresh(load);
 
   const handleSave = async (data: Omit<SavingGoal, 'id' | 'createdAt'>) => {
-    if (editTarget) await updateSavingGoal(editTarget.id, data);
-    else await addSavingGoal(data);
+    if (editTarget) await updateSavingGoal(editTarget.id, { ...data, spaceId: editTarget.spaceId || currentSpace });
+    else await addSavingGoal({ ...data, spaceId: currentSpace });
     setShowModal(false);
     setEditTarget(undefined);
     load();
@@ -50,6 +54,7 @@ export default function GoalsPage() {
       amount,
       note,
       date,
+      spaceId: depositGoal.spaceId || currentSpace,
     });
     setDepositGoal(null);
     load();
@@ -65,13 +70,14 @@ export default function GoalsPage() {
       amount,
       note,
       date,
+      spaceId: withdrawGoal.spaceId || currentSpace,
     });
     setWithdrawGoal(null);
     load();
   };
 
   const totalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
-  const totalProgress = goals.reduce((s, g) => s + getGoalProgress(g.id), 0);
+  const totalProgress = goals.reduce((s, g) => s + getGoalProgress(g.id, g.spaceId || currentSpace), 0);
   const overallPct = totalTarget > 0 ? clamp((totalProgress / totalTarget) * 100, 0, 100) : 0;
 
   return (
@@ -120,7 +126,7 @@ export default function GoalsPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {goals.map(goal => {
-              const progress = getGoalProgress(goal.id);
+              const progress = getGoalProgress(goal.id, goal.spaceId || currentSpace);
               const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
               const remaining = goal.targetAmount - progress;
 
@@ -277,7 +283,7 @@ export default function GoalsPage() {
             ) : (
               <div className="grid-auto">
                 {goals.map(goal => {
-                  const progress = getGoalProgress(goal.id);
+                  const progress = getGoalProgress(goal.id, goal.spaceId || currentSpace);
                   const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
                   const progressColor = pct >= 100 ? 'var(--success)' : 'var(--primary)';
                   const isDone = pct >= 100;

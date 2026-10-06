@@ -35,9 +35,9 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
 
   useEffect(() => {
     setCategories(getCategories());
-    setBudgetPosList(getBudgetPos());
-    setGoals(getSavingGoals());
-  }, []);
+    setBudgetPosList(getBudgetPos(activeSpace || undefined));
+    setGoals(getSavingGoals(activeSpace || undefined));
+  }, [activeSpace]);
 
   // Use tailored categories for family space
   const categoryOptions = isFamily

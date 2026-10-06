@@ -14,10 +14,14 @@ import { formatCurrency, getCurrentMonth, getMonthName, getCategoryEmoji, getRel
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useCallback } from 'react';
+import { useSpace } from '@/lib/useSpace';
 
 type TypeFilter = 'semua' | 'masuk' | 'keluar';
 
 export default function TransactionsPage() {
+  const { activeSpace } = useSpace();
+  const currentSpace = activeSpace || 'pribadi';
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgetPosList, setBudgetPosList] = useState<BudgetPos[]>([]);
@@ -51,11 +55,11 @@ export default function TransactionsPage() {
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
 
   const load = useCallback(() => {
-    setTransactions(getTransactions());
+    setTransactions(getTransactions(activeSpace || undefined));
     setCategories(getCategories());
-    setBudgetPosList(getBudgetPos());
-    setGoals(getSavingGoals());
-  }, []);
+    setBudgetPosList(getBudgetPos(activeSpace || undefined));
+    setGoals(getSavingGoals(activeSpace || undefined));
+  }, [activeSpace]);
   useDataRefresh(load);
 
   // Navigate months
@@ -117,9 +121,9 @@ export default function TransactionsPage() {
 
   const handleSave = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
     if (editTarget) {
-      await updateTransaction(editTarget.id, data);
+      await updateTransaction(editTarget.id, { ...data, spaceId: editTarget.spaceId || currentSpace });
     } else {
-      await addTransaction(data);
+      await addTransaction({ ...data, spaceId: data.spaceId || currentSpace });
     }
     setShowModal(false);
     setEditTarget(undefined);
