@@ -1154,6 +1154,14 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
   memberContributions.total = memberContributions.asykar + memberContributions.riska;
   const totalCashOut = operationalExpense + savingsAllocation;
   const netCashFlow = totalCashIn - totalCashOut;
+
+  // Kas Bersama keluarga didanai per periode dari setoran anggotanya.
+  // Jika akumulasi transaksi sebelum periode ini negatif (akibat pengeluaran historis tercatat tanpa setoran),
+  // saldo awal kas bersama dianggap 0 agar tidak menciptakan saldo minus / defisit kas semu.
+  if (space === 'keluarga' && initialBalance < 0) {
+    initialBalance = 0;
+  }
+
   const closingBalance = initialBalance + netCashFlow;
 
   // Periode setara bulan lalu (Apple-to-Apple)
