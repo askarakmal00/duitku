@@ -103,6 +103,11 @@ export function sortDebtTransactions(txns: DebtTransaction[]): DebtTransaction[]
 
 // ─── Safe DB Helpers ────────────────────────────────────────────────────────
 async function safeInsertTransaction(t: Transaction): Promise<void> {
+  const noteWithSpace =
+    t.spaceId === 'keluarga' && !t.note?.includes('[space:keluarga]')
+      ? `${t.note || ''} [space:keluarga]`.trim()
+      : (t.note || '');
+
   const payload: any = {
     id: t.id,
     type: t.type,
@@ -111,7 +116,7 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
     budget_pos_id: t.budgetPosId || null,
     goal_id: t.goalId || null,
     amount: t.amount,
-    note: t.note || '',
+    note: noteWithSpace,
     date: t.date,
     created_at: t.createdAt,
     space_id: t.spaceId || 'pribadi',
@@ -120,19 +125,17 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
 
   try {
     const { error } = await supabase.from('transactions').upsert(payload);
-    if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
+    if (error) {
       delete payload.space_id;
       if (error.message?.includes('debt_txn_id')) delete payload.debt_txn_id;
-      await supabase.from('transactions').upsert(payload);
+      const res = await supabase.from('transactions').upsert(payload);
+      if (res.error) throw res.error;
     }
-  } catch {
+  } catch (err) {
     delete payload.space_id;
     delete payload.debt_txn_id;
-    try {
-      await supabase.from('transactions').upsert(payload);
-    } catch (e) {
-      console.warn('Failed to upsert transaction:', e);
-    }
+    const res = await supabase.from('transactions').upsert(payload);
+    if (res.error) throw res.error;
   }
 }
 
@@ -210,12 +213,16 @@ export async function syncWithSupabase(): Promise<void> {
   });
 
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
-    // Preserve local space, or read from Supabase space_id, or infer from category/note
+    const rawNote = t.note || '';
+    const hasSpaceTag = rawNote.includes('[space:keluarga]');
+    // Preserve local space, or read from Supabase space_id, or infer from note tag/category
     const isFamily =
       (t.space_id as SpaceId) === 'keluarga' ||
+      hasSpaceTag ||
       localSpaceMap.get(t.id) === 'keluarga' ||
       (t.category && (t.category.includes('Setoran') || t.category.includes('Keluarga')));
     const assignedSpace: SpaceId = isFamily ? 'keluarga' : ((t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi');
+    const cleanNote = rawNote.replace(/\s*\[space:keluarga\]/g, '').trim();
 
     return {
       id: t.id,
@@ -227,7 +234,7 @@ export async function syncWithSupabase(): Promise<void> {
       goalId: t.goal_id || undefined,
       debtTxnId: t.debt_txn_id || undefined,
       amount: Number(t.amount),
-      note: t.note || '',
+      note: cleanNote,
       date: t.date,
       createdAt: t.created_at,
     };
