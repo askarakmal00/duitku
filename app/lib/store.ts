@@ -1045,9 +1045,11 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
   const freeMoney = closingBalance - (remainingBudget ?? 0);
 
   // Tabungan / Dana Cadangan
+  // Menabung = uang keluar dari kas utama (type: keluar) menambah saldo tabungan (+)
+  // Tarik tabungan = uang masuk ke kas utama (type: masuk) mengurangi saldo tabungan (-)
   const savingsBalance = allTxns
-    .filter(t => t.category === 'Tabungan')
-    .reduce((sum, t) => sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
+    .filter(t => t.category === 'Tabungan' || Boolean(t.goalId))
+    .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
 
   // Audit Konsistensi: Saldo = Saldo awal + Pemasukan - Pengeluaran
   const expectedClosing = initialBalance + incomeThisMonth - expenseThisMonth;
@@ -1122,8 +1124,8 @@ export function getMonthlyExpense(year: number, month: number, spaceId?: SpaceId
 
 export function getTotalSavings(spaceId?: SpaceId): number {
   return getTransactions(spaceId)
-    .filter(t => t.category === 'Tabungan')
-    .reduce((sum, t) => sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
+    .filter(t => t.category === 'Tabungan' || Boolean(t.goalId))
+    .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
 }
 
 export function getMonthlyFlowData(months: number = 7, spaceId?: SpaceId): { labels: string[]; income: number[]; expense: number[] } {
