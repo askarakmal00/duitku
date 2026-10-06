@@ -1460,6 +1460,7 @@ tr:hover td { background: var(--primary-50); }
   white-space: nowrap;
   flex-shrink: 0;
   letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
 }
 
 .mobile-txn-v2-amount.income { color: #16A34A; }
@@ -4024,11 +4025,13 @@ button.space-card {
 }
 
 .mobile-stat-val {
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
   letter-spacing: -0.3px;
   line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .mobile-stat-val.income {

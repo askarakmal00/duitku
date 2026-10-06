@@ -348,7 +348,7 @@ export default function DashboardPage() {
                             <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
                           </div>
                           <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
-                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
                           </div>
                         </div>
                       );

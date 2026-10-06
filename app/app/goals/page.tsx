@@ -93,12 +93,12 @@ export default function GoalsPage() {
         <div className="mobile-grid-2">
           <div className="mobile-stat-card">
             <div className="mobile-stat-label">Total target</div>
-            <div className="mobile-stat-val">{formatCurrency(totalTarget, true)}</div>
+            <div className="mobile-stat-val">{formatCurrency(totalTarget)}</div>
             <div className="mobile-stat-sub">{goals.length} target aktif</div>
           </div>
           <div className="mobile-stat-card">
             <div className="mobile-stat-label">Terkumpul</div>
-            <div className="mobile-stat-val income">{formatCurrency(totalProgress, true)}</div>
+            <div className="mobile-stat-val income">{formatCurrency(totalProgress)}</div>
             <div className="mobile-stat-sub">
               {totalTarget > 0 ? ((totalProgress / totalTarget) * 100).toFixed(0) : 0}% dari target
             </div>

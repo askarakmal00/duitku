@@ -71,11 +71,11 @@ export default function BudgetPage() {
         <div className="mobile-grid-2">
           <div className="mobile-stat-card">
             <div className="mobile-stat-label">Total alokasi</div>
-            <div className="mobile-stat-val">{formatCurrency(totalAllocation, true)}</div>
+            <div className="mobile-stat-val">{formatCurrency(totalAllocation)}</div>
           </div>
           <div className="mobile-stat-card">
             <div className="mobile-stat-label">Total terpakai</div>
-            <div className="mobile-stat-val expense">{formatCurrency(totalUsed, true)}</div>
+            <div className="mobile-stat-val expense">{formatCurrency(totalUsed)}</div>
           </div>
         </div>
 

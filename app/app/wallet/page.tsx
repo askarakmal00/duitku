@@ -118,7 +118,7 @@ export default function WalletPage() {
             {/* Total hutang card */}
             <div className="mobile-alert-card danger" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
               <div className="mobile-alert-label">Total hutang</div>
-              <div className="mobile-alert-val">{formatCurrency(totalDebt, true)}</div>
+              <div className="mobile-alert-val">{formatCurrency(totalDebt)}</div>
             </div>
 
             {/* Grid 2: Jumlah pihak & Pihak lunas */}

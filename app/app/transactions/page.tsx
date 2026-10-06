@@ -193,12 +193,12 @@ export default function TransactionsPage() {
         <div className="mobile-grid-2">
           <div className="mobile-stat-card">
             <div className="mobile-stat-label">Total masuk</div>
-            <div className="mobile-stat-val income">+{formatCurrency(totalIn, true)}</div>
+            <div className="mobile-stat-val income">+{formatCurrency(totalIn)}</div>
             <div className="mobile-stat-sub">{filtered.filter(t => t.type === 'masuk').length} transaksi</div>
           </div>
           <div className="mobile-stat-card">
             <div className="mobile-stat-label">Total keluar</div>
-            <div className="mobile-stat-val expense">-{formatCurrency(totalOut, true)}</div>
+            <div className="mobile-stat-val expense">-{formatCurrency(totalOut)}</div>
             <div className="mobile-stat-sub">{filtered.filter(t => t.type === 'keluar').length} transaksi</div>
           </div>
         </div>
@@ -298,7 +298,7 @@ export default function TransactionsPage() {
                     <div className="mobile-txn-v2-time">{getRelativeTime(t.date, t.createdAt)}</div>
                   </div>
                   <div className={`mobile-txn-v2-amount ${t.type === 'masuk' ? 'income' : 'expense'}`}>
-                    {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount, true)}
+                    {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
                   </div>
                 </div>
               );
