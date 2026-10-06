@@ -489,15 +489,20 @@ export async function syncWithSupabase(): Promise<void> {
   const stillPendingGoals = localGoals.filter(g => pendingGoalIds.has(g.id) && !remoteGoalIds.has(g.id));
   save(KEYS.savingGoals, [...remoteGoals, ...stillPendingGoals]);
 
-  // 6. Categories
+  // 6. Categories - Merge remote categories with local custom categories
   const mappedCats = (catsRes.data || []).map(c => ({
     id: c.id,
     name: c.name,
     type: c.type,
     isDefault: c.is_default || false,
   }));
+  const localCats = getCategories();
   if (mappedCats.length > 0) {
-    save(KEYS.categories, mappedCats);
+    const remoteNames = new Set(mappedCats.map(c => c.name.toLowerCase()));
+    const localCustom = localCats.filter(c => !remoteNames.has(c.name.toLowerCase()));
+    save(KEYS.categories, [...mappedCats, ...localCustom]);
+  } else if (localCats.length > 0) {
+    save(KEYS.categories, localCats);
   }
 
   // 7. Settings
@@ -988,6 +993,18 @@ const DEFAULT_CATEGORIES: Category[] = [
   { id: 'c13', name: 'Lainnya', type: 'both', isDefault: true },
   { id: 'c14', name: 'Setoran Asykar', type: 'masuk', isDefault: true },
   { id: 'c15', name: 'Setoran Istri', type: 'masuk', isDefault: true },
+  { id: 'c16', name: 'Penghasilan Tambahan', type: 'masuk', isDefault: true },
+  { id: 'c17', name: 'Belanja Dapur', type: 'keluar', isDefault: true },
+  { id: 'c18', name: 'Utilitas Rumah', type: 'keluar', isDefault: true },
+  { id: 'c19', name: 'Kebutuhan Anak', type: 'keluar', isDefault: true },
+  { id: 'c20', name: 'Operasional Rumah', type: 'keluar', isDefault: true },
+  { id: 'c21', name: 'Kesehatan Keluarga', type: 'keluar', isDefault: true },
+  { id: 'c22', name: 'Makan Bersama', type: 'keluar', isDefault: true },
+  { id: 'c23', name: 'Rekreasi Keluarga', type: 'keluar', isDefault: true },
+  { id: 'c24', name: 'Dana Darurat', type: 'keluar', isDefault: true },
+  { id: 'c25', name: 'KPR / Cicilan Rumah', type: 'keluar', isDefault: true },
+  { id: 'c26', name: 'Cicilan Kendaraan', type: 'keluar', isDefault: true },
+  { id: 'c27', name: 'Pendidikan', type: 'keluar', isDefault: true },
 ];
 
 export function getCategories(): Category[] {
@@ -996,17 +1013,28 @@ export function getCategories(): Category[] {
 
 export async function addCategory(data: Omit<Category, 'id'>): Promise<Category> {
   const list = getCategories();
-  const newCat: Category = { ...data, id: genId() };
+  const trimmedName = data.name.trim();
+  const existing = list.find(c => c.name.toLowerCase() === trimmedName.toLowerCase());
+  if (existing) {
+    return existing;
+  }
+
+  const newCat: Category = { ...data, name: trimmedName, id: genId() };
   save(KEYS.categories, [...list, newCat]);
 
   try {
-    await supabase.from('categories').insert({
+    const { error } = await supabase.from('categories').insert({
       id: newCat.id,
       name: newCat.name,
       type: newCat.type,
       is_default: newCat.isDefault || false,
     });
-  } catch {}
+    if (error) {
+      console.warn('[Store] Supabase insert category warning:', error.message);
+    }
+  } catch (err) {
+    console.warn('[Store] Supabase category error:', err);
+  }
 
   notifyDataChanged();
   return newCat;

@@ -16,7 +16,11 @@ export default function SettingsPage() {
     setSettings(getSettings());
     setCategories(getCategories());
   };
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    window.addEventListener('pf_data_changed', load);
+    return () => window.removeEventListener('pf_data_changed', load);
+  }, []);
 
   const handleSaveSettings = async () => {
     await saveSettings(settings);

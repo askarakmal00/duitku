@@ -1,8 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { X, Check } from 'lucide-react';
-import { Transaction, BudgetPos, SavingGoal, Category, FAMILY_INCOME_CATEGORIES, FAMILY_EXPENSE_CATEGORIES } from '@/lib/types';
-import { getCategories, getBudgetPos, getSavingGoals } from '@/lib/store';
+import { Transaction, BudgetPos, SavingGoal, Category, FAMILY_INCOME_CATEGORIES, FAMILY_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, DEFAULT_EXPENSE_CATEGORIES } from '@/lib/types';
+import { getCategories, addCategory, getBudgetPos, getSavingGoals } from '@/lib/store';
 import { toInputDate } from '@/lib/helpers';
 import { useSpace } from '@/lib/useSpace';
 
@@ -32,17 +32,46 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
   const [categories, setCategories] = useState<Category[]>([]);
   const [budgetPosList, setBudgetPosList] = useState<BudgetPos[]>([]);
   const [goals, setGoals] = useState<SavingGoal[]>([]);
+  const [showAddCat, setShowAddCat] = useState(false);
+  const [inlineCatName, setInlineCatName] = useState('');
 
-  useEffect(() => {
+  const loadData = () => {
     setCategories(getCategories());
     setBudgetPosList(getBudgetPos(activeSpace || undefined));
     setGoals(getSavingGoals(activeSpace || undefined));
+  };
+
+  useEffect(() => {
+    loadData();
+    const handleDataChanged = () => loadData();
+    window.addEventListener('pf_data_changed', handleDataChanged);
+    return () => window.removeEventListener('pf_data_changed', handleDataChanged);
   }, [activeSpace]);
 
-  // Use tailored categories for family space
-  const categoryOptions = isFamily
-    ? (type === 'masuk' ? FAMILY_INCOME_CATEGORIES : FAMILY_EXPENSE_CATEGORIES)
-    : categories.filter(c => c.type === type || c.type === 'both').map(c => c.name);
+  // Merge default categories with all user-created categories so nothing is ever missed
+  const categoryOptions = useMemo(() => {
+    const baseCats = isFamily
+      ? (type === 'masuk' ? FAMILY_INCOME_CATEGORIES : FAMILY_EXPENSE_CATEGORIES)
+      : (type === 'masuk' ? DEFAULT_INCOME_CATEGORIES : DEFAULT_EXPENSE_CATEGORIES);
+
+    const storeCats = categories
+      .filter(c => c.type === type || c.type === 'both')
+      .map(c => c.name);
+
+    const existingCat = existing?.category ? [existing.category] : [];
+
+    return Array.from(new Set([...baseCats, ...storeCats, ...existingCat]));
+  }, [isFamily, type, categories, existing]);
+
+  const handleCreateInlineCat = async () => {
+    const trimmed = inlineCatName.trim();
+    if (!trimmed) return;
+    const created = await addCategory({ name: trimmed, type });
+    setCategories(getCategories());
+    setCategory(created.name);
+    setInlineCatName('');
+    setShowAddCat(false);
+  };
 
   // Format number with thousand separators as user types
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -186,7 +215,52 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
             </div>
 
             <div className="form-group">
-              <label className="form-label">Kategori *</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                <label className="form-label" style={{ margin: 0 }}>Kategori *</label>
+                <button
+                  type="button"
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--primary)',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    padding: 0,
+                  }}
+                  onClick={() => setShowAddCat(v => !v)}
+                >
+                  {showAddCat ? 'Batal' : '+ Kategori Baru'}
+                </button>
+              </div>
+
+              {showAddCat && (
+                <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+                  <input
+                    type="text"
+                    className="form-input"
+                    placeholder={`Nama kategori ${type === 'masuk' ? 'pemasukan' : 'pengeluaran'} baru...`}
+                    value={inlineCatName}
+                    onChange={e => setInlineCatName(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCreateInlineCat();
+                      }
+                    }}
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ whiteSpace: 'nowrap', padding: '0 14px', fontSize: 13 }}
+                    onClick={handleCreateInlineCat}
+                  >
+                    Simpan
+                  </button>
+                </div>
+              )}
+
               <select
                 className="form-select"
                 value={category}

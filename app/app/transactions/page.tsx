@@ -156,8 +156,15 @@ export default function TransactionsPage() {
 
   // Get unique categories used in transactions for filter dropdown
   const usedCategories = useMemo(() => {
-    const names = new Set(transactions.map(t => t.category));
-    return categories.filter(c => names.has(c.name));
+    const names = new Set(transactions.map(t => t.category).filter(Boolean));
+    const allKnown = new Map<string, { id: string; name: string }>();
+    categories.forEach(c => allKnown.set(c.name, { id: c.id, name: c.name }));
+    names.forEach(name => {
+      if (!allKnown.has(name)) {
+        allKnown.set(name, { id: name, name });
+      }
+    });
+    return Array.from(allKnown.values()).filter(c => names.has(c.name));
   }, [transactions, categories]);
 
   // Budget/goals only those used in transactions
