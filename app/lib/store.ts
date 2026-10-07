@@ -176,9 +176,50 @@ export function fixSpaceAssignments(): void {
       return t;
     });
 
-    if (txnsChanged) {
-      save(KEYS.transactions, updatedTxns);
-    }
+    // 4. Relocate debt parties & transactions
+    const parties = load<DebtParty[]>(KEYS.debtParties, []);
+    const debtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+    const famPartyIds = new Set<string>();
+    parties.forEach(p => {
+      if (p.spaceId === 'keluarga' || (p.name || '').toLowerCase().includes('keluarga')) {
+        famPartyIds.add(p.id);
+      }
+    });
+    debtTxns.forEach(dt => {
+      if (dt.spaceId === 'keluarga' || (dt.note || '').includes('[space:keluarga]') || (dt.note || '').toLowerCase().includes('keluarga')) {
+        famPartyIds.add(dt.partyId);
+      }
+    });
+
+    let partiesChanged = false;
+    const updatedParties = parties.map(p => {
+      const isFam = famPartyIds.has(p.id);
+      const target: SpaceId = isFam ? 'keluarga' : (p.spaceId || 'pribadi');
+      if (p.spaceId !== target) {
+        partiesChanged = true;
+        try {
+          supabase.from('debt_parties').update({ space_id: target }).eq('id', p.id).then();
+        } catch {}
+        return { ...p, spaceId: target };
+      }
+      return p;
+    });
+    if (partiesChanged) save(KEYS.debtParties, updatedParties);
+
+    let debtTxnsChanged = false;
+    const updatedDebtTxns = debtTxns.map(dt => {
+      const isFam = famPartyIds.has(dt.partyId) || dt.spaceId === 'keluarga' || (dt.note || '').includes('[space:keluarga]');
+      const target: SpaceId = isFam ? 'keluarga' : (dt.spaceId || 'pribadi');
+      if (dt.spaceId !== target) {
+        debtTxnsChanged = true;
+        try {
+          supabase.from('debt_transactions').update({ space_id: target }).eq('id', dt.id).then();
+        } catch {}
+        return { ...dt, spaceId: target };
+      }
+      return dt;
+    });
+    if (debtTxnsChanged) save(KEYS.debtTransactions, updatedDebtTxns);
   } catch {}
 }
 
@@ -494,12 +535,16 @@ export async function syncWithSupabase(): Promise<void> {
   localParties.forEach(p => {
     if (p.spaceId) localPartySpaceMap.set(p.id, p.spaceId);
   });
-  const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => ({
-    id: p.id,
-    spaceId: (p.space_id as SpaceId) || localPartySpaceMap.get(p.id) || 'pribadi',
-    name: p.name,
-    createdAt: p.created_at,
-  }));
+  const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => {
+    const localSpace = localPartySpaceMap.get(p.id);
+    const isFam = localSpace === 'keluarga' || (p.space_id as SpaceId) === 'keluarga' || (p.name || '').toLowerCase().includes('keluarga');
+    return {
+      id: p.id,
+      spaceId: isFam ? 'keluarga' : ((p.space_id as SpaceId) || localSpace || 'pribadi'),
+      name: p.name,
+      createdAt: p.created_at,
+    };
+  });
   const pendingPartyIds = getPending(PENDING_KEYS.debtParties);
   if (pendingPartyIds.size > 0) {
     for (const id of Array.from(pendingPartyIds)) {
@@ -534,17 +579,25 @@ export async function syncWithSupabase(): Promise<void> {
   localDebtTxns.forEach(dt => {
     if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
   });
-  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => ({
-    id: dt.id,
-    spaceId: (dt.space_id as SpaceId) || localDebtTxnSpaceMap.get(dt.id) || 'pribadi',
-    partyId: dt.party_id,
-    type: dt.type,
-    txnId: dt.txn_id || undefined,
-    amount: Number(dt.amount),
-    note: dt.note || '',
-    date: dt.date,
-    createdAt: dt.created_at,
-  }));
+  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => {
+    const rawNote = dt.note || '';
+    const hasSpaceTag = rawNote.includes('[space:keluarga]');
+    const partySpace = remoteParties.find(p => p.id === dt.party_id)?.spaceId;
+    const localSpace = localDebtTxnSpaceMap.get(dt.id);
+    const isFam = localSpace === 'keluarga' || partySpace === 'keluarga' || hasSpaceTag || (dt.space_id as SpaceId) === 'keluarga';
+    const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
+    return {
+      id: dt.id,
+      spaceId: isFam ? 'keluarga' : ((dt.space_id as SpaceId) || localSpace || 'pribadi'),
+      partyId: dt.party_id,
+      type: dt.type,
+      txnId: dt.txn_id || undefined,
+      amount: Number(dt.amount),
+      note: cleanNote,
+      date: dt.date,
+      createdAt: dt.created_at,
+    };
+  });
   const pendingDebtTxnIds = getPending(PENDING_KEYS.debtTransactions);
   if (pendingDebtTxnIds.size > 0) {
     for (const id of Array.from(pendingDebtTxnIds)) {
