@@ -33,9 +33,81 @@ export function getActiveSpaceId(): SpaceId {
   return getActiveSpace() || 'pribadi';
 }
 
+export function restoreCorruptedSpaceData(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const REPAIR_KEY = 'duitku_space_restore_v2';
+    if (localStorage.getItem(REPAIR_KEY)) return;
+
+    const txns = load<Transaction[]>(KEYS.transactions, []);
+    let changed = false;
+
+    const updated = txns.map(t => {
+      const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
+      const noteLower = cleanNote.toLowerCase();
+      const catLower = (t.category || '').toLowerCase();
+
+      // Explicit personal items that were erroneously corrupted to keluarga by earlier bug:
+      const isPersonal =
+        noteLower.includes('cashback') ||
+        noteLower.includes('bayu ardi') ||
+        noteLower.includes('mandiri') ||
+        noteLower.includes('transfer bi fast') ||
+        catLower.includes('bensin') ||
+        noteLower.includes('bensin') ||
+        catLower.includes('e-toll') ||
+        noteLower.includes('e-toll') ||
+        catLower.includes('etoll') ||
+        noteLower.includes('etoll') ||
+        catLower.includes('emoney') ||
+        noteLower.includes('emoney') ||
+        noteLower.includes('parkir') ||
+        catLower.includes('gaji') ||
+        noteLower.includes('gaji') ||
+        catLower.includes('bonus');
+
+      const isFamilyContribution =
+        catLower.includes('setoran asykar') ||
+        catLower.includes('setoran istri') ||
+        catLower.includes('setoran kas') ||
+        noteLower.includes('setoran asykar') ||
+        noteLower.includes('setoran istri') ||
+        noteLower.includes('setoran riska') ||
+        noteLower.includes('tabungan baby boy') ||
+        catLower.includes('kebutuhan anak') ||
+        catLower.includes('belanja dapur') ||
+        catLower.includes('makan bersama');
+
+      if (isPersonal && !isFamilyContribution && t.spaceId === 'keluarga') {
+        changed = true;
+        try {
+          supabase.from('transactions').update({ space_id: 'pribadi', note: cleanNote }).eq('id', t.id).then();
+        } catch {}
+        return { ...t, spaceId: 'pribadi' as SpaceId, note: cleanNote };
+      }
+
+      if (t.note !== cleanNote) {
+        changed = true;
+        return { ...t, note: cleanNote };
+      }
+
+      return t;
+    });
+
+    if (changed) {
+      save(KEYS.transactions, updated);
+      notifyDataChanged();
+    }
+
+    localStorage.setItem(REPAIR_KEY, 'done');
+  } catch {}
+}
+
 export function fixSpaceAssignments(): void {
   if (typeof window === 'undefined') return;
   try {
+    restoreCorruptedSpaceData();
+
     const txns = load<Transaction[]>(KEYS.transactions, []);
     let txnsChanged = false;
     const updatedTxns = txns.map(t => {
