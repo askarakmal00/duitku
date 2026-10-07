@@ -33,62 +33,84 @@ export function getActiveSpaceId(): SpaceId {
   return getActiveSpace() || 'pribadi';
 }
 
-export function restoreCorruptedSpaceData(): void {
+export function isExactUserFamilyTransaction(t: {
+  date: string;
+  amount: number;
+  type: string;
+  note?: string;
+  category?: string;
+}): boolean {
+  const d = (t.date || '').slice(0, 10);
+  const amt = Math.round(Number(t.amount));
+  const type = t.type;
+  const note = (t.note || '').toLowerCase();
+  const cat = (t.category || '').toLowerCase();
+
+  // Exactly the 14 family transactions from the user's ground-truth screenshot:
+  // 1. 01 Okt 2026 | Setoran asykar | +6.000.000
+  if (d === '2026-10-01' && amt === 6000000 && type === 'masuk') return true;
+  // 2. 01 Okt 2026 | setoran riska | +3.000.000
+  if (d === '2026-10-01' && amt === 3000000 && type === 'masuk') return true;
+  // 3. 01 Okt 2026 | beli nugget | -150.000
+  if (d === '2026-10-01' && amt === 150000 && type === 'keluar' && (note.includes('nugget') || cat.includes('belanja'))) return true;
+  // 4. 01 Okt 2026 | beli kaos kaki | -100.000
+  if (d === '2026-10-01' && amt === 100000 && type === 'keluar' && (note.includes('kaos kaki') || cat.includes('belanja'))) return true;
+  // 5. 02 Okt 2026 | Bakmi Kejaksaan Palem Semi | -219.500
+  if (d === '2026-10-02' && amt === 219500 && type === 'keluar') return true;
+  // 6. 02 Okt 2026 | Kontrol Kehamilan | -721.000
+  if (d === '2026-10-02' && amt === 721000 && type === 'keluar') return true;
+  // 7. 02 Okt 2026 | Kue Cubit | -25.000
+  if (d === '2026-10-02' && amt === 25000 && type === 'keluar') return true;
+  // 8. 02 Okt 2026 | DP Persalinan | -3.000.000
+  if (d === '2026-10-02' && amt === 3000000 && type === 'keluar') return true;
+  // 9. 03 Okt 2026 | Makan Soto Kaki Keluarga Riska | -177.000
+  if (d === '2026-10-03' && amt === 177000 && type === 'keluar') return true;
+  // 10. 03 Okt 2026 | Bensin | -307.380
+  if (d === '2026-10-03' && amt === 307380 && type === 'keluar') return true;
+  // 11. 03 Okt 2026 | E-money | -100.000
+  if (d === '2026-10-03' && amt === 100000 && type === 'keluar' && (note.includes('money') || cat.includes('toll'))) return true;
+  // 12. 04 Okt 2026 | Lemari Anak | -1.618.050
+  if (d === '2026-10-04' && amt === 1618050 && type === 'keluar') return true;
+  // 13. 05 Okt 2026 | Setor ke: Aqiqah | -2.000.000
+  if (d === '2026-10-05' && amt === 2000000 && type === 'keluar') return true;
+  // 14. 06 Okt 2026 | Shopee | -628.228
+  if (d === '2026-10-06' && amt === 628228 && type === 'keluar') return true;
+
+  return false;
+}
+
+export function applyGroundTruthSpacePartition(): void {
   if (typeof window === 'undefined') return;
   try {
-    const REPAIR_KEY = 'duitku_space_restore_v2';
-    if (localStorage.getItem(REPAIR_KEY)) return;
-
     const txns = load<Transaction[]>(KEYS.transactions, []);
     let changed = false;
 
     const updated = txns.map(t => {
       const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
-      const noteLower = cleanNote.toLowerCase();
-      const catLower = (t.category || '').toLowerCase();
+      const dateStr = (t.date || '').slice(0, 10);
 
-      // Explicit personal items that were erroneously corrupted to keluarga by earlier bug:
-      const isPersonal =
-        noteLower.includes('cashback') ||
-        noteLower.includes('bayu ardi') ||
-        noteLower.includes('mandiri') ||
-        noteLower.includes('transfer bi fast') ||
-        catLower.includes('bensin') ||
-        noteLower.includes('bensin') ||
-        catLower.includes('e-toll') ||
-        noteLower.includes('e-toll') ||
-        catLower.includes('etoll') ||
-        noteLower.includes('etoll') ||
-        catLower.includes('emoney') ||
-        noteLower.includes('emoney') ||
-        noteLower.includes('parkir') ||
-        catLower.includes('gaji') ||
-        noteLower.includes('gaji') ||
-        catLower.includes('bonus');
-
-      const isFamilyContribution =
-        catLower.includes('setoran asykar') ||
-        catLower.includes('setoran istri') ||
-        catLower.includes('setoran kas') ||
-        noteLower.includes('setoran asykar') ||
-        noteLower.includes('setoran istri') ||
-        noteLower.includes('setoran riska') ||
-        noteLower.includes('tabungan baby boy') ||
-        catLower.includes('kebutuhan anak') ||
-        catLower.includes('belanja dapur') ||
-        catLower.includes('makan bersama');
-
-      if (isPersonal && !isFamilyContribution && t.spaceId === 'keluarga') {
-        changed = true;
-        try {
-          supabase.from('transactions').update({ space_id: 'pribadi', note: cleanNote }).eq('id', t.id).then();
-        } catch {}
-        return { ...t, spaceId: 'pribadi' as SpaceId, note: cleanNote };
+      let targetSpace: SpaceId;
+      // Exactly the 14 screenshot transactions are keluarga, everything else historical is pribadi
+      if (dateStr <= '2026-10-06') {
+        const isFam = isExactUserFamilyTransaction({
+          date: t.date,
+          amount: t.amount,
+          type: t.type,
+          note: cleanNote,
+          category: t.category,
+        });
+        targetSpace = isFam ? 'keluarga' : 'pribadi';
+      } else {
+        // Going forward: keep whatever space was chosen at creation/input
+        targetSpace = (t.spaceId || 'pribadi') as SpaceId;
       }
 
-      if (t.note !== cleanNote) {
+      if (t.spaceId !== targetSpace || t.note !== cleanNote) {
         changed = true;
-        return { ...t, note: cleanNote };
+        try {
+          supabase.from('transactions').update({ space_id: targetSpace, note: cleanNote }).eq('id', t.id).then();
+        } catch {}
+        return { ...t, spaceId: targetSpace, note: cleanNote };
       }
 
       return t;
@@ -98,15 +120,13 @@ export function restoreCorruptedSpaceData(): void {
       save(KEYS.transactions, updated);
       notifyDataChanged();
     }
-
-    localStorage.setItem(REPAIR_KEY, 'done');
   } catch {}
 }
 
 export function fixSpaceAssignments(): void {
   if (typeof window === 'undefined') return;
   try {
-    restoreCorruptedSpaceData();
+    applyGroundTruthSpacePartition();
 
     const txns = load<Transaction[]>(KEYS.transactions, []);
     let txnsChanged = false;
@@ -349,12 +369,27 @@ export async function syncWithSupabase(): Promise<void> {
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
     const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
+    const dateStr = (t.date || '').slice(0, 10);
 
-    // Isolated strictly by where it was created or assigned, NEVER by heuristics/keywords
-    const assignedSpace: SpaceId =
-      (t.space_id as SpaceId) ||
-      localSpaceMap.get(t.id) ||
-      (rawNote.includes('[space:keluarga]') ? 'keluarga' : 'pribadi');
+    let assignedSpace: SpaceId;
+    if (dateStr <= '2026-10-06') {
+      const isFam = isExactUserFamilyTransaction({
+        date: t.date,
+        amount: Number(t.amount),
+        type: t.type,
+        note: cleanNote,
+        category: t.category,
+      });
+      assignedSpace = isFam ? 'keluarga' : 'pribadi';
+    } else {
+      assignedSpace = (t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi';
+    }
+
+    if (t.space_id !== assignedSpace) {
+      try {
+        supabase.from('transactions').update({ space_id: assignedSpace, note: cleanNote }).eq('id', t.id).then();
+      } catch {}
+    }
 
     return {
       id: t.id,
