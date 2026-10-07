@@ -38,6 +38,8 @@ import {
 import { getFamilyContributions, saveFamilyContribution } from '@/lib/spaceStore';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
+import TransactionModal from '@/components/TransactionModal';
+import { Transaction } from '@/lib/types';
 
 // ─── Category colour palette (matches reference donut) ────────────────────
 const CATEGORY_COLORS = [
@@ -226,6 +228,7 @@ export default function FamilyDashboardRedesign({
   const [asykarAmount, setAsykarAmount] = useState(0);
   const [istriAmount, setIstriAmount] = useState(0);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showExpenseModal, setShowExpenseModal] = useState(false);
   const [person, setPerson] = useState<'asykar' | 'istri'>('asykar');
   const [amountInput, setAmountInput] = useState('');
   const [noteInput, setNoteInput] = useState('');
@@ -344,6 +347,15 @@ export default function FamilyDashboardRedesign({
     setAmountInput('');
     setNoteInput('');
     setShowAddModal(false);
+    notifyDataChanged();
+  };
+
+  const handleSaveExpense = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
+    await addTransaction({
+      ...data,
+      spaceId: 'keluarga',
+    });
+    setShowExpenseModal(false);
     notifyDataChanged();
   };
 
@@ -638,22 +650,32 @@ export default function FamilyDashboardRedesign({
                 padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
+              title="Tambah setoran kas bersama (Asykar / Riska)"
             >
-              <ArrowUpRight size={14} /> Transfer Saldo
+              <Plus size={14} /> Setor Kas
             </button>
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={() => setShowExpenseModal(true)}
               style={{
                 background: '#F8FAFC', color: '#0F172A', border: '1px solid #E2E8F0', borderRadius: 10,
                 padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 display: 'flex', alignItems: 'center', gap: 6,
               }}
+              title="Catat pengeluaran atau belanja menggunakan kas bersama"
             >
-              <Plus size={14} /> Setor Kas
+              <ArrowUpRight size={14} /> Catat Pengeluaran
             </button>
-            <button style={{ background: '#F8FAFC', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 10, padding: '9px 12px', cursor: 'pointer', fontSize: 13 }}>
+            <Link
+              href="/transactions"
+              style={{
+                background: '#F8FAFC', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 10,
+                padding: '9px 12px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center',
+                textDecoration: 'none'
+              }}
+              title="Lihat riwayat transaksi kas bersama"
+            >
               <MoreHorizontal size={16} />
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -906,6 +928,14 @@ export default function FamilyDashboardRedesign({
 
       {/* ── SETORAN MODAL ──────────────────────────────────────────── */}
       {showAddModal && <SetoranModal person={person} setPerson={setPerson} amountInput={amountInput} setAmountInput={setAmountInput} noteInput={noteInput} setNoteInput={setNoteInput} onClose={() => setShowAddModal(false)} onSubmit={handleSaveSetoran} />}
+
+      {/* ── EXPENSE MODAL ─────────────────────────────────────────── */}
+      {showExpenseModal && (
+        <TransactionModal
+          onClose={() => setShowExpenseModal(false)}
+          onSave={handleSaveExpense}
+        />
+      )}
     </div>
   );
 }
