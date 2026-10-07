@@ -6,7 +6,7 @@ import {
   Wallet, MoreHorizontal, Pencil, Trash2, Bell, FileSpreadsheet,
   ArrowUp, ArrowDown, Calendar, ChevronDown, Eye, EyeOff,
   ShoppingBag, Landmark, Home, Utensils, CreditCard, Car, Banknote,
-  Zap, ShoppingBasket, ArrowDownLeft, ArrowLeftRight
+  Zap, ShoppingBasket, ArrowDownLeft, ArrowLeftRight, CheckCircle2
 } from 'lucide-react';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
 import TransactionModal from '@/components/TransactionModal';
@@ -14,14 +14,15 @@ import BulkImportModal from '@/components/BulkImportModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import {
   getTransactions, addTransaction, updateTransaction, deleteTransaction,
-  getCategories, getBudgetPos, getSavingGoals, getDashboardFinanceSummary
+  getCategories, getBudgetPos, getSavingGoals, getDashboardFinanceSummary,
+  reimburseTransaction, unreimburseTransaction
 } from '@/lib/store';
 import { Transaction, Category, BudgetPos, SavingGoal } from '@/lib/types';
 import { formatCurrency, formatRupiah, getCurrentMonth, getMonthName } from '@/lib/helpers';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useSpace } from '@/lib/useSpace';
 
-type TypeFilter = 'semua' | 'masuk' | 'keluar';
+type TypeFilter = 'semua' | 'masuk' | 'keluar' | 'talangan';
 
 function formatDesktopDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -293,7 +294,10 @@ export default function TransactionsPage() {
       if (t.type === 'masuk') {
         bal += t.amount;
       } else {
-        bal -= t.amount;
+        const isUnreimbursedTalangan = activeSpace === 'keluarga' && t.paidBy && t.paidBy !== 'bersama' && !t.reimbursed;
+        if (!isUnreimbursedTalangan) {
+          bal -= t.amount;
+        }
       }
       map.set(t.id, bal);
     }
@@ -324,6 +328,7 @@ export default function TransactionsPage() {
         }
         if (typeFilter === 'masuk' && t.type !== 'masuk') return false;
         if (typeFilter === 'keluar' && t.type !== 'keluar') return false;
+        if (typeFilter === 'talangan' && (!t.paidBy || t.paidBy === 'bersama' || t.reimbursed)) return false;
         if (filterCategory && t.category !== filterCategory) return false;
         if (filterBudget && t.budgetPosId !== filterBudget) return false;
         if (filterGoal && t.goalId !== filterGoal) return false;
@@ -392,6 +397,16 @@ export default function TransactionsPage() {
     setActionMenuId(null);
     const targetSpace = (t.spaceId || 'pribadi') === 'keluarga' ? 'pribadi' : 'keluarga';
     await updateTransaction(t.id, { spaceId: targetSpace });
+    load();
+  };
+
+  const handleToggleReimburse = async (t: Transaction) => {
+    setActionMenuId(null);
+    if (t.reimbursed) {
+      await unreimburseTransaction(t.id);
+    } else {
+      await reimburseTransaction(t.id);
+    }
     load();
   };
 
@@ -643,6 +658,14 @@ export default function TransactionsPage() {
             >
               Pengeluaran
             </button>
+            {activeSpace === 'keluarga' && (
+              <button
+                className={`txn-v2-pill ${typeFilter === 'talangan' ? 'active' : ''}`}
+                onClick={() => { setTypeFilter('talangan'); setCurrentPage(1); }}
+              >
+                Belum Diganti (Talangan)
+              </button>
+            )}
           </div>
 
           {/* Search box */}
@@ -818,6 +841,41 @@ export default function TransactionsPage() {
                                     {t.paidBy === 'asykar' ? 'Keluarga Asykar' : t.paidBy === 'istri' ? 'Keluarga Riska' : 'Bersama'}
                                   </div>
                                 )}
+                                {activeSpace === 'keluarga' && t.paidBy && t.paidBy !== 'bersama' && (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
+                                    {!t.reimbursed ? (
+                                      <>
+                                        <span style={{
+                                          background: '#FEF3C7', color: '#B45309', borderRadius: 5,
+                                          padding: '2px 7px', fontSize: 11, fontWeight: 700
+                                        }}>
+                                          ⏳ Talangan {t.paidBy === 'asykar' ? 'Asykar' : 'Riska'} (Belum Diganti)
+                                        </span>
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleReimburse(t);
+                                          }}
+                                          style={{
+                                            background: '#EEF2FF', color: '#4F46E5', border: '1px solid #C7D2FE',
+                                            borderRadius: 5, padding: '2px 8px', fontSize: 11, fontWeight: 700, cursor: 'pointer'
+                                          }}
+                                          title="Ganti uang ini dari Kas Bersama (akan mengurangi saldo kas)"
+                                        >
+                                          ⚡ Reimburse
+                                        </button>
+                                      </>
+                                    ) : (
+                                      <span style={{
+                                        background: '#ECFDF5', color: '#059669', borderRadius: 5,
+                                        padding: '2px 7px', fontSize: 11, fontWeight: 600
+                                      }}>
+                                        ✓ Talangan {t.paidBy === 'asykar' ? 'Asykar' : 'Riska'} (Lunas Diganti)
+                                      </span>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             </div>
                           </td>
@@ -844,7 +902,12 @@ export default function TransactionsPage() {
 
                           {/* Saldo Setelah (Running Balance) */}
                           <td style={{ textAlign: 'right', fontWeight: 600, color: '#0F172A', fontSize: 13.5 }}>
-                            {formatRupiah(runningBal)}
+                            <div>{formatRupiah(runningBal)}</div>
+                            {activeSpace === 'keluarga' && t.paidBy && t.paidBy !== 'bersama' && !t.reimbursed && (
+                              <div style={{ fontSize: 10.5, color: '#B45309', fontWeight: 500, marginTop: 1 }}>
+                                Belum potong kas
+                              </div>
+                            )}
                           </td>
 
                           {/* Action ••• */}
@@ -890,10 +953,25 @@ export default function TransactionsPage() {
                                     boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
                                     padding: 6,
                                     zIndex: 100,
-                                    minWidth: 165,
+                                    minWidth: 175,
                                     textAlign: 'left',
                                   }}
                                 >
+                                  {activeSpace === 'keluarga' && t.paidBy && t.paidBy !== 'bersama' && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleToggleReimburse(t)}
+                                      style={{
+                                        display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                        padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent',
+                                        color: t.reimbursed ? '#D97706' : '#059669', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+                                        whiteSpace: 'nowrap'
+                                      }}
+                                    >
+                                      <CheckCircle2 size={13} />
+                                      {t.reimbursed ? 'Tandai Belum Diganti' : 'Ganti dari Kas (Reimburse)'}
+                                    </button>
+                                  )}
                                   <button
                                     type="button"
                                     onClick={() => handleToggleSpace(t)}
@@ -1157,6 +1235,20 @@ export default function TransactionsPage() {
           >
             Pengeluaran
           </button>
+          {activeSpace === 'keluarga' && (
+            <button
+              className={`txn-v2-pill ${typeFilter === 'talangan' ? 'active' : ''}`}
+              onClick={() => setTypeFilter('talangan')}
+              style={{
+                background: typeFilter === 'talangan' ? '#FEF3C7' : undefined,
+                color: typeFilter === 'talangan' ? '#92400E' : undefined,
+                borderColor: typeFilter === 'talangan' ? '#F59E0B' : undefined,
+                fontWeight: typeFilter === 'talangan' ? 700 : undefined
+              }}
+            >
+              ⏳ Talangan
+            </button>
+          )}
         </div>
 
         {/* Search Input with Filter Icon on right */}
@@ -1202,12 +1294,19 @@ export default function TransactionsPage() {
                   {group.items.map(t => {
                     const visual = getTransactionVisual(t);
                     const runningBal = runningBalanceMap.get(t.id) ?? 0;
+                    const isFamilySpace = activeSpace === 'keluarga';
+                    const isTalangan = isFamilySpace && t.type === 'keluar' && t.paidBy && t.paidBy !== 'bersama';
+                    const isUnreimbursed = isTalangan && !t.reimbursed;
 
                     return (
                       <div
                         key={t.id}
                         className="mobile-txn-v2-card"
                         onClick={() => handleEdit(t)}
+                        style={{
+                          background: isUnreimbursed ? '#FFFDF5' : undefined,
+                          borderColor: isUnreimbursed ? '#FDE68A' : undefined
+                        }}
                       >
                         {/* Icon */}
                         <div
@@ -1228,6 +1327,45 @@ export default function TransactionsPage() {
                           <div style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 1 }}>
                             {t.category} · {formatTime(t.createdAt)}
                           </div>
+                          {isTalangan && (
+                            <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                              {isUnreimbursed ? (
+                                <>
+                                  <span style={{
+                                    fontSize: 10, fontWeight: 700,
+                                    background: '#FEF3C7', color: '#92400E',
+                                    border: '1px solid #FDE68A', borderRadius: 999,
+                                    padding: '1.5px 6px'
+                                  }}>
+                                    ⏳ Talangan {t.paidBy === 'asykar' ? 'Asykar' : 'Riska'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleToggleReimburse(t);
+                                    }}
+                                    style={{
+                                      fontSize: 10, fontWeight: 700,
+                                      background: '#4F46E5', color: '#FFFFFF',
+                                      border: 'none', borderRadius: 999,
+                                      padding: '2px 8px', cursor: 'pointer'
+                                    }}
+                                  >
+                                    ⚡ Reimburse
+                                  </button>
+                                </>
+                              ) : (
+                                <span style={{
+                                  fontSize: 10, fontWeight: 600,
+                                  background: '#ECFDF5', color: '#065F46',
+                                  borderRadius: 999, padding: '1px 6px'
+                                }}>
+                                  ✓ Sudah Diganti Kas
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
 
                         {/* Amount & Sisa */}
@@ -1238,8 +1376,8 @@ export default function TransactionsPage() {
                           }}>
                             {t.type === 'masuk' ? '+' : '-'}{formatRupiah(t.amount)}
                           </div>
-                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
-                            Sisa {formatCurrency(runningBal, true)}
+                          <div style={{ fontSize: 11, color: isUnreimbursed ? '#D97706' : '#94A3B8', marginTop: 1, fontWeight: isUnreimbursed ? 600 : 400 }}>
+                            {isUnreimbursed ? 'Belum potong kas' : `Sisa ${formatCurrency(runningBal, true)}`}
                           </div>
                         </div>
                       </div>

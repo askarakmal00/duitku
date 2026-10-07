@@ -209,15 +209,21 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
                   </button>
                 </div>
                 {paidBy !== 'bersama' && (
-                  <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                  <div style={{ marginTop: 10, background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: '10px 12px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', color: '#0F172A' }}>
                       <input
                         type="checkbox"
                         checked={reimbursed}
                         onChange={e => setReimbursed(e.target.checked)}
+                        style={{ width: 16, height: 16, cursor: 'pointer' }}
                       />
-                      Sudah diganti dari Kas Bersama (Reimbursed)
+                      <span>Sudah diganti dari Kas Bersama (Reimbursed)</span>
                     </label>
+                    <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 4, marginLeft: 24, lineHeight: 1.4 }}>
+                      {reimbursed
+                        ? '✓ Saldo Kas Bersama langsung dipotong untuk mengganti talangan ini.'
+                        : '⏳ Saldo Kas Bersama belum dipotong. Transaksi akan tercatat sebagai talangan aktif yang bisa diganti nanti via dashboard.'}
+                    </div>
                   </div>
                 )}
               </div>

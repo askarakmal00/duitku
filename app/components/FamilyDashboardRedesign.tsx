@@ -20,6 +20,9 @@ import {
   Target,
   CreditCard,
   ArrowRight,
+  Receipt,
+  CheckCircle2,
+  RotateCcw,
 } from 'lucide-react';
 import { formatRupiah, formatCurrency, getMonthName, clamp } from '@/lib/helpers';
 import {
@@ -34,6 +37,9 @@ import {
   getSavingGoals,
   getGoalProgress,
   getTotalDebt,
+  getFamilyTalanganSummary,
+  reimburseTransaction,
+  reimburseAllPendingTalangan,
 } from '@/lib/store';
 import { getFamilyContributions, saveFamilyContribution } from '@/lib/spaceStore';
 import { useDataRefresh } from '@/lib/useDataRefresh';
@@ -337,6 +343,36 @@ export default function FamilyDashboardRedesign({
   const incomeGrowth = summary.incomeGrowthPct;
   const expenseGrowth = summary.expenseGrowthPct;
 
+  // ─── Talangan Summary & Handlers ───────────────────────────────────────
+  const talanganSummary = getFamilyTalanganSummary(year, month);
+  const [reimbursingId, setReimbursingId] = useState<string | null>(null);
+  const [reimbursingAll, setReimbursingAll] = useState(false);
+  const [reimburseFeedback, setReimburseFeedback] = useState<string | null>(null);
+
+  const handleReimburse = async (t: Transaction) => {
+    setReimbursingId(t.id);
+    try {
+      await reimburseTransaction(t.id);
+      notifyDataChanged();
+      setReimburseFeedback(`✓ Talangan "${t.note || t.category}" (${formatRupiah(t.amount)}) berhasil diganti dari Kas Bersama.`);
+      setTimeout(() => setReimburseFeedback(null), 4000);
+    } finally {
+      setReimbursingId(null);
+    }
+  };
+
+  const handleReimburseAll = async () => {
+    setReimbursingAll(true);
+    try {
+      await reimburseAllPendingTalangan();
+      notifyDataChanged();
+      setReimburseFeedback('✓ Semua talangan berhasil diganti dari Kas Bersama.');
+      setTimeout(() => setReimburseFeedback(null), 4000);
+    } finally {
+      setReimbursingAll(false);
+    }
+  };
+
   // ─── Save setoran modal ────────────────────────────────────────────────
   const handleSaveSetoran = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -468,6 +504,40 @@ export default function FamilyDashboardRedesign({
             </div>
           </div>
         </div>
+
+        {/* Mobile Talangan card */}
+        {talanganSummary.pendingCount > 0 ? (
+          <div style={{ background: '#FFFBEB', border: '1px solid #FEF3C7', borderRadius: 18, padding: '14px 16px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Receipt size={16} color="#D97706" />
+                <span style={{ fontSize: 12, fontWeight: 700, color: '#92400E' }}>Talangan Belum Diganti</span>
+              </div>
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#B45309' }}>
+                {formatRupiah(talanganSummary.totalPending)}
+              </span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#78350F' }}>
+              <span>{talanganSummary.pendingCount} transaksi ditalangi</span>
+              <button
+                onClick={handleReimburseAll}
+                disabled={reimbursingAll}
+                style={{
+                  background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 8,
+                  padding: '5px 12px', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                  opacity: reimbursingAll ? 0.6 : 1
+                }}
+              >
+                Ganti Semua
+              </button>
+            </div>
+          </div>
+        ) : talanganSummary.reimbursedCountThisMonth > 0 ? (
+          <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 14, padding: '10px 14px', display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#15803D', fontWeight: 600 }}>
+            <CheckCircle2 size={14} />
+            <span>Semua talangan anggota lunas ({talanganSummary.reimbursedCountThisMonth} transaksi).</span>
+          </div>
+        ) : null}
 
         {/* Quick links grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
@@ -726,6 +796,219 @@ export default function FamilyDashboardRedesign({
             Lihat Detail →
           </button>
         </div>
+      </div>
+
+      {/* ── TALANGAN & REIMBURSEMENT WIDGET ─────────────────────────── */}
+      <div style={{
+        background: '#FFFFFF',
+        borderRadius: 22,
+        padding: '22px 24px',
+        border: '1px solid #E2E8F0',
+        boxShadow: '0 1px 4px rgba(0,0,0,0.03)',
+        marginBottom: 20,
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{
+              width: 38, height: 38, borderRadius: 12,
+              background: talanganSummary.pendingCount > 0 ? '#FEF3C7' : '#DCFCE7',
+              color: talanganSummary.pendingCount > 0 ? '#D97706' : '#15803D',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <Receipt size={20} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>
+                  Talangan & Reimbursement Anggota
+                </span>
+                {talanganSummary.pendingCount > 0 ? (
+                  <span style={{ background: '#FEF3C7', color: '#B45309', borderRadius: 9999, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                    {talanganSummary.pendingCount} Perlu Diganti
+                  </span>
+                ) : (
+                  <span style={{ background: '#DCFCE7', color: '#15803D', borderRadius: 9999, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
+                    Semua Lunas
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: '2px 0 0', fontSize: 12, color: '#64748B' }}>
+                Pengeluaran pribadi yang ditalangi untuk keluarga. Saldo Kas Bersama otomatis berkurang saat diganti (reimburse).
+              </p>
+            </div>
+          </div>
+
+          {talanganSummary.pendingCount > 0 && (
+            <button
+              onClick={handleReimburseAll}
+              disabled={reimbursingAll}
+              style={{
+                background: '#4F46E5', color: '#fff', border: 'none', borderRadius: 10,
+                padding: '8px 16px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                display: 'inline-flex', alignItems: 'center', gap: 6, opacity: reimbursingAll ? 0.6 : 1,
+                boxShadow: '0 2px 6px rgba(79,70,229,0.25)',
+              }}
+              title="Ganti semua talangan sekaligus dari Kas Bersama"
+            >
+              <RotateCcw size={13} />
+              <span>Ganti Semua ({formatRupiah(talanganSummary.totalPending)})</span>
+            </button>
+          )}
+        </div>
+
+        {reimburseFeedback && (
+          <div style={{
+            background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10,
+            padding: '8px 14px', marginBottom: 14, color: '#15803D', fontSize: 12.5, fontWeight: 600,
+            display: 'flex', alignItems: 'center', gap: 8
+          }}>
+            <CheckCircle2 size={15} />
+            <span>{reimburseFeedback}</span>
+          </div>
+        )}
+
+        {/* Stats Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: talanganSummary.pendingCount > 0 ? 16 : 0 }}>
+          {/* Card 1: Total Pending */}
+          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '12px 14px' }}>
+            <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Total Perlu Diganti
+            </span>
+            <div style={{ fontSize: 18, fontWeight: 800, color: talanganSummary.pendingCount > 0 ? '#B45309' : '#0F172A', marginTop: 3 }}>
+              {formatRupiah(talanganSummary.totalPending)}
+            </div>
+            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+              {talanganSummary.pendingCount} transaksi belum diganti
+            </div>
+          </div>
+
+          {/* Card 2: Talangan Asykar */}
+          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '12px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#4F46E5', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>A</div>
+              <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>Talangan Asykar</span>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginTop: 3 }}>
+              {formatRupiah(talanganSummary.asykarPending)}
+            </div>
+            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+              {talanganSummary.pendingItems.filter(t => t.paidBy === 'asykar').length} transaksi
+            </div>
+          </div>
+
+          {/* Card 3: Talangan Riska */}
+          <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14, padding: '12px 14px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ width: 18, height: 18, borderRadius: '50%', background: '#BE185D', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>R</div>
+              <span style={{ fontSize: 11, color: '#64748B', fontWeight: 600 }}>Talangan Riska (Istri)</span>
+            </div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#0F172A', marginTop: 3 }}>
+              {formatRupiah(talanganSummary.istriPending)}
+            </div>
+            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+              {talanganSummary.pendingItems.filter(t => t.paidBy === 'istri').length} transaksi
+            </div>
+          </div>
+        </div>
+
+        {/* Pending Items List */}
+        {talanganSummary.pendingCount > 0 ? (
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#475569', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              Daftar Transaksi yang Harus Diganti:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {talanganSummary.pendingItems.slice(0, 5).map(t => {
+                const isAsykar = t.paidBy === 'asykar';
+                const isItemReimbursing = reimbursingId === t.id;
+                return (
+                  <div
+                    key={t.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: '#FFFBEB', border: '1px solid #FEF3C7', borderRadius: 12,
+                      padding: '10px 14px', gap: 12, flexWrap: 'wrap'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 200, flex: 1 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8,
+                        background: '#FEF08A', color: '#854D0E',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0
+                      }}>
+                        {catIcon(t.category)}
+                      </div>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {t.note || t.category}
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#64748B', marginTop: 1 }}>
+                          <span>{fmtDate(t.date)}</span>
+                          <span>•</span>
+                          <span>{t.category}</span>
+                          <span>•</span>
+                          <span style={{
+                            background: isAsykar ? '#EEF2FF' : '#FDF2F8',
+                            color: isAsykar ? '#4F46E5' : '#BE185D',
+                            padding: '1px 6px', borderRadius: 4, fontWeight: 600, fontSize: 10
+                          }}>
+                            Ditalangi {isAsykar ? 'Asykar' : 'Riska'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 800, color: '#DC2626' }}>
+                        -{formatRupiah(t.amount)}
+                      </span>
+                      <button
+                        onClick={() => handleReimburse(t)}
+                        disabled={isItemReimbursing}
+                        style={{
+                          background: '#059669', color: '#FFFFFF', border: 'none',
+                          borderRadius: 8, padding: '7px 14px', fontSize: 12, fontWeight: 700,
+                          cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 5,
+                          boxShadow: '0 1px 3px rgba(5,150,105,0.2)', opacity: isItemReimbursing ? 0.6 : 1
+                        }}
+                        title="Ganti uang ini dari Kas Bersama (akan mengurangi saldo kas)"
+                      >
+                        <CheckCircle2 size={13} />
+                        <span>{isItemReimbursing ? 'Memproses...' : 'Ganti dari Kas'}</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+              {talanganSummary.pendingCount > 5 && (
+                <Link
+                  href="/transactions"
+                  style={{ fontSize: 12, color: '#4F46E5', fontWeight: 600, textAlign: 'center', marginTop: 4, textDecoration: 'none' }}
+                >
+                  +{talanganSummary.pendingCount - 5} transaksi talangan lainnya → Lihat di Transaksi
+                </Link>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 12,
+            padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <CheckCircle2 size={16} color="#15803D" />
+              <span style={{ fontSize: 12.5, color: '#15803D', fontWeight: 600 }}>
+                Semua uang talangan anggota sudah diganti dari Kas Bersama.
+              </span>
+            </div>
+            {talanganSummary.reimbursedCountThisMonth > 0 && (
+              <span style={{ fontSize: 11.5, color: '#64748B' }}>
+                {talanganSummary.reimbursedCountThisMonth} talangan ({formatRupiah(talanganSummary.reimbursedAmountThisMonth)}) telah diganti bulan ini.
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── 3 METRIC CARDS ROW ──────────────────────────────────────── */}

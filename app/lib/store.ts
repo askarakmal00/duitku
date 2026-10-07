@@ -252,6 +252,8 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
     space_id: t.spaceId || 'pribadi',
   };
   if (t.debtTxnId) payload.debt_txn_id = t.debtTxnId;
+  if (t.paidBy) payload.paid_by = t.paidBy;
+  if (t.reimbursed !== undefined) payload.reimbursed = Boolean(t.reimbursed);
 
   try {
     const { error } = await supabase.from('transactions').upsert(payload);
@@ -261,6 +263,12 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
       }
       if (error.message?.includes('debt_txn_id')) {
         delete payload.debt_txn_id;
+      }
+      if (error.code === '42703' && error.message?.includes('paid_by')) {
+        delete payload.paid_by;
+      }
+      if (error.code === '42703' && error.message?.includes('reimbursed')) {
+        delete payload.reimbursed;
       }
       const res = await supabase.from('transactions').upsert(payload);
       if (res.error) throw res.error;
@@ -684,6 +692,8 @@ export async function addBulkTransactions(items: Omit<Transaction, 'id' | 'creat
         space_id: t.spaceId || activeSpace,
       };
       if (t.debtTxnId) p.debt_txn_id = t.debtTxnId;
+      if (t.paidBy) p.paid_by = t.paidBy;
+      if (t.reimbursed !== undefined) p.reimbursed = Boolean(t.reimbursed);
       return p;
     });
 
@@ -724,11 +734,15 @@ export async function updateTransaction(id: string, data: Partial<Omit<Transacti
   if (data.note !== undefined) updateData.note = data.note;
   if (data.date !== undefined) updateData.date = data.date;
   if (data.spaceId !== undefined) updateData.space_id = data.spaceId;
+  if (data.paidBy !== undefined) updateData.paid_by = data.paidBy || null;
+  if (data.reimbursed !== undefined) updateData.reimbursed = Boolean(data.reimbursed);
 
   try {
     const { error } = await supabase.from('transactions').update(updateData).eq('id', id);
-    if (error && error.message?.includes('debt_txn_id')) {
-      delete updateData.debt_txn_id;
+    if (error) {
+      if (error.message?.includes('debt_txn_id')) delete updateData.debt_txn_id;
+      if (error.code === '42703' && error.message?.includes('paid_by')) delete updateData.paid_by;
+      if (error.code === '42703' && error.message?.includes('reimbursed')) delete updateData.reimbursed;
       await supabase.from('transactions').update(updateData).eq('id', id);
     }
   } catch {}
@@ -1231,6 +1245,13 @@ export interface DashboardFinanceSummary {
   isBalanceConsistent: boolean;
   isConsistent: boolean;
   consistencyWarning?: string;
+
+  // 9. Status Talangan (Family Space)
+  totalUnreimbursedTalangan: number;
+  unreimbursedAsykar: number;
+  unreimbursedIstri: number;
+  unreimbursedCount: number;
+  actualCashOut: number;
 }
 
 export function getDashboardFinanceSummary(year: number, month: number, spaceId?: SpaceId): DashboardFinanceSummary {
@@ -1245,6 +1266,9 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
   let totalCashIn = 0;
   let operationalExpense = 0;
   let savingsAllocation = 0;
+  let unreimbursedAsykar = 0;
+  let unreimbursedIstri = 0;
+  let unreimbursedCount = 0;
 
   const memberContributions = { asykar: 0, riska: 0, total: 0 };
   let otherIncome = 0;
@@ -1254,10 +1278,18 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     const [yStr, mStr] = dateStr.split('-');
     const tYear = Number(yStr);
     const tMonth = Number(mStr);
+    const isUnreimbursedTalangan = space === 'keluarga' && t.type === 'keluar' && t.paidBy && t.paidBy !== 'bersama' && !t.reimbursed;
 
     if (tYear < year || (tYear === year && tMonth < month)) {
-      // Akumulasi saldo sebelum awal bulan ini
-      initialBalance += (t.type === 'masuk' ? t.amount : -t.amount);
+      // Akumulasi saldo sebelum awal bulan ini:
+      // Uang kas keluar hanya berkurang jika dibayar langsung dari kas atau sudah direimburse
+      if (t.type === 'masuk') {
+        initialBalance += t.amount;
+      } else {
+        if (!isUnreimbursedTalangan) {
+          initialBalance -= t.amount;
+        }
+      }
     } else if (tYear === year && tMonth === month) {
       if (t.type === 'masuk') {
         totalCashIn += t.amount;
@@ -1278,17 +1310,25 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
         } else {
           operationalExpense += t.amount;
         }
+
+        if (isUnreimbursedTalangan) {
+          if (t.paidBy === 'asykar') unreimbursedAsykar += t.amount;
+          else if (t.paidBy === 'istri') unreimbursedIstri += t.amount;
+          unreimbursedCount += 1;
+        }
       }
     }
   }
 
+  const totalUnreimbursedTalangan = unreimbursedAsykar + unreimbursedIstri;
   memberContributions.total = memberContributions.asykar + memberContributions.riska;
+  // Actual cash out from Kas Bersama cash account
+  const actualCashOut = (operationalExpense - totalUnreimbursedTalangan) + savingsAllocation;
   const totalCashOut = operationalExpense + savingsAllocation;
-  const netCashFlow = totalCashIn - totalCashOut;
+  const netCashFlow = totalCashIn - actualCashOut;
 
   // Kas Bersama keluarga didanai per periode dari setoran anggotanya.
-  // Jika akumulasi transaksi sebelum periode ini negatif (akibat pengeluaran historis tercatat tanpa setoran),
-  // saldo awal kas bersama dianggap 0 agar tidak menciptakan saldo minus / defisit kas semu.
+  // Jika akumulasi transaksi sebelum periode ini negatif, saldo awal dianggap 0.
   if (space === 'keluarga' && initialBalance < 0) {
     initialBalance = 0;
   }
@@ -1343,24 +1383,16 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
   const isDeficit = closingBalance < 0 || freeMoneyOrDeficit < 0;
 
   // Tabungan / Dana Cadangan
-  // Akumulasi uang yang benar-benar tersimpan di pos tabungan (non-negatif)
-  // Bersumber langsung dari pos tabungan aktif pada space ini
   const goals = getSavingGoals(space);
   const goalCount = goals.length;
   const totalGoalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
   const totalSavingsStored = goals.reduce((s, g) => s + Math.max(0, getGoalProgress(g.id, space)), 0);
 
   // Audit Validasi & Konsistensi
-  const isCashFlowConsistent = Math.abs(netCashFlow - (totalCashIn - totalCashOut)) < 0.01;
+  const isCashFlowConsistent = Math.abs(netCashFlow - (totalCashIn - actualCashOut)) < 0.01;
   const isBalanceConsistent = Math.abs(closingBalance - (initialBalance + netCashFlow)) < 0.01;
   const isConsistent = isCashFlowConsistent && isBalanceConsistent;
   const consistencyWarning = isConsistent ? undefined : 'Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.';
-
-  if (!isConsistent) {
-    console.warn('[Finance Audit Warning]', {
-      totalCashIn, totalCashOut, netCashFlow, initialBalance, closingBalance
-    });
-  }
 
   return {
     spaceId: space,
@@ -1375,6 +1407,11 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
     savingsAllocation,
     totalCashOut,
     expenseThisMonth: totalCashOut,
+    actualCashOut,
+    totalUnreimbursedTalangan,
+    unreimbursedAsykar,
+    unreimbursedIstri,
+    unreimbursedCount,
     netCashFlow,
     netSurplusThisMonth: netCashFlow,
     initialBalance,
@@ -1403,8 +1440,86 @@ export function getDashboardFinanceSummary(year: number, month: number, spaceId?
 }
 
 export function getTotalBalance(spaceId?: SpaceId): number {
-  return getTransactions(spaceId).reduce((sum, t) =>
-    sum + (t.type === 'masuk' ? t.amount : -t.amount), 0);
+  const space = spaceId || getActiveSpaceId();
+  return getTransactions(space).reduce((sum, t) => {
+    if (t.type === 'masuk') return sum + t.amount;
+    // Di modul keluarga, talangan yang belum direimburse tidak mengurangi kas bersama
+    if (space === 'keluarga' && t.paidBy && t.paidBy !== 'bersama' && !t.reimbursed) {
+      return sum;
+    }
+    return sum - t.amount;
+  }, 0);
+}
+
+export interface FamilyTalanganSummary {
+  totalPending: number;
+  asykarPending: number;
+  istriPending: number;
+  pendingCount: number;
+  pendingItems: Transaction[];
+  reimbursedCountThisMonth: number;
+  reimbursedAmountThisMonth: number;
+}
+
+export function getFamilyTalanganSummary(year?: number, month?: number): FamilyTalanganSummary {
+  const txns = getTransactions('keluarga');
+  const now = new Date();
+  const y = year ?? now.getFullYear();
+  const m = month ?? (now.getMonth() + 1);
+
+  const pendingItems: Transaction[] = [];
+  let asykarPending = 0;
+  let istriPending = 0;
+  let reimbursedCountThisMonth = 0;
+  let reimbursedAmountThisMonth = 0;
+
+  for (const t of txns) {
+    if (t.type !== 'keluar' || !t.paidBy || t.paidBy === 'bersama') continue;
+
+    if (!t.reimbursed) {
+      pendingItems.push(t);
+      if (t.paidBy === 'asykar') asykarPending += t.amount;
+      else if (t.paidBy === 'istri') istriPending += t.amount;
+    } else {
+      const d = new Date(t.date);
+      if (d.getFullYear() === y && (d.getMonth() + 1) === m) {
+        reimbursedCountThisMonth += 1;
+        reimbursedAmountThisMonth += t.amount;
+      }
+    }
+  }
+
+  return {
+    totalPending: asykarPending + istriPending,
+    asykarPending,
+    istriPending,
+    pendingCount: pendingItems.length,
+    pendingItems,
+    reimbursedCountThisMonth,
+    reimbursedAmountThisMonth,
+  };
+}
+
+export async function reimburseTransaction(id: string): Promise<void> {
+  await updateTransaction(id, { reimbursed: true });
+}
+
+export async function unreimburseTransaction(id: string): Promise<void> {
+  await updateTransaction(id, { reimbursed: false });
+}
+
+export async function reimburseAllPendingTalangan(paidBy?: 'asykar' | 'istri'): Promise<void> {
+  const txns = getTransactions('keluarga');
+  const pending = txns.filter(t =>
+    t.type === 'keluar' &&
+    t.paidBy &&
+    t.paidBy !== 'bersama' &&
+    !t.reimbursed &&
+    (!paidBy || t.paidBy === paidBy)
+  );
+  for (const t of pending) {
+    await updateTransaction(t.id, { reimbursed: true });
+  }
 }
 
 export function getRemainingBudget(year: number, month: number, spaceId?: SpaceId): number {
