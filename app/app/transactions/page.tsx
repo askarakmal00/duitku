@@ -43,11 +43,21 @@ function formatTime(createdAt?: string): string {
   return '12:00';
 }
 
+const MONTH_NAMES_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+const MONTH_SHORT_ID = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+];
+
 function formatMobileDateHeader(dateStr: string): string {
   const d = new Date(dateStr);
   const day = String(d.getDate()).padStart(2, '0');
-  const m = getMonthName(d.getFullYear(), d.getMonth() + 1);
-  return `${day} ${m} ${d.getFullYear()}`;
+  const monthName = MONTH_NAMES_ID[d.getMonth()] || 'Oktober';
+  return `${day} ${monthName} ${d.getFullYear()}`;
 }
 
 // ─── Dynamic Icon & Color Helper matching the screenshot ─────────────────
@@ -396,11 +406,11 @@ export default function TransactionsPage() {
 
   const currentMonthDisplay = showAllMonths
     ? 'Semua Waktu'
-    : `${getMonthName(selectedYear, selectedMonth)} ${selectedYear}`;
+    : getMonthName(selectedYear, selectedMonth);
 
   const currentMonthTag = showAllMonths
     ? 'SEMUA WAKTU'
-    : `${getMonthName(selectedYear, selectedMonth).toUpperCase()} ${selectedYear}`;
+    : getMonthName(selectedYear, selectedMonth).toUpperCase();
 
   return (
     <div className="txn-v2-container">
@@ -581,7 +591,7 @@ export default function TransactionsPage() {
                         fontSize: 12, fontWeight: 600, cursor: 'pointer'
                       }}
                     >
-                      {getMonthName(selectedYear, m).slice(0, 3)}
+                      {MONTH_SHORT_ID[m - 1]}
                     </button>
                   ))}
                 </div>
@@ -988,7 +998,7 @@ export default function TransactionsPage() {
                         fontSize: 11, fontWeight: 600, cursor: 'pointer'
                       }}
                     >
-                      {getMonthName(selectedYear, m).slice(0, 3)}
+                      {MONTH_SHORT_ID[m - 1]}
                     </button>
                   ))}
                 </div>
