@@ -245,10 +245,13 @@ export default function TransactionsPage() {
   // Close menus when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setActionMenuId(null);
+      const target = e.target as HTMLElement | null;
+      if (menuRef.current && !menuRef.current.contains(target as Node)) {
+        if (!target?.closest?.('.txn-action-trigger-btn')) {
+          setActionMenuId(null);
+        }
       }
-      if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target as Node)) {
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(target as Node)) {
         setShowMonthDropdown(false);
       }
     }
@@ -766,7 +769,7 @@ export default function TransactionsPage() {
             </div>
           ) : (
             <>
-              <div style={{ overflowX: 'auto' }}>
+              <div style={{ overflowX: 'auto', minHeight: 220 }}>
                 <table className="txn-v2-table">
                   <thead>
                     <tr>
@@ -775,14 +778,15 @@ export default function TransactionsPage() {
                       <th style={{ width: 180 }}>KATEGORI</th>
                       <th style={{ width: 160, textAlign: 'right' }}>JUMLAH</th>
                       <th style={{ width: 160, textAlign: 'right' }}>SALDO SETELAH</th>
-                      <th style={{ width: 50, textAlign: 'center' }}></th>
+                      <th style={{ width: 60, textAlign: 'center' }}></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedList.map(t => {
+                    {paginatedList.map((t, idx) => {
                       const visual = getTransactionVisual(t);
                       const runningBal = runningBalanceMap.get(t.id) ?? 0;
                       const isMenuOpen = actionMenuId === t.id;
+                      const openUpwards = idx >= paginatedList.length - 2 || paginatedList.length <= 2;
 
                       return (
                         <tr key={t.id}>
@@ -845,60 +849,89 @@ export default function TransactionsPage() {
 
                           {/* Action ••• */}
                           <td style={{ textAlign: 'center', position: 'relative' }}>
-                            <button
-                              onClick={e => {
-                                e.stopPropagation();
-                                setActionMenuId(isMenuOpen ? null : t.id);
-                              }}
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 }}
-                              title="Aksi"
-                            >
-                              <MoreHorizontal size={18} />
-                            </button>
-
-                            {isMenuOpen && (
-                              <div
-                                ref={menuRef}
-                                style={{
-                                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
-                                  background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 10,
-                                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)', padding: 4, zIndex: 30, minWidth: 110
+                            <div style={{ position: 'relative', display: 'inline-block' }}>
+                              <button
+                                type="button"
+                                className="txn-action-trigger-btn"
+                                onClick={e => {
+                                  e.stopPropagation();
+                                  setActionMenuId(isMenuOpen ? null : t.id);
                                 }}
+                                style={{
+                                  background: isMenuOpen ? '#EEF2FF' : 'transparent',
+                                  border: 'none',
+                                  borderRadius: 8,
+                                  cursor: 'pointer',
+                                  color: isMenuOpen ? '#4F46E5' : '#94A3B8',
+                                  padding: '6px 8px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                title="Aksi"
                               >
-                                <button
-                                  onClick={() => handleToggleSpace(t)}
+                                <MoreHorizontal size={18} />
+                              </button>
+
+                              {isMenuOpen && (
+                                <div
+                                  ref={menuRef}
+                                  onClick={e => e.stopPropagation()}
                                   style={{
-                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                                    padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent',
-                                    color: '#4F46E5', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left',
-                                    whiteSpace: 'nowrap'
+                                    position: 'absolute',
+                                    right: 0,
+                                    ...(openUpwards
+                                      ? { bottom: '100%', marginBottom: 6 }
+                                      : { top: '100%', marginTop: 6 }),
+                                    background: '#FFFFFF',
+                                    border: '1px solid #E2E8F0',
+                                    borderRadius: 12,
+                                    boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                    padding: 6,
+                                    zIndex: 100,
+                                    minWidth: 165,
+                                    textAlign: 'left',
                                   }}
                                 >
-                                  <ArrowLeftRight size={13} />
-                                  {(t.spaceId || 'pribadi') === 'keluarga' ? 'Pindah ke Pribadi' : 'Pindah ke Keluarga'}
-                                </button>
-                                <button
-                                  onClick={() => handleEdit(t)}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                                    padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent',
-                                    color: '#0F172A', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
-                                  }}
-                                >
-                                  <Pencil size={13} /> Edit
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteRequest(t.id)}
-                                  style={{
-                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                                    padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent',
-                                    color: '#EF4444', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
-                                  }}
-                                >
-                                  <Trash2 size={13} /> Hapus
-                                </button>
-                              </div>
-                            )}
+                                  <button
+                                    type="button"
+                                    onClick={() => handleToggleSpace(t)}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                      padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent',
+                                      color: '#4F46E5', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
+                                      whiteSpace: 'nowrap'
+                                    }}
+                                  >
+                                    <ArrowLeftRight size={13} />
+                                    {(t.spaceId || 'pribadi') === 'keluarga' ? 'Pindah ke Pribadi' : 'Pindah ke Keluarga'}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEdit(t)}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                      padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent',
+                                      color: '#0F172A', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
+                                    }}
+                                  >
+                                    <Pencil size={13} /> Edit
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteRequest(t.id)}
+                                    style={{
+                                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                      padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent',
+                                      color: '#EF4444', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
+                                    }}
+                                  >
+                                    <Trash2 size={13} /> Hapus
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
