@@ -364,53 +364,19 @@ export default function DashboardPage() {
         <div className="desktop-only-view" style={{ width: '100%' }}>
           {isFamily ? (
             <div>
-              {/* Consistency Audit Alert (if discrepancy detected) */}
+              {/* Consistency Audit Alert */}
               {!summary.isConsistent && (
                 <div style={{ background: '#fef2f2', border: '1px solid #f87171', color: '#991b1b', padding: '10px 14px', borderRadius: 10, marginBottom: 16, fontSize: 13, display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span>⚠️ Data keuangan tidak seimbang. Periksa transaksi kas masuk/keluar.</span>
                 </div>
               )}
 
-              {/* Exact Redesigned Family Dashboard (Screenshot Match) */}
+              {/* Redesigned Family Dashboard — txns table + money flow are inside the component */}
               <FamilyDashboardRedesign
                 year={year}
                 month={month}
                 userName={userName}
               />
-
-              {/* Secondary Sections: Recent Transactions & Money Flow */}
-              <div className="dashboard-grid" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', marginTop: 24 }}>
-                {/* Left Column: Recent Transactions */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-                  <div className="card">
-                    <div className="card-header" style={{ minWidth: 0 }}>
-                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Transaksi Terbaru</span>
-                      <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexShrink: 0 }}>
-                        <button className="btn btn-primary btn-sm" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-                          <Plus size={14} /> Tambah
-                        </button>
-                      </div>
-                    </div>
-                    <RecentTransactions
-                      transactions={transactions}
-                      limit={5}
-                      onEdit={handleEdit}
-                      onDelete={handleDeleteRequest}
-                    />
-                  </div>
-                </div>
-
-                {/* Right Column: Arus Uang */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
-                  <div className="card">
-                    <div className="card-header" style={{ minWidth: 0 }}>
-                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Arus Uang (Money Flow)</span>
-                      <span className="text-sm text-muted">7 bulan terakhir</span>
-                    </div>
-                    <MoneyFlowChart months={7} />
-                  </div>
-                </div>
-              </div>
             </div>
           ) : (
             <>

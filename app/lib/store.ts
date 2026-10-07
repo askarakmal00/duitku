@@ -1368,6 +1368,28 @@ export function getTotalSavings(spaceId?: SpaceId): number {
   return goals.reduce((sum, g) => sum + Math.max(0, getGoalProgress(g.id, space)), 0);
 }
 
+/** Returns top expense categories sorted by amount descending, with percentage. */
+export function getCategoryBreakdown(
+  year: number,
+  month: number,
+  spaceId?: SpaceId
+): { name: string; amount: number; pct: number }[] {
+  const space = spaceId || getActiveSpaceId();
+  const map: Record<string, number> = {};
+  getTransactions(space).forEach(t => {
+    if (t.type !== 'keluar') return;
+    const d = new Date(t.date);
+    if (d.getFullYear() !== year || d.getMonth() + 1 !== month) return;
+    const cat = t.category || 'Lainnya';
+    map[cat] = (map[cat] || 0) + t.amount;
+  });
+  const total = Object.values(map).reduce((s, v) => s + v, 0);
+  if (total === 0) return [];
+  return Object.entries(map)
+    .map(([name, amount]) => ({ name, amount, pct: Math.round((amount / total) * 100) }))
+    .sort((a, b) => b.amount - a.amount);
+}
+
 export function getMonthlyFlowData(months: number = 7, spaceId?: SpaceId): { labels: string[]; income: number[]; expense: number[] } {
   const labels: string[] = [];
   const income: number[] = [];
