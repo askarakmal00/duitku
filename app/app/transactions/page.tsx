@@ -370,7 +370,7 @@ export default function TransactionsPage() {
 
   const handleSave = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
     if (editTarget) {
-      await updateTransaction(editTarget.id, { ...data, spaceId: editTarget.spaceId || currentSpace });
+      await updateTransaction(editTarget.id, { ...data, spaceId: data.spaceId || editTarget.spaceId || currentSpace });
     } else {
       await addTransaction({ ...data, spaceId: data.spaceId || currentSpace });
     }

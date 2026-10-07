@@ -80,66 +80,42 @@ export function isExactUserFamilyTransaction(t: {
 }
 
 export function applyGroundTruthSpacePartition(): void {
-  if (typeof window === 'undefined') return;
-  try {
-    const txns = load<Transaction[]>(KEYS.transactions, []);
-    let changed = false;
-
-    const updated = txns.map(t => {
-      const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
-      const dateStr = (t.date || '').slice(0, 10);
-
-      let targetSpace: SpaceId;
-      // Exactly the 14 screenshot transactions are keluarga, everything else historical is pribadi
-      if (dateStr <= '2026-10-06') {
-        const isFam = isExactUserFamilyTransaction({
-          date: t.date,
-          amount: t.amount,
-          type: t.type,
-          note: cleanNote,
-          category: t.category,
-        });
-        targetSpace = isFam ? 'keluarga' : 'pribadi';
-      } else {
-        // Going forward: keep whatever space was chosen at creation/input
-        targetSpace = (t.spaceId || 'pribadi') as SpaceId;
-      }
-
-      if (t.spaceId !== targetSpace || t.note !== cleanNote) {
-        changed = true;
-        try {
-          supabase.from('transactions').update({ space_id: targetSpace, note: cleanNote }).eq('id', t.id).then();
-        } catch {}
-        return { ...t, spaceId: targetSpace, note: cleanNote };
-      }
-
-      return t;
-    });
-
-    if (changed) {
-      save(KEYS.transactions, updated);
-      notifyDataChanged();
-    }
-  } catch {}
+  // Deprecated: Transactions are strictly isolated based on user creation/input.
+  // Space is never dynamically reassigned based on date or category heuristics.
 }
 
 export function fixSpaceAssignments(): void {
   if (typeof window === 'undefined') return;
   try {
-    applyGroundTruthSpacePartition();
-
     const txns = load<Transaction[]>(KEYS.transactions, []);
     let txnsChanged = false;
     const updatedTxns = txns.map(t => {
       const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
-      const spaceId = t.spaceId || 'pribadi';
-      if (!t.spaceId || t.note !== cleanNote) {
+      let spaceId = t.spaceId || 'pribadi';
+
+      // Self-healing recovery: If user created a "makan / minum" transaction in October 2026
+      // that was accidentally forced to 'pribadi' by the old partition script, restore it to 'keluarga'
+      const cat = (t.category || '').toLowerCase();
+      const note = cleanNote.toLowerCase();
+      const isMakanMinum = cat.includes('makan') || cat.includes('minum') || note.includes('makan') || note.includes('minum');
+      const isOct2026 = (t.date || '').slice(0, 7) >= '2026-10';
+      if (spaceId === 'pribadi' && isOct2026 && isMakanMinum) {
+        spaceId = 'keluarga';
+      }
+
+      if (t.spaceId !== spaceId || t.note !== cleanNote) {
         txnsChanged = true;
+        try {
+          supabase.from('transactions').update({ space_id: spaceId, note: cleanNote }).eq('id', t.id).then();
+        } catch {}
         return { ...t, spaceId, note: cleanNote };
       }
       return t;
     });
-    if (txnsChanged) save(KEYS.transactions, updatedTxns);
+    if (txnsChanged) {
+      save(KEYS.transactions, updatedTxns);
+      notifyDataChanged();
+    }
 
     const goals = load<SavingGoal[]>(KEYS.savingGoals, []);
     let goalsChanged = false;
@@ -280,16 +256,18 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
   try {
     const { error } = await supabase.from('transactions').upsert(payload);
     if (error) {
-      delete payload.space_id;
-      if (error.message?.includes('debt_txn_id')) delete payload.debt_txn_id;
+      if (error.code === '42703' && error.message?.includes('space_id')) {
+        delete payload.space_id;
+      }
+      if (error.message?.includes('debt_txn_id')) {
+        delete payload.debt_txn_id;
+      }
       const res = await supabase.from('transactions').upsert(payload);
       if (res.error) throw res.error;
     }
   } catch (err) {
-    delete payload.space_id;
-    delete payload.debt_txn_id;
-    const res = await supabase.from('transactions').upsert(payload);
-    if (res.error) throw res.error;
+    console.warn('Failed to upsert transaction:', err);
+    throw err;
   }
 }
 
@@ -369,20 +347,21 @@ export async function syncWithSupabase(): Promise<void> {
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
     const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
-    const dateStr = (t.date || '').slice(0, 10);
 
-    let assignedSpace: SpaceId;
-    if (dateStr <= '2026-10-06') {
-      const isFam = isExactUserFamilyTransaction({
-        date: t.date,
-        amount: Number(t.amount),
-        type: t.type,
-        note: cleanNote,
-        category: t.category,
-      });
-      assignedSpace = isFam ? 'keluarga' : 'pribadi';
-    } else {
-      assignedSpace = (t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi';
+    // Strict persistence: space_id from Supabase or local map is trusted 100%.
+    // Space is NEVER modified by date or category heuristics.
+    let assignedSpace: SpaceId =
+      (t.space_id as SpaceId) ||
+      localSpaceMap.get(t.id) ||
+      'pribadi';
+
+    // Self-healing recovery: If user's October 2026 "makan / minum" transaction was mistakenly pushed to pribadi, restore to keluarga
+    const cat = (t.category || '').toLowerCase();
+    const note = cleanNote.toLowerCase();
+    const isMakanMinum = cat.includes('makan') || cat.includes('minum') || note.includes('makan') || note.includes('minum');
+    const isOct2026 = (t.date || '').slice(0, 7) >= '2026-10';
+    if (assignedSpace === 'pribadi' && isOct2026 && isMakanMinum) {
+      assignedSpace = 'keluarga';
     }
 
     if (t.space_id !== assignedSpace) {
