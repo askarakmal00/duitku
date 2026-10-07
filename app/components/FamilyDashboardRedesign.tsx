@@ -238,19 +238,31 @@ export default function FamilyDashboardRedesign({
   // ─── Data ─────────────────────────────────────────────────────────────
   const summary = getDashboardFinanceSummary(year, month, 'keluarga');
   const rawBreakdown = getCategoryBreakdown(year, month, 'keluarga');
-  // Merge categories past top-5 into "Lainnya"
-  const topN = 5;
+  // Cleanly merge categories into top-4 plus single Lainnya without duplication
+  const topN = 4;
   let catSlices: DonutSlice[];
   if (rawBreakdown.length <= topN) {
     catSlices = rawBreakdown.map((c, i) => ({ ...c, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }));
   } else {
     const top = rawBreakdown.slice(0, topN);
-    const otherAmt = rawBreakdown.slice(topN).reduce((s, c) => s + c.amount, 0);
-    const otherPct = rawBreakdown.slice(topN).reduce((s, c) => s + c.pct, 0);
-    catSlices = [
-      ...top.map((c, i) => ({ ...c, color: CATEGORY_COLORS[i] })),
-      { name: 'Lainnya', amount: otherAmt, pct: otherPct, color: CATEGORY_COLORS[topN] },
-    ];
+    const rest = rawBreakdown.slice(topN);
+    const otherAmt = rest.reduce((s, c) => s + c.amount, 0);
+    const otherPct = rest.reduce((s, c) => s + c.pct, 0);
+
+    const existingLainnyaIdx = top.findIndex(c => c.name.toLowerCase() === 'lainnya');
+    if (existingLainnyaIdx !== -1) {
+      top[existingLainnyaIdx] = {
+        ...top[existingLainnyaIdx],
+        amount: top[existingLainnyaIdx].amount + otherAmt,
+        pct: top[existingLainnyaIdx].pct + otherPct,
+      };
+      catSlices = top.map((c, i) => ({ ...c, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] }));
+    } else {
+      catSlices = [
+        ...top.map((c, i) => ({ ...c, color: CATEGORY_COLORS[i % CATEGORY_COLORS.length] })),
+        { name: 'Lainnya', amount: otherAmt, pct: otherPct, color: '#94A3B8' },
+      ];
+    }
   }
 
   // Budget gauge
@@ -721,36 +733,41 @@ export default function FamilyDashboardRedesign({
 
         {/* METRIC 1: PENGELUARAN BULAN INI (donut) */}
         <div style={{ background: '#fff', borderRadius: 20, padding: '20px 22px', border: '1px solid #E2E8F0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFEDD5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <TrendingDown size={15} color="#EA580C" />
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pengeluaran Bulan Ini</span>
+          {/* Header without redundant month button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#FFEDD5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <TrendingDown size={15} color="#EA580C" />
             </div>
-            <button style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {monthLabel} <ChevronDown size={12} />
-            </button>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pengeluaran Bulan Ini</span>
+          </div>
+
+          <div>
+            <div style={{ fontSize: 'clamp(22px, 3.5vw, 30px)', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 4 }}>
+              {formatRupiah(summary.totalCashOut)}
+            </div>
+            {expenseGrowth !== null && (
+              <div style={{ fontSize: 12, color: '#64748B' }}>
+                <GrowthBadge pct={expenseGrowth} inverse /> dari bulan lalu
+              </div>
+            )}
           </div>
 
           {catSlices.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: 12, padding: '24px 0' }}>Belum ada pengeluaran</div>
+            <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: 12, padding: '16px 0' }}>Belum ada pengeluaran</div>
           ) : (
-            <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: 18, alignItems: 'center', marginTop: 4 }}>
               <DonutChart
                 slices={catSlices}
-                size={140}
-                strokeW={28}
-                centerText={formatRupiah(summary.totalCashOut)}
-                centerSub={expenseGrowth !== null ? `↑${Math.abs(Math.round(expenseGrowth))}%` : ''}
+                size={96}
+                strokeW={18}
               />
-              {/* Legend */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {/* Clean Legend without duplicate Lainnya and with breathable spacing */}
+              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 7, minWidth: 0 }}>
                 {catSlices.map((s, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 9, height: 9, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
-                    <span style={{ flex: 1, fontSize: 11, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.name}</span>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>{s.pct}%</span>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: s.color, flexShrink: 0 }} />
+                    <span style={{ flex: 1, fontSize: 11.5, color: '#475569', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{s.name}</span>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, color: '#0F172A', flexShrink: 0 }}>{s.pct}%</span>
                   </div>
                 ))}
               </div>
@@ -817,16 +834,12 @@ export default function FamilyDashboardRedesign({
 
         {/* METRIC 3: ANGGARAN (gauge) */}
         <div style={{ background: '#fff', borderRadius: 20, padding: '20px 22px', border: '1px solid #E2E8F0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: 14 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <BarChart2 size={15} color="#7C3AED" />
-              </div>
-              <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Anggaran Bulan Ini</span>
+          {/* Header without redundant month button */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BarChart2 size={15} color="#7C3AED" />
             </div>
-            <button style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: '4px 10px', fontSize: 11, color: '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
-              {monthLabel} <ChevronDown size={12} />
-            </button>
+            <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Anggaran Bulan Ini</span>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
