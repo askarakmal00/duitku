@@ -14,7 +14,8 @@ interface TransactionModalProps {
 
 export default function TransactionModal({ existing, onSave, onClose }: TransactionModalProps) {
   const { activeSpace } = useSpace();
-  const isFamily = activeSpace === 'keluarga';
+  const [space, setSpace] = useState<'pribadi' | 'keluarga'>(existing?.spaceId || activeSpace || 'pribadi');
+  const isFamily = space === 'keluarga';
 
   const [type, setType] = useState<'masuk' | 'keluar'>(existing?.type || 'keluar');
   const [category, setCategory] = useState(existing?.category || '');
@@ -37,8 +38,8 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
 
   const loadData = () => {
     setCategories(getCategories());
-    setBudgetPosList(getBudgetPos(activeSpace || undefined));
-    setGoals(getSavingGoals(activeSpace || undefined));
+    setBudgetPosList(getBudgetPos(space));
+    setGoals(getSavingGoals(space));
   };
 
   useEffect(() => {
@@ -46,7 +47,7 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     const handleDataChanged = () => loadData();
     window.addEventListener('pf_data_changed', handleDataChanged);
     return () => window.removeEventListener('pf_data_changed', handleDataChanged);
-  }, [activeSpace]);
+  }, [space]);
 
   // Merge default categories with all user-created categories so nothing is ever missed
   const categoryOptions = useMemo(() => {
@@ -90,7 +91,7 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
     if (!category || !amount || !date || numAmount <= 0) return;
     
     const dataToSave: any = {
-      spaceId: activeSpace || 'pribadi',
+      spaceId: space,
       type,
       category,
       budgetPosId: budgetPosId || undefined,
@@ -115,13 +116,52 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
       <div className="modal">
         <div className="modal-header">
           <span className="modal-title">
-            {existing ? 'Edit Transaksi' : 'Tambah Transaksi'} {isFamily ? '(Keluarga)' : ''}
+            {existing ? 'Edit Transaksi' : 'Tambah Transaksi'} ({isFamily ? 'Keluarga' : 'Pribadi'})
           </span>
           <button className="modal-close" onClick={onClose}><X size={16} /></button>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
+            {/* Ruang Transaksi Selector */}
+            <div className="form-group" style={{ marginBottom: 14 }}>
+              <label className="form-label" style={{ marginBottom: 6 }}>Ruang Transaksi</label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setSpace('pribadi')}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: space === 'pribadi' ? '2px solid #4F46E5' : '1px solid var(--border)',
+                    background: space === 'pribadi' ? '#EEF2FF' : 'var(--card)',
+                    color: space === 'pribadi' ? '#4F46E5' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                >
+                  👤 Pribadi (Asykar)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSpace('keluarga')}
+                  style={{
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: space === 'keluarga' ? '2px solid #10B981' : '1px solid var(--border)',
+                    background: space === 'keluarga' ? '#ECFDF5' : 'var(--card)',
+                    color: space === 'keluarga' ? '#059669' : 'var(--text-secondary)',
+                    fontWeight: 600,
+                    fontSize: 13,
+                    cursor: 'pointer'
+                  }}
+                >
+                  🏠 Keluarga (Kas Bersama)
+                </button>
+              </div>
+            </div>
+
             {/* Type Selector */}
             <div className="type-selector">
               <div

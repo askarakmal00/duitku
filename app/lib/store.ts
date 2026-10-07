@@ -33,12 +33,76 @@ export function getActiveSpaceId(): SpaceId {
   return getActiveSpace() || 'pribadi';
 }
 
+export function cleanupSpacePartitions(): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const txns = load<Transaction[]>(KEYS.transactions, []);
+    let changed = false;
+
+    const updated = txns.map(t => {
+      let currentSpace = t.spaceId || 'pribadi';
+      const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
+      const noteLower = cleanNote.toLowerCase();
+      const catLower = (t.category || '').toLowerCase();
+
+      // Explicit personal items that must NEVER be in keluarga:
+      const isPersonal =
+        noteLower.includes('cashback') ||
+        noteLower.includes('bayu ardi rahmanto') ||
+        noteLower.includes('bank mandiri') ||
+        noteLower.includes('transfer bi fast') ||
+        catLower.includes('bensin') ||
+        noteLower.includes('bensin') ||
+        catLower.includes('e-toll') ||
+        noteLower.includes('e-toll') ||
+        catLower.includes('etoll') ||
+        noteLower.includes('etoll') ||
+        catLower.includes('emoney') ||
+        noteLower.includes('emoney') ||
+        noteLower.includes('parkir') ||
+        catLower.includes('gaji') ||
+        noteLower.includes('gaji') ||
+        catLower.includes('bonus');
+
+      // Family contributions (Setoran Asykar / Setoran Istri / Tabungan Anak) are strictly keluarga:
+      const isFamilyContribution =
+        catLower.includes('setoran asykar') ||
+        catLower.includes('setoran istri') ||
+        catLower.includes('setoran kas') ||
+        noteLower.includes('setoran asykar') ||
+        noteLower.includes('setoran istri') ||
+        noteLower.includes('setoran riska') ||
+        noteLower.includes('tabungan baby boy') ||
+        catLower.includes('kebutuhan anak') ||
+        catLower.includes('belanja dapur') ||
+        catLower.includes('makan bersama');
+
+      if (isPersonal && !isFamilyContribution && currentSpace === 'keluarga') {
+        changed = true;
+        currentSpace = 'pribadi';
+        try {
+          supabase.from('transactions').update({ space_id: 'pribadi', note: cleanNote }).eq('id', t.id).then();
+        } catch {}
+      }
+
+      if (t.note !== cleanNote || t.spaceId !== currentSpace) {
+        changed = true;
+        return { ...t, note: cleanNote, spaceId: currentSpace };
+      }
+
+      return t;
+    });
+
+    if (changed) {
+      save(KEYS.transactions, updated);
+      notifyDataChanged();
+    }
+  } catch {}
+}
+
 export function fixSpaceAssignments(): void {
   if (typeof window === 'undefined') return;
   try {
-    // Strictly preserve wherever the user created the item:
-    // Only ensure every item has a valid spaceId property (defaulting to 'pribadi' if undefined).
-    // NO keyword guessing, NO auto-relocations between spaces!
     const txns = load<Transaction[]>(KEYS.transactions, []);
     let txnsChanged = false;
     const updatedTxns = txns.map(t => {
@@ -49,6 +113,8 @@ export function fixSpaceAssignments(): void {
       return t;
     });
     if (txnsChanged) save(KEYS.transactions, updatedTxns);
+
+    cleanupSpacePartitions();
 
     const goals = load<SavingGoal[]>(KEYS.savingGoals, []);
     let goalsChanged = false;
@@ -169,10 +235,7 @@ export function sortDebtTransactions(txns: DebtTransaction[]): DebtTransaction[]
 
 // ─── Safe DB Helpers ────────────────────────────────────────────────────────
 async function safeInsertTransaction(t: Transaction): Promise<void> {
-  const noteWithSpace =
-    t.spaceId === 'keluarga' && !t.note?.includes('[space:keluarga]')
-      ? `${t.note || ''} [space:keluarga]`.trim()
-      : (t.note || '');
+  const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
 
   const payload: any = {
     id: t.id,
@@ -182,7 +245,7 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
     budget_pos_id: t.budgetPosId || null,
     goal_id: t.goalId || null,
     amount: t.amount,
-    note: noteWithSpace,
+    note: cleanNote,
     date: t.date,
     created_at: t.createdAt,
     space_id: t.spaceId || 'pribadi',
@@ -281,17 +344,52 @@ export async function syncWithSupabase(): Promise<void> {
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
     const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
+    const noteLower = cleanNote.toLowerCase();
+    const catLower = (t.category || '').toLowerCase();
 
-    // STRICT SPACE PARTITION:
-    // What is created in family login is family; what is created in pribadi login is pribadi.
-    // 1. t.space_id from database
-    // 2. localSpaceMap (local session where it was created)
-    // 3. note tag [space:keluarga]
-    // 4. default 'pribadi'
-    const assignedSpace: SpaceId =
+    const isPersonal =
+      noteLower.includes('cashback') ||
+      noteLower.includes('bayu ardi rahmanto') ||
+      noteLower.includes('bank mandiri') ||
+      noteLower.includes('transfer bi fast') ||
+      catLower.includes('bensin') ||
+      noteLower.includes('bensin') ||
+      catLower.includes('e-toll') ||
+      noteLower.includes('e-toll') ||
+      catLower.includes('etoll') ||
+      noteLower.includes('etoll') ||
+      catLower.includes('emoney') ||
+      noteLower.includes('emoney') ||
+      noteLower.includes('parkir') ||
+      catLower.includes('gaji') ||
+      noteLower.includes('gaji') ||
+      catLower.includes('bonus');
+
+    const isFamilyContribution =
+      catLower.includes('setoran asykar') ||
+      catLower.includes('setoran istri') ||
+      catLower.includes('setoran kas') ||
+      noteLower.includes('setoran asykar') ||
+      noteLower.includes('setoran istri') ||
+      noteLower.includes('setoran riska') ||
+      noteLower.includes('tabungan baby boy') ||
+      catLower.includes('kebutuhan anak') ||
+      catLower.includes('belanja dapur') ||
+      catLower.includes('makan bersama');
+
+    let assignedSpace: SpaceId =
       (t.space_id as SpaceId) ||
       localSpaceMap.get(t.id) ||
       (rawNote.includes('[space:keluarga]') ? 'keluarga' : 'pribadi');
+
+    if (isPersonal && !isFamilyContribution) {
+      assignedSpace = 'pribadi';
+      if (t.space_id === 'keluarga') {
+        try {
+          supabase.from('transactions').update({ space_id: 'pribadi', note: cleanNote }).eq('id', t.id).then();
+        } catch {}
+      }
+    }
 
     return {
       id: t.id,
@@ -645,6 +743,7 @@ export async function updateTransaction(id: string, data: Partial<Omit<Transacti
   if (data.amount !== undefined) updateData.amount = data.amount;
   if (data.note !== undefined) updateData.note = data.note;
   if (data.date !== undefined) updateData.date = data.date;
+  if (data.spaceId !== undefined) updateData.space_id = data.spaceId;
 
   try {
     const { error } = await supabase.from('transactions').update(updateData).eq('id', id);

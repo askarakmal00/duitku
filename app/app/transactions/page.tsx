@@ -6,7 +6,7 @@ import {
   Wallet, MoreHorizontal, Pencil, Trash2, Bell, FileSpreadsheet,
   ArrowUp, ArrowDown, Calendar, ChevronDown, Eye, EyeOff,
   ShoppingBag, Landmark, Home, Utensils, CreditCard, Car, Banknote,
-  Zap, ShoppingBasket, ArrowDownLeft
+  Zap, ShoppingBasket, ArrowDownLeft, ArrowLeftRight
 } from 'lucide-react';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
 import TransactionModal from '@/components/TransactionModal';
@@ -383,6 +383,13 @@ export default function TransactionsPage() {
     setActionMenuId(null);
     setEditTarget(t);
     setShowModal(true);
+  };
+
+  const handleToggleSpace = async (t: Transaction) => {
+    setActionMenuId(null);
+    const targetSpace = (t.spaceId || 'pribadi') === 'keluarga' ? 'pribadi' : 'keluarga';
+    await updateTransaction(t.id, { spaceId: targetSpace });
+    load();
   };
 
   const handleDeleteRequest = (id: string) => {
@@ -858,6 +865,18 @@ export default function TransactionsPage() {
                                   boxShadow: '0 8px 16px rgba(0,0,0,0.1)', padding: 4, zIndex: 30, minWidth: 110
                                 }}
                               >
+                                <button
+                                  onClick={() => handleToggleSpace(t)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                    padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent',
+                                    color: '#4F46E5', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <ArrowLeftRight size={13} />
+                                  {(t.spaceId || 'pribadi') === 'keluarga' ? 'Pindah ke Pribadi' : 'Pindah ke Keluarga'}
+                                </button>
                                 <button
                                   onClick={() => handleEdit(t)}
                                   style={{
