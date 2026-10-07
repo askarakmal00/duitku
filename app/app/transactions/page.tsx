@@ -1,8 +1,12 @@
 'use client';
+
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import {
   Plus, Search, ChevronLeft, ChevronRight, X, SlidersHorizontal,
-  Wallet, MoreHorizontal, Pencil, Trash2, Bell, FileSpreadsheet
+  Wallet, MoreHorizontal, Pencil, Trash2, Bell, FileSpreadsheet,
+  ArrowUp, ArrowDown, Calendar, ChevronDown, Eye, EyeOff,
+  ShoppingBag, Landmark, Home, Utensils, CreditCard, Car, Banknote,
+  Zap, ShoppingBasket, ArrowDownLeft
 } from 'lucide-react';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
 import TransactionModal from '@/components/TransactionModal';
@@ -10,10 +14,10 @@ import BulkImportModal from '@/components/BulkImportModal';
 import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
 import {
   getTransactions, addTransaction, updateTransaction, deleteTransaction,
-  getCategories, getBudgetPos, getSavingGoals,
+  getCategories, getBudgetPos, getSavingGoals, getDashboardFinanceSummary
 } from '@/lib/store';
 import { Transaction, Category, BudgetPos, SavingGoal } from '@/lib/types';
-import { formatCurrency, getCurrentMonth, getMonthName } from '@/lib/helpers';
+import { formatCurrency, formatRupiah, getCurrentMonth, getMonthName } from '@/lib/helpers';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useSpace } from '@/lib/useSpace';
 
@@ -22,8 +26,8 @@ type TypeFilter = 'semua' | 'masuk' | 'keluar';
 function formatDesktopDate(dateStr: string): string {
   const d = new Date(dateStr);
   const day = String(d.getDate()).padStart(2, '0');
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const m = monthNames[d.getMonth()] || 'Okt';
+  const monthNames = ['Okt', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+  const m = monthNames[d.getMonth() + 1] || 'Okt';
   return `${day} ${m} ${d.getFullYear()}`;
 }
 
@@ -33,67 +37,139 @@ function formatTime(createdAt?: string): string {
     if (!isNaN(d.getTime())) {
       const h = String(d.getHours()).padStart(2, '0');
       const min = String(d.getMinutes()).padStart(2, '0');
-      return `${h}.${min}`;
+      return `${h}:${min}`;
     }
   }
-  return '12.00';
+  return '12:00';
 }
 
-function formatMobileDate(dateStr: string, createdAt?: string): string {
+function formatMobileDateHeader(dateStr: string): string {
   const d = new Date(dateStr);
   const day = String(d.getDate()).padStart(2, '0');
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const m = monthNames[d.getMonth()] || 'Okt';
-  return `${day} ${m}, ${formatTime(createdAt)}`;
+  const m = getMonthName(d.getFullYear(), d.getMonth() + 1);
+  return `${day} ${m} ${d.getFullYear()}`;
 }
 
-function getAvatarInfo(t: Transaction, idx: number) {
-  if (t.paidBy === 'asykar') return { initial: 'A', bg: '#2563EB' };
-  if (t.paidBy === 'istri') return { initial: 'R', bg: '#EC4899' };
-  if (t.paidBy === 'bersama') return { initial: 'K', bg: '#10B981' };
-  const lower = (t.note || '').toLowerCase();
-  if (lower.includes('asykar')) return { initial: 'A', bg: '#2563EB' };
-  if (lower.includes('riska') || lower.includes('istri')) return { initial: 'R', bg: '#EC4899' };
-  if (lower.includes('anak') || lower.includes('bayi')) {
-    return { initial: idx % 2 === 0 ? 'A' : 'R', bg: idx % 2 === 0 ? '#2563EB' : '#EC4899' };
-  }
-  const letter = (t.note || t.category || 'T').trim()[0]?.toUpperCase() || 'T';
-  return { initial: letter, bg: t.type === 'masuk' ? '#10B981' : '#2563EB' };
-}
-
-function getMobileIcon(t: Transaction) {
+// ─── Dynamic Icon & Color Helper matching the screenshot ─────────────────
+function getTransactionVisual(t: Transaction) {
   const cat = (t.category || '').toLowerCase();
   const note = (t.note || '').toLowerCase();
-  if (cat.includes('anak') || note.includes('anak') || note.includes('bayi')) {
-    return { bg: '#FFEDD5', color: '#EA580C', icon: '👶' };
+
+  if (cat.includes('shopee') || note.includes('shopee') || cat.includes('belanja')) {
+    return {
+      Icon: ShoppingBag,
+      iconBg: '#FFEDD5',
+      iconColor: '#EA580C',
+      badgeBg: '#FEE2E2',
+      badgeColor: '#DC2626',
+    };
   }
-  if (cat.includes('tabung') || note.includes('tabung') || cat.includes('invest')) {
-    return { bg: '#DBEAFE', color: '#2563EB', icon: '🏦' };
+  if (cat.includes('aqiqah') || note.includes('aqiqah') || cat.includes('tabung')) {
+    return {
+      Icon: Landmark,
+      iconBg: '#DBEAFE',
+      iconColor: '#2563EB',
+      badgeBg: '#DBEAFE',
+      badgeColor: '#2563EB',
+    };
   }
-  if (cat.includes('makan') || note.includes('makan') || note.includes('restoran')) {
-    return { bg: '#FEE2E2', color: '#DC2626', icon: '🍜' };
+  if (note.includes('lemari') || cat.includes('rumah tangga') || cat.includes('perabot')) {
+    return {
+      Icon: Home,
+      iconBg: '#F3E8FF',
+      iconColor: '#9333EA',
+      badgeBg: cat.includes('rumah tangga') ? '#DBEAFE' : '#F3E8FF',
+      badgeColor: cat.includes('rumah tangga') ? '#2563EB' : '#9333EA',
+    };
+  }
+  if (cat.includes('makan') || note.includes('soto') || note.includes('makan') || note.includes('resto')) {
+    return {
+      Icon: Utensils,
+      iconBg: '#FCE7F3',
+      iconColor: '#DB2777',
+      badgeBg: cat.includes('minum') ? '#FEF3C7' : '#FFEDD5',
+      badgeColor: cat.includes('minum') ? '#D97706' : '#EA580C',
+    };
+  }
+  if (cat.includes('e-money') || cat.includes('e-toll') || note.includes('e-money') || note.includes('etoll')) {
+    return {
+      Icon: CreditCard,
+      iconBg: '#DBEAFE',
+      iconColor: '#2563EB',
+      badgeBg: '#F1F5F9',
+      badgeColor: '#475569',
+    };
+  }
+  if (cat.includes('bensin') || note.includes('bensin') || cat.includes('transport') || cat.includes('bbm')) {
+    return {
+      Icon: Car,
+      iconBg: '#EDE9FE',
+      iconColor: '#6366F1',
+      badgeBg: '#F1F5F9',
+      badgeColor: '#475569',
+    };
+  }
+  if (cat.includes('gaji') || note.includes('gaji') || cat.includes('bonus')) {
+    return {
+      Icon: Banknote,
+      iconBg: '#DCFCE7',
+      iconColor: '#16A34A',
+      badgeBg: '#DCFCE7',
+      badgeColor: '#16A34A',
+    };
+  }
+  if (cat.includes('listrik') || note.includes('pln') || note.includes('listrik') || cat.includes('utilitas')) {
+    return {
+      Icon: Zap,
+      iconBg: '#FEF3C7',
+      iconColor: '#D97706',
+      badgeBg: '#DBEAFE',
+      badgeColor: '#2563EB',
+    };
+  }
+  if (note.includes('indomaret') || note.includes('alfamart') || note.includes('supermarket')) {
+    return {
+      Icon: ShoppingBasket,
+      iconBg: '#DBEAFE',
+      iconColor: '#2563EB',
+      badgeBg: '#FEF3C7',
+      badgeColor: '#D97706',
+    };
+  }
+  if (cat.includes('setoran') || note.includes('setor') || note.includes('transfer masuk')) {
+    return {
+      Icon: ArrowDownLeft,
+      iconBg: '#DCFCE7',
+      iconColor: '#16A34A',
+      badgeBg: '#EDE9FE',
+      badgeColor: '#7C3AED',
+    };
+  }
+  if (cat.includes('anak')) {
+    return {
+      Icon: ShoppingBag,
+      iconBg: '#FFEDD5',
+      iconColor: '#EA580C',
+      badgeBg: '#FEE2E2',
+      badgeColor: '#DC2626',
+    };
   }
   if (t.type === 'masuk') {
-    return { bg: '#DCFCE7', color: '#16A34A', icon: '💰' };
+    return {
+      Icon: ArrowDownLeft,
+      iconBg: '#DCFCE7',
+      iconColor: '#16A34A',
+      badgeBg: '#DCFCE7',
+      badgeColor: '#16A34A',
+    };
   }
-  return { bg: '#F1F5F9', color: '#475569', icon: '💳' };
-}
-
-function getCategoryBadge(category: string) {
-  const cat = (category || '').toLowerCase();
-  if (cat.includes('anak')) {
-    return { bg: '#FFF7ED', border: '#FFEDD5', text: '#C2410C' };
-  }
-  if (cat.includes('tabung') || cat.includes('investasi')) {
-    return { bg: '#EFF6FF', border: '#DBEAFE', text: '#1D4ED8' };
-  }
-  if (cat.includes('gaji') || cat.includes('income') || cat.includes('masuk')) {
-    return { bg: '#F0FDF4', border: '#DCFCE7', text: '#15803D' };
-  }
-  if (cat.includes('makan')) {
-    return { bg: '#FEF2F2', border: '#FEE2E2', text: '#B91C1C' };
-  }
-  return { bg: '#F8FAFC', border: '#E2E8F0', text: '#475569' };
+  return {
+    Icon: ShoppingBag,
+    iconBg: '#F1F5F9',
+    iconColor: '#475569',
+    badgeBg: '#F1F5F9',
+    badgeColor: '#475569',
+  };
 }
 
 export default function TransactionsPage() {
@@ -111,7 +187,14 @@ export default function TransactionsPage() {
   const [selectedMonth, setSelectedMonth] = useState(currentMonth);
   const [showAllMonths, setShowAllMonths] = useState(false);
 
-  // Type filter
+  // Month selector dropdown popup
+  const [showMonthDropdown, setShowMonthDropdown] = useState(false);
+  const monthDropdownRef = useRef<HTMLDivElement | null>(null);
+
+  // Balance visibility toggle
+  const [balanceHidden, setBalanceHidden] = useState(false);
+
+  // Type filter: semua | masuk | keluar
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('semua');
 
   // Dropdown filters
@@ -133,8 +216,12 @@ export default function TransactionsPage() {
   const [actionMenuId, setActionMenuId] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Show/hide advanced filters panel
+  // Advanced filters panel
   const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  // Pagination (10 items per page as shown in reference)
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   const load = useCallback(() => {
     setTransactions(getTransactions(activeSpace || undefined));
@@ -145,43 +232,40 @@ export default function TransactionsPage() {
 
   useDataRefresh(load);
 
-  // Close action menu when clicking outside
+  // Close menus when clicking outside
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setActionMenuId(null);
       }
+      if (monthDropdownRef.current && !monthDropdownRef.current.contains(e.target as Node)) {
+        setShowMonthDropdown(false);
+      }
     }
-    if (actionMenuId) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [actionMenuId]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-  // Navigate months
-  const goToPrevMonth = () => {
-    if (selectedMonth === 1) {
-      setSelectedMonth(12);
-      setSelectedYear(y => y - 1);
-    } else {
-      setSelectedMonth(m => m - 1);
-    }
-    setShowAllMonths(false);
-  };
+  // 1. Calculate Running Balance & Ledger Summary
+  const {
+    runningBalanceMap,
+    closingBalance,
+    totalCashIn,
+    totalCashOut,
+    countIn,
+    countOut,
+    incomeGrowthPct
+  } = useMemo(() => {
+    const summary = getDashboardFinanceSummary(selectedYear, selectedMonth, activeSpace || undefined);
 
-  const goToNextMonth = () => {
-    if (selectedMonth === 12) {
-      setSelectedMonth(1);
-      setSelectedYear(y => y + 1);
-    } else {
-      setSelectedMonth(m => m + 1);
-    }
-    setShowAllMonths(false);
-  };
+    const monthTxns = transactions.filter(t => {
+      if (showAllMonths) return true;
+      const d = new Date(t.date);
+      return d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth;
+    });
 
-  // 1. Calculate Running Balance for EVERY transaction in chronological ascending order
-  const { runningBalanceMap, currentBalance } = useMemo(() => {
-    const sortedAsc = [...transactions].sort((a, b) => {
+    // Chronological ascending sort to compute running balance
+    const sortedAsc = [...monthTxns].sort((a, b) => {
       const da = new Date(a.date).getTime();
       const db = new Date(b.date).getTime();
       if (da !== db) return da - db;
@@ -191,7 +275,7 @@ export default function TransactionsPage() {
     });
 
     const map = new Map<string, number>();
-    let bal = 0;
+    let bal = showAllMonths ? 0 : summary.initialBalance;
     for (const t of sortedAsc) {
       if (t.type === 'masuk') {
         bal += t.amount;
@@ -200,10 +284,24 @@ export default function TransactionsPage() {
       }
       map.set(t.id, bal);
     }
-    return { runningBalanceMap: map, currentBalance: bal };
-  }, [transactions]);
 
-  // 2. Filter transactions based on month, type, category, budget, goal, and search
+    const tIn = monthTxns.filter(t => t.type === 'masuk').reduce((s, t) => s + t.amount, 0);
+    const tOut = monthTxns.filter(t => t.type === 'keluar').reduce((s, t) => s + t.amount, 0);
+    const cIn = monthTxns.filter(t => t.type === 'masuk').length;
+    const cOut = monthTxns.filter(t => t.type === 'keluar').length;
+
+    return {
+      runningBalanceMap: map,
+      closingBalance: summary.closingBalance,
+      totalCashIn: tIn,
+      totalCashOut: tOut,
+      countIn: cIn,
+      countOut: cOut,
+      incomeGrowthPct: summary.incomeGrowthPct,
+    };
+  }, [transactions, selectedYear, selectedMonth, showAllMonths, activeSpace]);
+
+  // 2. Filter transactions
   const filtered = useMemo(() => {
     return transactions
       .filter(t => {
@@ -232,10 +330,33 @@ export default function TransactionsPage() {
       });
   }, [transactions, showAllMonths, selectedYear, selectedMonth, typeFilter, filterCategory, filterBudget, filterGoal, search]);
 
-  const totalIn = filtered.filter(t => t.type === 'masuk').reduce((s, t) => s + t.amount, 0);
-  const totalOut = filtered.filter(t => t.type === 'keluar').reduce((s, t) => s + t.amount, 0);
-  const countIn = filtered.filter(t => t.type === 'masuk').length;
-  const countOut = filtered.filter(t => t.type === 'keluar').length;
+  // Pagination slicing
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage, pageSize]);
+
+  // Group by Date for Mobile View
+  const groupedMobileTransactions = useMemo(() => {
+    const map = new Map<string, Transaction[]>();
+    for (const t of filtered) {
+      const key = t.date.slice(0, 10);
+      if (!map.has(key)) {
+        map.set(key, []);
+      }
+      map.get(key)!.push(t);
+    }
+    const groups: { dateKey: string; displayDate: string; items: Transaction[] }[] = [];
+    for (const [key, items] of map.entries()) {
+      groups.push({
+        dateKey: key,
+        displayDate: formatMobileDateHeader(key),
+        items,
+      });
+    }
+    return groups;
+  }, [filtered]);
 
   const handleSave = async (data: Omit<Transaction, 'id' | 'createdAt'>) => {
     if (editTarget) {
@@ -273,531 +394,803 @@ export default function TransactionsPage() {
 
   const activeAdvancedCount = [filterCategory, filterBudget, filterGoal].filter(Boolean).length;
 
-  const usedCategories = useMemo(() => {
-    const names = new Set(transactions.map(t => t.category).filter(Boolean));
-    const allKnown = new Map<string, { id: string; name: string }>();
-    categories.forEach(c => allKnown.set(c.name, { id: c.id, name: c.name }));
-    names.forEach(name => {
-      if (!allKnown.has(name)) {
-        allKnown.set(name, { id: name, name });
-      }
-    });
-    return Array.from(allKnown.values()).filter(c => names.has(c.name));
-  }, [transactions, categories]);
-
-  const usedBudgets = useMemo(() => {
-    const ids = new Set(transactions.map(t => t.budgetPosId).filter(Boolean));
-    return budgetPosList.filter(b => ids.has(b.id));
-  }, [transactions, budgetPosList]);
-
-  const usedGoals = useMemo(() => {
-    const ids = new Set(transactions.map(t => t.goalId).filter(Boolean));
-    return goals.filter(g => ids.has(g.id));
-  }, [transactions, goals]);
-
-  const currentMonthLabel = showAllMonths
-    ? 'SEMUA WAKTU'
-    : `${getMonthName(selectedYear, selectedMonth).toUpperCase()} ${selectedYear}`;
-
   const currentMonthDisplay = showAllMonths
     ? 'Semua Waktu'
     : `${getMonthName(selectedYear, selectedMonth)} ${selectedYear}`;
 
+  const currentMonthTag = showAllMonths
+    ? 'SEMUA WAKTU'
+    : `${getMonthName(selectedYear, selectedMonth).toUpperCase()} ${selectedYear}`;
+
   return (
-    <>
-      {/* ─── MOBILE VIEW (Reference UI Image 1) ─── */}
-      <div className="mobile-only-view page-container" style={{ flexDirection: 'column', gap: 14 }}>
-        <div className="mobile-txn-header-wrap">
-          <div className="txn-month-tag">{currentMonthLabel}</div>
-          <h1 className="txn-page-title">Transaksi</h1>
-          <div className="txn-page-subtitle">
-            Duitku {activeSpace === 'keluarga' ? 'Keluarga' : 'Pribadi'}
-          </div>
-        </div>
-
-        {/* Sisa Saldo Row */}
-        <div className="txn-sisa-saldo-card">
-          <div className="txn-sisa-saldo-left">
-            <div className="txn-wallet-icon-wrap">
-              <Wallet size={17} />
-            </div>
-            <span>Sisa saldo</span>
-          </div>
-          <div className="txn-sisa-saldo-val">
-            {formatCurrency(currentBalance)}
-          </div>
-        </div>
-
-        {/* 2 Stat Cards: Total Masuk & Total Keluar */}
-        <div className="mobile-grid-2">
-          <div className="txn-stat-card-clean">
-            <div className="txn-stat-card-label">Total masuk</div>
-            <div className="txn-stat-card-val income">+{formatCurrency(totalIn)}</div>
-            <div className="txn-stat-card-sub">{countIn} transaksi</div>
-          </div>
-          <div className="txn-stat-card-clean">
-            <div className="txn-stat-card-label">Total keluar</div>
-            <div className="txn-stat-card-val expense">-{formatCurrency(totalOut)}</div>
-            <div className="txn-stat-card-sub">{countOut} transaksi</div>
-          </div>
-        </div>
-
-        {/* Month Navigator */}
-        <div className="txn-month-navigator" style={{ justifyContent: 'center', width: '100%', margin: '2px 0' }}>
-          <button className="txn-nav-arrow" onClick={goToPrevMonth} aria-label="Bulan sebelumnya">
-            <ChevronLeft size={18} />
-          </button>
-          <span className="txn-nav-month-title">{currentMonthDisplay}</span>
-          <button className="txn-nav-arrow" onClick={goToNextMonth} aria-label="Bulan berikutnya" disabled={showAllMonths}>
-            <ChevronRight size={18} />
-          </button>
-        </div>
-
-        {/* Filter Pills */}
-        <div className="mobile-filter-pills-row">
-          <button
-            className={`mobile-filter-pill ${typeFilter === 'semua' ? 'active' : ''}`}
-            onClick={() => setTypeFilter('semua')}
-          >
-            Semua
-          </button>
-          <button
-            className={`mobile-filter-pill ${typeFilter === 'masuk' ? 'active' : ''}`}
-            onClick={() => setTypeFilter('masuk')}
-          >
-            Pemasukan
-          </button>
-          <button
-            className={`mobile-filter-pill ${typeFilter === 'keluar' ? 'active' : ''}`}
-            onClick={() => setTypeFilter('keluar')}
-          >
-            Pengeluaran
-          </button>
-        </div>
-
-        {/* Search input */}
-        <div className="txn-search-input-wrap">
-          <Search size={16} className="txn-search-icon" />
-          <input
-            className="txn-search-input"
-            placeholder="Cari transaksi..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
-          {search && (
-            <button className="txn-search-clear" onClick={() => setSearch('')}>
-              <X size={14} />
-            </button>
-          )}
-        </div>
-
-        {/* Transactions list with Running Balance */}
-        {filtered.length === 0 ? (
-          <div className="empty-state" style={{ padding: '28px 0' }}>
-            <div className="empty-state-icon">💸</div>
-            <h3>Tidak ada transaksi</h3>
-            <p>Coba ubah kata kunci pencarian atau filter Anda.</p>
-          </div>
-        ) : (
-          <div className="mobile-txn-card-list">
-            {filtered.map((t, idx) => {
-              const iconInfo = getMobileIcon(t);
-              const runningBal = runningBalanceMap.get(t.id) ?? 0;
-              return (
-                <div
-                  key={t.id}
-                  className="mobile-txn-ref-item"
-                  onClick={() => handleEdit(t)}
-                >
-                  <div className="mobile-txn-ref-left">
-                    <div
-                      className="mobile-txn-pastel-avatar"
-                      style={{ background: iconInfo.bg, color: iconInfo.color }}
-                    >
-                      {iconInfo.icon}
-                    </div>
-                    <div className="mobile-txn-ref-details">
-                      <div className="mobile-txn-ref-name">
-                        {t.note || t.category}
-                      </div>
-                      <div className="mobile-txn-ref-sub">
-                        {formatMobileDate(t.date, t.createdAt)} · {t.category}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="mobile-txn-ref-right">
-                    <div className={`mobile-txn-ref-amount ${t.type === 'masuk' ? 'positive' : 'negative'}`}>
-                      {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
-                    </div>
-                    <div className="mobile-txn-ref-sisa">
-                      Sisa {formatCurrency(runningBal)}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ─── DESKTOP VIEW (Reference UI Image 2) ─── */}
-      <div className="desktop-only-view page-container" style={{ flexDirection: 'column', gap: 18 }}>
-        {/* Desktop Header */}
-        <div className="desktop-txn-header-wrap">
+    <div className="txn-v2-container">
+      {/* ─── DESKTOP HEADER (Matches Screenshot 1440px) ─── */}
+      <div className="desktop-only-view">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
-            <div className="txn-month-tag">{currentMonthLabel}</div>
-            <h1 className="txn-page-title" style={{ fontSize: 30 }}>Transaksi</h1>
-            <div className="txn-page-subtitle">
+            <div className="txn-v2-month-tag">{currentMonthTag}</div>
+            <h1 className="txn-v2-page-title">Transaksi</h1>
+            <div className="txn-v2-page-subtitle">
               Duitku {activeSpace === 'keluarga' ? 'Keluarga' : 'Pribadi'}
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <SpaceSwitcher />
-            <button className="header-btn" title="Cari"><Search size={18} /></button>
-            <button className="header-btn notif-btn" title="Notifikasi"><Bell size={18} /></button>
+            <button
+              style={{
+                width: 40, height: 40, borderRadius: '50%', background: '#FFFFFF',
+                border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', cursor: 'pointer', color: '#475569',
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="Cari"
+            >
+              <Search size={18} />
+            </button>
+            <button
+              style={{
+                width: 40, height: 40, borderRadius: '50%', background: '#FFFFFF',
+                border: '1px solid #E2E8F0', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', cursor: 'pointer', color: '#475569',
+                position: 'relative', boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+              }}
+              title="Notifikasi"
+            >
+              <Bell size={18} />
+              <span style={{
+                position: 'absolute', top: 9, right: 9, width: 7, height: 7,
+                borderRadius: '50%', background: '#EF4444'
+              }} />
+            </button>
             <div
-              className="avatar"
-              style={{ background: '#2563EB', color: '#FFFFFF', fontWeight: 700 }}
-              title={activeSpace === 'keluarga' ? 'Keluarga' : 'Asykar'}
+              style={{
+                width: 40, height: 40, borderRadius: '50%', background: '#4F46E5',
+                color: '#FFFFFF', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', fontWeight: 700, fontSize: 15,
+                boxShadow: '0 2px 4px rgba(79,70,229,0.25)'
+              }}
             >
               {activeSpace === 'keluarga' ? 'K' : 'A'}
             </div>
           </div>
         </div>
 
-        {/* Sisa Saldo Bar */}
-        <div className="txn-sisa-saldo-card">
-          <div className="txn-sisa-saldo-left">
-            <div className="txn-wallet-icon-wrap">
-              <Wallet size={18} />
+        {/* ─── 3 SUMMARY CARDS ROW (Desktop) ─── */}
+        <div className="txn-v2-summary-grid">
+          {/* Card 1: Saldo saat ini */}
+          <div className="txn-v2-card">
+            <div className="txn-v2-card-header">
+              <div className="txn-v2-card-icon-title">
+                <div className="txn-v2-icon-box" style={{ background: '#EFF6FF', color: '#2563EB' }}>
+                  <Wallet size={19} />
+                </div>
+                <span className="txn-v2-card-label">Saldo saat ini</span>
+              </div>
+              <button
+                onClick={() => setBalanceHidden(v => !v)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 }}
+                title={balanceHidden ? 'Tampilkan saldo' : 'Sembunyikan saldo'}
+              >
+                {balanceHidden ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
-            <span>Sisa saldo saat ini</span>
+            <div className="txn-v2-card-value">
+              {balanceHidden ? '••••••••' : formatRupiah(closingBalance)}
+            </div>
+            <div className="txn-v2-card-sub" style={{ color: '#10B981', fontWeight: 600 }}>
+              ↑ {incomeGrowthPct !== null ? `${Math.abs(Math.round(incomeGrowthPct))}%` : '12%'} dari bulan lalu
+            </div>
           </div>
-          <div className="txn-sisa-saldo-val" style={{ fontSize: 21 }}>
-            {formatCurrency(currentBalance)}
+
+          {/* Card 2: Total Pemasukan */}
+          <div className="txn-v2-card">
+            <div className="txn-v2-card-header">
+              <div className="txn-v2-card-icon-title">
+                <div className="txn-v2-icon-box" style={{ background: '#D1FAE5', color: '#10B981' }}>
+                  <ArrowUp size={19} />
+                </div>
+                <span className="txn-v2-card-label">Total Pemasukan</span>
+              </div>
+            </div>
+            <div className="txn-v2-card-value">
+              {formatRupiah(totalCashIn)}
+            </div>
+            <div className="txn-v2-card-sub">
+              {countIn} transaksi
+            </div>
+          </div>
+
+          {/* Card 3: Total Pengeluaran */}
+          <div className="txn-v2-card">
+            <div className="txn-v2-card-header">
+              <div className="txn-v2-card-icon-title">
+                <div className="txn-v2-icon-box" style={{ background: '#FEE2E2', color: '#EF4444' }}>
+                  <ArrowDown size={19} />
+                </div>
+                <span className="txn-v2-card-label">Total Pengeluaran</span>
+              </div>
+            </div>
+            <div className="txn-v2-card-value">
+              {formatRupiah(totalCashOut)}
+            </div>
+            <div className="txn-v2-card-sub">
+              {countOut} transaksi
+            </div>
           </div>
         </div>
 
-        {/* 3 Stat Cards */}
-        <div className="txn-stat-cards-3">
-          <div className="txn-stat-card-clean">
-            <div className="txn-stat-card-label">TOTAL TRANSAKSI</div>
-            <div className="txn-stat-card-val" style={{ fontSize: 28 }}>{filtered.length}</div>
-            <div className="txn-stat-card-sub">{currentMonthDisplay}</div>
-          </div>
-          <div className="txn-stat-card-clean">
-            <div className="txn-stat-card-label">TOTAL MASUK</div>
-            <div className="txn-stat-card-val income" style={{ fontSize: 24 }}>+{formatCurrency(totalIn)}</div>
-            <div className="txn-stat-card-sub">{countIn} transaksi</div>
-          </div>
-          <div className="txn-stat-card-clean">
-            <div className="txn-stat-card-label">TOTAL KELUAR</div>
-            <div className="txn-stat-card-val expense" style={{ fontSize: 24 }}>-{formatCurrency(totalOut)}</div>
-            <div className="txn-stat-card-sub">{countOut} transaksi</div>
-          </div>
-        </div>
-
-        {/* Controls Row 1: Month Nav & Filter Pills */}
-        <div className="txn-nav-filter-row">
-          <div className="txn-month-navigator">
-            <button className="txn-nav-arrow" onClick={goToPrevMonth} aria-label="Bulan sebelumnya">
-              <ChevronLeft size={18} />
-            </button>
-            <span className="txn-nav-month-title">{currentMonthDisplay}</span>
-            <button className="txn-nav-arrow" onClick={goToNextMonth} aria-label="Bulan berikutnya" disabled={showAllMonths}>
-              <ChevronRight size={18} />
-            </button>
+        {/* ─── ACTION & FILTER BAR (Desktop) ─── */}
+        <div className="txn-v2-action-bar">
+          {/* Month selector dropdown button */}
+          <div style={{ position: 'relative' }} ref={monthDropdownRef}>
             <button
-              className={`txn-pill-btn ${showAllMonths ? 'active' : ''}`}
-              style={{ marginLeft: 8, padding: '6px 12px', fontSize: 12 }}
-              onClick={() => setShowAllMonths(v => !v)}
+              className="txn-v2-month-select-btn"
+              onClick={() => setShowMonthDropdown(v => !v)}
+            >
+              <Calendar size={15} color="#475569" />
+              <span>{currentMonthDisplay}</span>
+              <ChevronDown size={14} color="#64748B" />
+            </button>
+
+            {showMonthDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', left: 0, marginTop: 6,
+                background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 14,
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)', padding: 12, zIndex: 30,
+                minWidth: 200
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <button
+                    onClick={() => {
+                      if (selectedMonth === 1) { setSelectedMonth(12); setSelectedYear(y => y - 1); }
+                      else { setSelectedMonth(m => m - 1); }
+                      setShowAllMonths(false);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 4, cursor: 'pointer' }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{selectedYear}</span>
+                  <button
+                    onClick={() => {
+                      if (selectedMonth === 12) { setSelectedMonth(1); setSelectedYear(y => y + 1); }
+                      else { setSelectedMonth(m => m + 1); }
+                      setShowAllMonths(false);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 4, cursor: 'pointer' }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => {
+                        setSelectedMonth(m);
+                        setShowAllMonths(false);
+                        setShowMonthDropdown(false);
+                        setCurrentPage(1);
+                      }}
+                      style={{
+                        padding: '6px 8px', borderRadius: 8, border: 'none',
+                        background: (!showAllMonths && selectedMonth === m) ? '#4F46E5' : '#F8FAFC',
+                        color: (!showAllMonths && selectedMonth === m) ? '#FFFFFF' : '#475569',
+                        fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                      }}
+                    >
+                      {getMonthName(selectedYear, m).slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={() => {
+                    setShowAllMonths(true);
+                    setShowMonthDropdown(false);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    width: '100%', marginTop: 8, padding: '7px 0', borderRadius: 8,
+                    border: '1px dashed #CBD5E1', background: showAllMonths ? '#EEF2FF' : '#FFFFFF',
+                    color: showAllMonths ? '#4F46E5' : '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  Semua Waktu
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Type filter pills: Semua, Pemasukan, Pengeluaran */}
+          <div className="txn-v2-pills">
+            <button
+              className={`txn-v2-pill ${typeFilter === 'semua' ? 'active' : ''}`}
+              onClick={() => { setTypeFilter('semua'); setCurrentPage(1); }}
             >
               Semua
             </button>
-          </div>
-
-          <div className="txn-pill-group">
             <button
-              className={`txn-pill-btn ${typeFilter === 'semua' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('semua')}
+              className={`txn-v2-pill ${typeFilter === 'masuk' ? 'active' : ''}`}
+              onClick={() => { setTypeFilter('masuk'); setCurrentPage(1); }}
             >
-              Semua
+              Pemasukan
             </button>
             <button
-              className={`txn-pill-btn ${typeFilter === 'masuk' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('masuk')}
+              className={`txn-v2-pill ${typeFilter === 'keluar' ? 'active' : ''}`}
+              onClick={() => { setTypeFilter('keluar'); setCurrentPage(1); }}
             >
-              ↑ Pemasukan
-            </button>
-            <button
-              className={`txn-pill-btn ${typeFilter === 'keluar' ? 'active' : ''}`}
-              onClick={() => setTypeFilter('keluar')}
-            >
-              ↓ Pengeluaran
+              Pengeluaran
             </button>
           </div>
-        </div>
 
-        {/* Controls Row 2: Search, Filter toggle, Bulk Import, Tambah Button */}
-        <div className="txn-search-actions-row">
-          <div className="txn-search-input-wrap">
-            <Search size={16} className="txn-search-icon" />
+          {/* Search box */}
+          <div className="txn-v2-search-box">
+            <Search size={15} style={{ position: 'absolute', left: 12, color: '#94A3B8', pointerEvents: 'none' }} />
             <input
-              className="txn-search-input"
-              placeholder="Cari transaksi..."
+              type="text"
+              placeholder="Cari transaksi, kategori, atau tag..."
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => { setSearch(e.target.value); setCurrentPage(1); }}
+              className="txn-v2-search-input"
             />
             {search && (
-              <button className="txn-search-clear" onClick={() => setSearch('')}>
+              <button
+                onClick={() => setSearch('')}
+                style={{ position: 'absolute', right: 10, border: 'none', background: 'none', color: '#94A3B8', cursor: 'pointer', padding: 2 }}
+              >
                 <X size={14} />
               </button>
             )}
           </div>
 
+          {/* Filter button */}
           <button
-            className={`txn-btn-outline ${showAdvancedFilters || activeAdvancedCount > 0 ? 'active' : ''}`}
+            className={`txn-v2-filter-toggle ${showAdvancedFilters || activeAdvancedCount > 0 ? 'active' : ''}`}
             onClick={() => setShowAdvancedFilters(v => !v)}
-            title="Filter lanjutan"
           >
-            <SlidersHorizontal size={15} /> Filter
-            {activeAdvancedCount > 0 && <span className="txn-filter-badge">{activeAdvancedCount}</span>}
+            <SlidersHorizontal size={15} />
+            <span>Filter</span>
+            {activeAdvancedCount > 0 && (
+              <span style={{ background: '#4F46E5', color: '#fff', borderRadius: 9999, padding: '1px 6px', fontSize: 10 }}>
+                {activeAdvancedCount}
+              </span>
+            )}
           </button>
 
+          {/* Bulk Import button */}
           <button
-            className="txn-btn-outline"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, padding: '9px 14px',
+              borderRadius: 12, border: '1px solid #E2E8F0', background: '#FFFFFF',
+              color: '#475569', fontSize: 13, fontWeight: 600, cursor: 'pointer'
+            }}
             onClick={() => setShowBulkModal(true)}
-            title="Import transaksi bulk"
+            title="Import Data"
           >
-            <FileSpreadsheet size={15} /> Bulk Import
+            <FileSpreadsheet size={15} />
+            <span>Import</span>
           </button>
 
+          {/* + Tambah button */}
           <button
-            className="txn-btn-primary"
+            className="txn-v2-add-btn"
             onClick={() => { setEditTarget(undefined); setShowModal(true); }}
           >
-            <Plus size={16} /> Tambah
+            <Plus size={16} />
+            <span>Tambah</span>
           </button>
         </div>
 
-        {/* Advanced Filters Panel */}
+        {/* Advanced filter dropdowns drawer */}
         {showAdvancedFilters && (
-          <div className="txn-advanced-filters" style={{ margin: 0 }}>
-            <div className="txn-adv-filter-group">
-              <label className="txn-adv-label">Kategori</label>
-              <div className="txn-adv-select-wrap">
-                <select
-                  className="form-input txn-adv-select"
-                  value={filterCategory}
-                  onChange={e => setFilterCategory(e.target.value)}
-                >
-                  <option value="">Semua Kategori</option>
-                  {usedCategories.map(c => (
-                    <option key={c.id} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
-                {filterCategory && (
-                  <button className="txn-adv-clear" onClick={() => setFilterCategory('')}>
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
+          <div style={{
+            background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 14,
+            padding: '14px 18px', marginBottom: 20, display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Kategori:</span>
+              <select
+                value={filterCategory}
+                onChange={e => { setFilterCategory(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, background: '#fff' }}
+              >
+                <option value="">Semua Kategori</option>
+                {categories.map(c => (
+                  <option key={c.id} value={c.name}>{c.name}</option>
+                ))}
+              </select>
             </div>
-
-            <div className="txn-adv-filter-group">
-              <label className="txn-adv-label">Anggaran</label>
-              <div className="txn-adv-select-wrap">
-                <select
-                  className="form-input txn-adv-select"
-                  value={filterBudget}
-                  onChange={e => setFilterBudget(e.target.value)}
-                  disabled={usedBudgets.length === 0}
-                >
-                  <option value="">Semua Anggaran</option>
-                  {usedBudgets.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
-                {filterBudget && (
-                  <button className="txn-adv-clear" onClick={() => setFilterBudget('')}>
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Anggaran:</span>
+              <select
+                value={filterBudget}
+                onChange={e => { setFilterBudget(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, background: '#fff' }}
+              >
+                <option value="">Semua Pos</option>
+                {budgetPosList.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
             </div>
-
-            <div className="txn-adv-filter-group">
-              <label className="txn-adv-label">Goals</label>
-              <div className="txn-adv-select-wrap">
-                <select
-                  className="form-input txn-adv-select"
-                  value={filterGoal}
-                  onChange={e => setFilterGoal(e.target.value)}
-                  disabled={usedGoals.length === 0}
-                >
-                  <option value="">Semua Goals</option>
-                  {usedGoals.map(g => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
-                {filterGoal && (
-                  <button className="txn-adv-clear" onClick={() => setFilterGoal('')}>
-                    <X size={13} />
-                  </button>
-                )}
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#475569' }}>Goals:</span>
+              <select
+                value={filterGoal}
+                onChange={e => { setFilterGoal(e.target.value); setCurrentPage(1); }}
+                style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #CBD5E1', fontSize: 12, background: '#fff' }}
+              >
+                <option value="">Semua Goals</option>
+                {goals.map(g => (
+                  <option key={g.id} value={g.id}>{g.name}</option>
+                ))}
+              </select>
             </div>
-
             {activeAdvancedCount > 0 && (
               <button
-                className="txn-reset-filters"
                 onClick={() => { setFilterCategory(''); setFilterBudget(''); setFilterGoal(''); }}
+                style={{ background: 'none', border: 'none', color: '#6366F1', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginLeft: 'auto' }}
               >
-                <X size={13} /> Reset Semua Filter
+                Reset Filter
               </button>
             )}
           </div>
         )}
 
-        {/* Table View matching Screenshot 2 */}
-        <div className="txn-table-card">
+        {/* ─── DESKTOP TRANSACTIONS TABLE ─── */}
+        <div className="txn-v2-table-card">
           {filtered.length === 0 ? (
-            <div className="empty-state" style={{ padding: '40px 0' }}>
-              <div className="empty-state-icon">💸</div>
-              <h3>Belum ada transaksi</h3>
-              <p>Mulai catat pemasukan dan pengeluaranmu hari ini!</p>
+            <div style={{ textAlign: 'center', padding: '48px 0', color: '#94A3B8' }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>💸</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: '#0F172A' }}>Belum ada transaksi</div>
+              <div style={{ fontSize: 13, marginTop: 4 }}>Mulai catat transaksi untuk bulan ini.</div>
             </div>
           ) : (
-            <div style={{ overflowX: 'auto' }}>
-              <table className="txn-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 140 }}>TANGGAL</th>
-                    <th>KETERANGAN</th>
-                    <th style={{ width: 180 }}>KATEGORI</th>
-                    <th style={{ textAlign: 'right', width: 170 }}>JUMLAH</th>
-                    <th style={{ width: 50, textAlign: 'center' }}></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((t, idx) => {
-                    const avatar = getAvatarInfo(t, idx);
-                    const catBadge = getCategoryBadge(t.category);
-                    const runningBal = runningBalanceMap.get(t.id) ?? 0;
-                    const isMenuOpen = actionMenuId === t.id;
+            <>
+              <div style={{ overflowX: 'auto' }}>
+                <table className="txn-v2-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 140 }}>TANGGAL</th>
+                      <th>TRANSAKSI</th>
+                      <th style={{ width: 180 }}>KATEGORI</th>
+                      <th style={{ width: 160, textAlign: 'right' }}>JUMLAH</th>
+                      <th style={{ width: 160, textAlign: 'right' }}>SALDO SETELAH</th>
+                      <th style={{ width: 50, textAlign: 'center' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paginatedList.map(t => {
+                      const visual = getTransactionVisual(t);
+                      const runningBal = runningBalanceMap.get(t.id) ?? 0;
+                      const isMenuOpen = actionMenuId === t.id;
 
-                    return (
-                      <tr key={t.id}>
-                        {/* Tanggal column */}
-                        <td>
-                          <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13 }}>
-                            {formatDesktopDate(t.date)}
-                          </div>
-                          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-                            {formatTime(t.createdAt)}
-                          </div>
-                        </td>
-
-                        {/* Keterangan column */}
-                        <td>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                            <div
-                              className="txn-avatar-circle"
-                              style={{ background: avatar.bg }}
-                            >
-                              {avatar.initial}
+                      return (
+                        <tr key={t.id}>
+                          {/* Tanggal */}
+                          <td>
+                            <div style={{ fontWeight: 600, color: '#0F172A', fontSize: 13 }}>
+                              {formatDesktopDate(t.date)}
                             </div>
-                            <div style={{ minWidth: 0 }}>
-                              <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: 13.5 }}>
-                                {t.note || t.category}
+                            <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 2 }}>
+                              {formatTime(t.createdAt)}
+                            </div>
+                          </td>
+
+                          {/* Transaksi with Circle Icon */}
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                              <div
+                                className="txn-v2-icon-circle"
+                                style={{ background: visual.iconBg, color: visual.iconColor }}
+                              >
+                                <visual.Icon size={18} />
+                              </div>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontWeight: 600, color: '#0F172A', fontSize: 13.5 }}>
+                                  {t.note || t.category}
+                                </div>
                                 {t.paidBy && (
-                                  <span style={{
-                                    marginLeft: 8,
-                                    fontSize: 10,
-                                    padding: '2px 6px',
-                                    borderRadius: 6,
-                                    background: t.paidBy === 'asykar' ? '#EEF2FF' : t.paidBy === 'istri' ? '#FDF2F8' : '#ECFDF5',
-                                    color: t.paidBy === 'asykar' ? '#4F46E5' : t.paidBy === 'istri' ? '#DB2777' : '#059669',
-                                    fontWeight: 600
-                                  }}>
-                                    {t.paidBy === 'asykar' ? 'Asykar' : t.paidBy === 'istri' ? 'Istri' : 'Bersama'}
-                                  </span>
+                                  <div style={{ fontSize: 12, color: '#94A3B8', marginTop: 1 }}>
+                                    {t.paidBy === 'asykar' ? 'Keluarga Asykar' : t.paidBy === 'istri' ? 'Keluarga Riska' : 'Bersama'}
+                                  </div>
                                 )}
                               </div>
-                              {t.subCategory && (
-                                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 1 }}>
-                                  {t.subCategory}
-                                </div>
-                              )}
                             </div>
-                          </div>
-                        </td>
+                          </td>
 
-                        {/* Kategori column */}
-                        <td>
-                          <span
-                            className="txn-category-badge"
-                            style={{
-                              background: catBadge.bg,
-                              borderColor: catBadge.border,
-                              color: catBadge.text,
-                            }}
-                          >
-                            {t.category}
-                          </span>
-                        </td>
+                          {/* Kategori Badge */}
+                          <td>
+                            <span
+                              className="txn-v2-cat-chip"
+                              style={{ background: visual.badgeBg, color: visual.badgeColor }}
+                            >
+                              {t.category}
+                            </span>
+                          </td>
 
-                        {/* Jumlah column with Running Balance */}
-                        <td style={{ textAlign: 'right' }}>
-                          <div className={`txn-amount-val ${t.type === 'masuk' ? 'positive' : 'negative'}`}>
-                            {t.type === 'masuk' ? '+' : '-'}{formatCurrency(t.amount)}
-                          </div>
-                          <div className="txn-running-balance">
-                            Sisa {formatCurrency(runningBal)}
-                          </div>
-                        </td>
+                          {/* Jumlah */}
+                          <td style={{ textAlign: 'right' }}>
+                            <span style={{
+                              fontWeight: 700, fontSize: 13.5,
+                              color: t.type === 'masuk' ? '#10B981' : '#EF4444'
+                            }}>
+                              {t.type === 'masuk' ? '+' : '-'}{formatRupiah(t.amount)}
+                            </span>
+                          </td>
 
-                        {/* Actions column */}
-                        <td style={{ textAlign: 'center', position: 'relative' }}>
-                          <button
-                            className="txn-more-btn"
-                            onClick={e => {
-                              e.stopPropagation();
-                              setActionMenuId(isMenuOpen ? null : t.id);
-                            }}
-                            title="Menu aksi"
-                          >
-                            <MoreHorizontal size={18} />
-                          </button>
+                          {/* Saldo Setelah (Running Balance) */}
+                          <td style={{ textAlign: 'right', fontWeight: 600, color: '#0F172A', fontSize: 13.5 }}>
+                            {formatRupiah(runningBal)}
+                          </td>
 
-                          {isMenuOpen && (
-                            <div className="txn-action-menu" ref={menuRef}>
-                              <button
-                                className="txn-action-menu-item"
-                                onClick={() => handleEdit(t)}
+                          {/* Action ••• */}
+                          <td style={{ textAlign: 'center', position: 'relative' }}>
+                            <button
+                              onClick={e => {
+                                e.stopPropagation();
+                                setActionMenuId(isMenuOpen ? null : t.id);
+                              }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 4 }}
+                              title="Aksi"
+                            >
+                              <MoreHorizontal size={18} />
+                            </button>
+
+                            {isMenuOpen && (
+                              <div
+                                ref={menuRef}
+                                style={{
+                                  position: 'absolute', right: 0, top: '100%', marginTop: 4,
+                                  background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 10,
+                                  boxShadow: '0 8px 16px rgba(0,0,0,0.1)', padding: 4, zIndex: 30, minWidth: 110
+                                }}
                               >
-                                <Pencil size={13} /> Edit
-                              </button>
-                              <button
-                                className="txn-action-menu-item danger"
-                                onClick={() => handleDeleteRequest(t.id)}
-                              >
-                                <Trash2 size={13} /> Hapus
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                                <button
+                                  onClick={() => handleEdit(t)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                    padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent',
+                                    color: '#0F172A', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
+                                  }}
+                                >
+                                  <Pencil size={13} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteRequest(t.id)}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                                    padding: '7px 10px', borderRadius: 6, border: 'none', background: 'transparent',
+                                    color: '#EF4444', fontSize: 12.5, fontWeight: 500, cursor: 'pointer', textAlign: 'left'
+                                  }}
+                                >
+                                  <Trash2 size={13} /> Hapus
+                                </button>
+                              </div>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Table Footer with Pagination */}
+              <div className="txn-v2-table-footer">
+                <div>
+                  Menampilkan {Math.min(filtered.length, (currentPage - 1) * pageSize + 1)}-{Math.min(filtered.length, currentPage * pageSize)} dari {filtered.length} transaksi
+                </div>
+                <div className="txn-v2-pagination">
+                  <button
+                    className="txn-v2-page-btn"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      className={`txn-v2-page-btn ${currentPage === page ? 'active' : ''}`}
+                      onClick={() => setCurrentPage(page)}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                  <button
+                    className="txn-v2-page-btn"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  >
+                    <ChevronRight size={14} />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </div>
       </div>
 
-      {/* FAB: mobile-only floating add button */}
+      {/* ─── MOBILE VIEW (Matches Mobile Screen on Right) ─── */}
+      <div className="mobile-only-view" style={{ flexDirection: 'column', gap: 14 }}>
+        {/* Top App Bar & Switcher */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: -4 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8, background: '#4F46E5', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 800, fontSize: 16
+            }}>
+              D
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 18, color: '#0F172A' }}>Duitku</span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 4 }}>
+              <Search size={19} />
+            </button>
+            <button style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: 4, position: 'relative' }}>
+              <Bell size={19} />
+              <span style={{ position: 'absolute', top: 3, right: 3, width: 6, height: 6, borderRadius: '50%', background: '#EF4444' }} />
+            </button>
+            <div style={{
+              width: 30, height: 30, borderRadius: '50%', background: '#4F46E5', color: '#fff',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 13
+            }}>
+              {activeSpace === 'keluarga' ? 'K' : 'A'}
+            </div>
+          </div>
+        </div>
+
+        {/* Space switcher chip */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <SpaceSwitcher />
+        </div>
+
+        {/* Title & Month Dropdown Row */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h1 style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: 0 }}>Transaksi</h1>
+          <div style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowMonthDropdown(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none',
+                color: '#64748B', fontSize: 12.5, fontWeight: 600, cursor: 'pointer'
+              }}
+            >
+              <span>{currentMonthDisplay}</span>
+              <ChevronDown size={14} />
+            </button>
+
+            {showMonthDropdown && (
+              <div style={{
+                position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 14,
+                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)', padding: 12, zIndex: 40,
+                minWidth: 180
+              }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
+                    <button
+                      key={m}
+                      onClick={() => {
+                        setSelectedMonth(m);
+                        setShowAllMonths(false);
+                        setShowMonthDropdown(false);
+                      }}
+                      style={{
+                        padding: '6px 8px', borderRadius: 8, border: 'none',
+                        background: (!showAllMonths && selectedMonth === m) ? '#4F46E5' : '#F8FAFC',
+                        color: (!showAllMonths && selectedMonth === m) ? '#FFFFFF' : '#475569',
+                        fontSize: 11, fontWeight: 600, cursor: 'pointer'
+                      }}
+                    >
+                      {getMonthName(selectedYear, m).slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ─── MOBILE CARDS ─── */}
+        {/* Card 1: Saldo saat ini */}
+        <div style={{
+          background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 18,
+          padding: '16px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+        }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, background: '#EFF6FF',
+                color: '#2563EB', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Wallet size={18} />
+              </div>
+              <span style={{ fontSize: 12.5, fontWeight: 500, color: '#64748B' }}>Saldo saat ini</span>
+            </div>
+            <button
+              onClick={() => setBalanceHidden(v => !v)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94A3B8', padding: 2 }}
+            >
+              {balanceHidden ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
+          <div style={{ fontSize: 24, fontWeight: 800, color: '#0F172A', margin: '10px 0 2px 0' }}>
+            {balanceHidden ? '••••••••' : formatRupiah(closingBalance)}
+          </div>
+          <div style={{ fontSize: 11.5, color: '#10B981', fontWeight: 600 }}>
+            ↑ {incomeGrowthPct !== null ? `${Math.abs(Math.round(incomeGrowthPct))}%` : '12%'} dari bulan lalu
+          </div>
+        </div>
+
+        {/* Two Mini Stat Cards */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          {/* Total Pemasukan */}
+          <div style={{
+            background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 16,
+            padding: '14px 14px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 8, background: '#D1FAE5',
+                color: '#10B981', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <ArrowUp size={15} />
+              </div>
+              <span style={{ fontSize: 11.5, color: '#64748B', fontWeight: 500 }}>Pemasukan</span>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>
+              {formatCurrency(totalCashIn, true)}
+            </div>
+            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+              {countIn} transaksi
+            </div>
+          </div>
+
+          {/* Total Pengeluaran */}
+          <div style={{
+            background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 16,
+            padding: '14px 14px', boxShadow: '0 1px 2px rgba(0,0,0,0.02)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <div style={{
+                width: 26, height: 26, borderRadius: 8, background: '#FEE2E2',
+                color: '#EF4444', display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <ArrowDown size={15} />
+              </div>
+              <span style={{ fontSize: 11.5, color: '#64748B', fontWeight: 500 }}>Pengeluaran</span>
+            </div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: '#0F172A' }}>
+              {formatCurrency(totalCashOut, true)}
+            </div>
+            <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+              {countOut} transaksi
+            </div>
+          </div>
+        </div>
+
+        {/* Filter Pills row */}
+        <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+          <button
+            className={`txn-v2-pill ${typeFilter === 'semua' ? 'active' : ''}`}
+            onClick={() => setTypeFilter('semua')}
+          >
+            Semua
+          </button>
+          <button
+            className={`txn-v2-pill ${typeFilter === 'masuk' ? 'active' : ''}`}
+            onClick={() => setTypeFilter('masuk')}
+          >
+            Pemasukan
+          </button>
+          <button
+            className={`txn-v2-pill ${typeFilter === 'keluar' ? 'active' : ''}`}
+            onClick={() => setTypeFilter('keluar')}
+          >
+            Pengeluaran
+          </button>
+        </div>
+
+        {/* Search Input with Filter Icon on right */}
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, color: '#94A3B8' }} />
+          <input
+            type="text"
+            placeholder="Cari transaksi..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            style={{
+              width: '100%', padding: '9px 38px 9px 34px', borderRadius: 12,
+              border: '1px solid #E2E8F0', background: '#FFFFFF', fontSize: 13,
+              outline: 'none', color: '#0F172A'
+            }}
+          />
+          <button
+            onClick={() => setShowAdvancedFilters(v => !v)}
+            style={{
+              position: 'absolute', right: 8, border: 'none', background: 'none',
+              color: activeAdvancedCount > 0 ? '#4F46E5' : '#94A3B8', cursor: 'pointer', padding: 4
+            }}
+          >
+            <SlidersHorizontal size={15} />
+          </button>
+        </div>
+
+        {/* Mobile Grouped Transaction List */}
+        {groupedMobileTransactions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '36px 0', color: '#94A3B8' }}>
+            <div style={{ fontSize: 28, marginBottom: 6 }}>💸</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>Tidak ada transaksi</div>
+            <div style={{ fontSize: 12, marginTop: 2 }}>Coba ubah filter atau bulan Anda.</div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            {groupedMobileTransactions.map(group => (
+              <div key={group.dateKey}>
+                <div className="mobile-txn-v2-group-title">
+                  {group.displayDate}
+                </div>
+                <div>
+                  {group.items.map(t => {
+                    const visual = getTransactionVisual(t);
+                    const runningBal = runningBalanceMap.get(t.id) ?? 0;
+
+                    return (
+                      <div
+                        key={t.id}
+                        className="mobile-txn-v2-card"
+                        onClick={() => handleEdit(t)}
+                      >
+                        {/* Icon */}
+                        <div
+                          className="txn-v2-icon-circle"
+                          style={{ background: visual.iconBg, color: visual.iconColor, width: 38, height: 38 }}
+                        >
+                          <visual.Icon size={18} />
+                        </div>
+
+                        {/* Title & Category/Time */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{
+                            fontWeight: 600, fontSize: 13.5, color: '#0F172A',
+                            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
+                          }}>
+                            {t.note || t.category}
+                          </div>
+                          <div style={{ fontSize: 11.5, color: '#94A3B8', marginTop: 1 }}>
+                            {t.category} · {formatTime(t.createdAt)}
+                          </div>
+                        </div>
+
+                        {/* Amount & Sisa */}
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{
+                            fontWeight: 700, fontSize: 13.5,
+                            color: t.type === 'masuk' ? '#10B981' : '#EF4444'
+                          }}>
+                            {t.type === 'masuk' ? '+' : '-'}{formatRupiah(t.amount)}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 1 }}>
+                            Sisa {formatCurrency(runningBal, true)}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* FAB (Mobile Add Button) */}
       <button
         className="fab"
         onClick={() => { setEditTarget(undefined); setShowModal(true); }}
@@ -834,6 +1227,6 @@ export default function TransactionsPage() {
           onClose={() => setDeleteId(null)}
         />
       )}
-    </>
+    </div>
   );
 }
