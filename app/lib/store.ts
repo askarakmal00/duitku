@@ -33,6 +33,89 @@ export function getActiveSpaceId(): SpaceId {
   return getActiveSpace() || 'pribadi';
 }
 
+export function isLikelyFamilyTransaction(
+  t: {
+    spaceId?: string;
+    space_id?: string;
+    note?: string;
+    category?: string;
+    paidBy?: string;
+    goalId?: string;
+    goal_id?: string;
+    budgetPosId?: string;
+    budget_pos_id?: string;
+  },
+  familyGoalIds?: Set<string>,
+  familyBudgetIds?: Set<string>
+): boolean {
+  const noteLower = (t.note || '').toLowerCase();
+  const catLower = (t.category || '').toLowerCase();
+
+  // Explicit personal checks (if clearly personal, never family)
+  const isExplicitPersonal =
+    catLower.includes('bensin') ||
+    noteLower.includes('bensin') ||
+    catLower.includes('e-toll') ||
+    noteLower.includes('e-toll') ||
+    catLower.includes('etoll') ||
+    noteLower.includes('etoll') ||
+    catLower.includes('emoney') ||
+    noteLower.includes('emoney') ||
+    noteLower.includes('parkir kantor');
+
+  if (isExplicitPersonal) {
+    return false;
+  }
+
+  // If explicitly tagged
+  if (t.spaceId === 'keluarga' || t.space_id === 'keluarga') return true;
+  if (t.note && t.note.includes('[space:keluarga]')) return true;
+  if (t.paidBy) return true;
+
+  const gid = t.goalId || t.goal_id;
+  if (gid && familyGoalIds && familyGoalIds.has(gid)) return true;
+
+  const bid = t.budgetPosId || t.budget_pos_id;
+  if (bid && familyBudgetIds && familyBudgetIds.has(bid)) return true;
+
+  // Family categories & keywords
+  const familyKeywords = [
+    'kebutuhan anak',
+    'makan bersama',
+    'belanja dapur',
+    'operasional rumah',
+    'utilitas rumah',
+    'kesehatan keluarga',
+    'rekreasi keluarga',
+    'dana darurat',
+    'kpr',
+    'cicilan rumah',
+    'cicilan kendaraan',
+    'pendidikan',
+    'setoran asykar',
+    'setoran istri',
+    'setoran riska',
+    'kas bersama',
+    'keluarga riska',
+    'keluarga',
+    'melahirkan',
+    'persalinan',
+    'aqiqah',
+    'bayi',
+    'anak',
+    'dapur',
+    'soto kaki',
+  ];
+
+  for (const kw of familyKeywords) {
+    if (catLower.includes(kw) || noteLower.includes(kw)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function fixSpaceAssignments(): void {
   if (typeof window === 'undefined') return;
   try {
@@ -41,7 +124,7 @@ export function fixSpaceAssignments(): void {
     let goalsChanged = false;
     const updatedGoals = goals.map(g => {
       const nameLower = (g.name || '').toLowerCase();
-      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('bayi') || nameLower.includes('anak')) {
+      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('bayi') || nameLower.includes('anak') || nameLower.includes('aqiqah')) {
         if (g.spaceId !== 'keluarga') {
           goalsChanged = true;
           return { ...g, spaceId: 'keluarga' as SpaceId };
@@ -58,7 +141,7 @@ export function fixSpaceAssignments(): void {
     let budgetsChanged = false;
     const updatedBudgets = budgets.map(b => {
       const nameLower = (b.name || '').toLowerCase();
-      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('dapur')) {
+      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('dapur') || nameLower.includes('anak') || nameLower.includes('rumah')) {
         if (b.spaceId !== 'keluarga') {
           budgetsChanged = true;
           return { ...b, spaceId: 'keluarga' as SpaceId };
@@ -68,6 +151,33 @@ export function fixSpaceAssignments(): void {
     });
     if (budgetsChanged) {
       save(KEYS.budgetPos, updatedBudgets);
+    }
+
+    // 3. Relocate transactions properly between keluarga and pribadi
+    const familyGoalsSet = new Set(
+      updatedGoals.filter(g => g.spaceId === 'keluarga').map(g => g.id)
+    );
+    const familyBudgetsSet = new Set(
+      updatedBudgets.filter(b => b.spaceId === 'keluarga').map(b => b.id)
+    );
+
+    const txns = load<Transaction[]>(KEYS.transactions, []);
+    let txnsChanged = false;
+    const updatedTxns = txns.map(t => {
+      const isFam = isLikelyFamilyTransaction(t, familyGoalsSet, familyBudgetsSet);
+      const targetSpace: SpaceId = isFam ? 'keluarga' : 'pribadi';
+      if (t.spaceId !== targetSpace) {
+        txnsChanged = true;
+        try {
+          supabase.from('transactions').update({ space_id: targetSpace }).eq('id', t.id).then();
+        } catch {}
+        return { ...t, spaceId: targetSpace };
+      }
+      return t;
+    });
+
+    if (txnsChanged) {
+      save(KEYS.transactions, updatedTxns);
     }
   } catch {}
 }
@@ -247,6 +357,23 @@ export async function syncWithSupabase(): Promise<void> {
     throw new Error('SCHEMA_MISSING');
   }
 
+  // Precompute family goals and budgets for transaction classification
+  const familyGoalIdsSet = new Set<string>();
+  (goalsRes.data || []).forEach(g => {
+    const nameLower = (g.name || '').toLowerCase();
+    if (g.space_id === 'keluarga' || nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('bayi') || nameLower.includes('anak') || nameLower.includes('aqiqah')) {
+      familyGoalIdsSet.add(g.id);
+    }
+  });
+
+  const familyBudgetIdsSet = new Set<string>();
+  (budgetRes.data || []).forEach(b => {
+    const nameLower = (b.name || '').toLowerCase();
+    if (b.space_id === 'keluarga' || nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('dapur') || nameLower.includes('anak') || nameLower.includes('rumah')) {
+      familyBudgetIdsSet.add(b.id);
+    }
+  });
+
   // 1. Transactions Sync
   const localTxns = load<Transaction[]>(KEYS.transactions, []);
   const localSpaceMap = new Map<string, SpaceId>();
@@ -256,23 +383,28 @@ export async function syncWithSupabase(): Promise<void> {
 
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
-    const noteLower = rawNote.toLowerCase();
-    const hasSpaceTag = rawNote.includes('[space:keluarga]');
-    const isFamily =
-      (t.space_id as SpaceId) === 'keluarga' ||
-      hasSpaceTag ||
-      localSpaceMap.get(t.id) === 'keluarga' ||
-      noteLower.includes('persalinan') ||
-      noteLower.includes('melahirkan');
+    const cleanNote = rawNote.replace(/\s*\[space:keluarga\]/g, '').trim();
 
-    if (isFamily && t.space_id !== 'keluarga') {
+    const isFamily = isLikelyFamilyTransaction(
+      {
+        spaceId: t.space_id || localSpaceMap.get(t.id),
+        space_id: t.space_id,
+        note: rawNote,
+        category: t.category,
+        goalId: t.goal_id,
+        budgetPosId: t.budget_pos_id,
+      },
+      familyGoalIdsSet,
+      familyBudgetIdsSet
+    );
+
+    const assignedSpace: SpaceId = isFamily ? 'keluarga' : 'pribadi';
+
+    if (t.space_id !== assignedSpace) {
       try {
-        supabase.from('transactions').update({ space_id: 'keluarga' }).eq('id', t.id).then();
+        supabase.from('transactions').update({ space_id: assignedSpace }).eq('id', t.id).then();
       } catch {}
     }
-
-    const assignedSpace: SpaceId = isFamily ? 'keluarga' : ((t.space_id as SpaceId) || localSpaceMap.get(t.id) || 'pribadi');
-    const cleanNote = rawNote.replace(/\s*\[space:keluarga\]/g, '').trim();
 
     return {
       id: t.id,

@@ -184,6 +184,26 @@ export default function AnalyticsPage() {
       <Header title="Analitik" subtitle="Tren keuangan jangka panjang" />
 
       <div className="page-container">
+        {/* Active Space Indicator */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+          <div style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '4px 12px',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: 700,
+            background: activeSpace === 'keluarga' ? '#ECFDF5' : '#EEF2FF',
+            color: activeSpace === 'keluarga' ? '#047857' : '#4338CA',
+            border: `1px solid ${activeSpace === 'keluarga' ? '#A7F3D0' : '#C7D2FE'}`
+          }}>
+            <span>{activeSpace === 'keluarga' ? '🏠' : '👤'}</span>
+            <span>{activeSpace === 'keluarga' ? 'Analitik Keuangan Keluarga' : 'Analitik Keuangan Pribadi (Asykar)'}</span>
+          </div>
+          <span className="text-xs text-muted">Data otomatis terpisah antar ruang</span>
+        </div>
+
         {/* Unified Analytics Stat Card — 2x2 grid */}
         <div className="page-stat-card analytics-grid" style={{ marginBottom: 24, padding: 0, border: '1px solid #99F6E4', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
           {stats.map((item, i) => (
@@ -277,7 +297,7 @@ export default function AnalyticsPage() {
                           <div style={{ width: 10, height: 10, borderRadius: '50%', background: CHART_COLORS[i % CHART_COLORS.length], flexShrink: 0 }} />
                           <span className="text-sm" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.label}</span>
                         </div>
-                        <span className="font-600 text-sm" style={{ flexShrink: 0, marginLeft: 8 }}>{formatCurrency(d.value, true)}</span>
+                        <span className="font-600 text-sm" style={{ flexShrink: 0, marginLeft: 8, fontVariantNumeric: 'tabular-nums' }}>{formatCurrency(d.value)}</span>
                       </div>
                     ))}
                   </div>
