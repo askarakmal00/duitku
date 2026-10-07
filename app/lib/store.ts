@@ -33,189 +33,62 @@ export function getActiveSpaceId(): SpaceId {
   return getActiveSpace() || 'pribadi';
 }
 
-export function isLikelyFamilyTransaction(
-  t: {
-    spaceId?: string;
-    space_id?: string;
-    note?: string;
-    category?: string;
-    paidBy?: string;
-    goalId?: string;
-    goal_id?: string;
-    budgetPosId?: string;
-    budget_pos_id?: string;
-  },
-  familyGoalIds?: Set<string>,
-  familyBudgetIds?: Set<string>
-): boolean {
-  const noteLower = (t.note || '').toLowerCase();
-  const catLower = (t.category || '').toLowerCase();
-
-  // Explicit personal checks (if clearly personal, never family)
-  const isExplicitPersonal =
-    catLower.includes('bensin') ||
-    noteLower.includes('bensin') ||
-    catLower.includes('e-toll') ||
-    noteLower.includes('e-toll') ||
-    catLower.includes('etoll') ||
-    noteLower.includes('etoll') ||
-    catLower.includes('emoney') ||
-    noteLower.includes('emoney') ||
-    noteLower.includes('parkir kantor');
-
-  if (isExplicitPersonal) {
-    return false;
-  }
-
-  // If explicitly tagged
-  if (t.spaceId === 'keluarga' || t.space_id === 'keluarga') return true;
-  if (t.note && t.note.includes('[space:keluarga]')) return true;
-  if (t.paidBy) return true;
-
-  const gid = t.goalId || t.goal_id;
-  if (gid && familyGoalIds && familyGoalIds.has(gid)) return true;
-
-  const bid = t.budgetPosId || t.budget_pos_id;
-  if (bid && familyBudgetIds && familyBudgetIds.has(bid)) return true;
-
-  // Family categories & keywords
-  const familyKeywords = [
-    'kebutuhan anak',
-    'makan bersama',
-    'belanja dapur',
-    'operasional rumah',
-    'utilitas rumah',
-    'kesehatan keluarga',
-    'rekreasi keluarga',
-    'dana darurat',
-    'kpr',
-    'cicilan rumah',
-    'cicilan kendaraan',
-    'pendidikan',
-    'setoran asykar',
-    'setoran istri',
-    'setoran riska',
-    'kas bersama',
-    'keluarga riska',
-    'keluarga',
-    'melahirkan',
-    'persalinan',
-    'aqiqah',
-    'bayi',
-    'anak',
-    'dapur',
-    'soto kaki',
-  ];
-
-  for (const kw of familyKeywords) {
-    if (catLower.includes(kw) || noteLower.includes(kw)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 export function fixSpaceAssignments(): void {
   if (typeof window === 'undefined') return;
   try {
-    // 1. Relocate saving goals that belong to keluarga
-    const goals = load<SavingGoal[]>(KEYS.savingGoals, []);
-    let goalsChanged = false;
-    const updatedGoals = goals.map(g => {
-      const nameLower = (g.name || '').toLowerCase();
-      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('bayi') || nameLower.includes('anak') || nameLower.includes('aqiqah')) {
-        if (g.spaceId !== 'keluarga') {
-          goalsChanged = true;
-          return { ...g, spaceId: 'keluarga' as SpaceId };
-        }
-      }
-      return g;
-    });
-    if (goalsChanged) {
-      save(KEYS.savingGoals, updatedGoals);
-    }
-
-    // 2. Relocate budget pos that belong to keluarga
-    const budgets = load<BudgetPos[]>(KEYS.budgetPos, []);
-    let budgetsChanged = false;
-    const updatedBudgets = budgets.map(b => {
-      const nameLower = (b.name || '').toLowerCase();
-      if (nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('dapur') || nameLower.includes('anak') || nameLower.includes('rumah')) {
-        if (b.spaceId !== 'keluarga') {
-          budgetsChanged = true;
-          return { ...b, spaceId: 'keluarga' as SpaceId };
-        }
-      }
-      return b;
-    });
-    if (budgetsChanged) {
-      save(KEYS.budgetPos, updatedBudgets);
-    }
-
-    // 3. Relocate transactions properly between keluarga and pribadi
-    const familyGoalsSet = new Set(
-      updatedGoals.filter(g => g.spaceId === 'keluarga').map(g => g.id)
-    );
-    const familyBudgetsSet = new Set(
-      updatedBudgets.filter(b => b.spaceId === 'keluarga').map(b => b.id)
-    );
-
+    // Strictly preserve wherever the user created the item:
+    // Only ensure every item has a valid spaceId property (defaulting to 'pribadi' if undefined).
+    // NO keyword guessing, NO auto-relocations between spaces!
     const txns = load<Transaction[]>(KEYS.transactions, []);
     let txnsChanged = false;
     const updatedTxns = txns.map(t => {
-      const isFam = isLikelyFamilyTransaction(t, familyGoalsSet, familyBudgetsSet);
-      const targetSpace: SpaceId = isFam ? 'keluarga' : 'pribadi';
-      if (t.spaceId !== targetSpace) {
+      if (!t.spaceId) {
         txnsChanged = true;
-        try {
-          supabase.from('transactions').update({ space_id: targetSpace }).eq('id', t.id).then();
-        } catch {}
-        return { ...t, spaceId: targetSpace };
+        return { ...t, spaceId: 'pribadi' as SpaceId };
       }
       return t;
     });
+    if (txnsChanged) save(KEYS.transactions, updatedTxns);
 
-    // 4. Relocate debt parties & transactions
+    const goals = load<SavingGoal[]>(KEYS.savingGoals, []);
+    let goalsChanged = false;
+    const updatedGoals = goals.map(g => {
+      if (!g.spaceId) {
+        goalsChanged = true;
+        return { ...g, spaceId: 'pribadi' as SpaceId };
+      }
+      return g;
+    });
+    if (goalsChanged) save(KEYS.savingGoals, updatedGoals);
+
+    const budgets = load<BudgetPos[]>(KEYS.budgetPos, []);
+    let budgetsChanged = false;
+    const updatedBudgets = budgets.map(b => {
+      if (!b.spaceId) {
+        budgetsChanged = true;
+        return { ...b, spaceId: 'pribadi' as SpaceId };
+      }
+      return b;
+    });
+    if (budgetsChanged) save(KEYS.budgetPos, updatedBudgets);
+
     const parties = load<DebtParty[]>(KEYS.debtParties, []);
-    const debtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
-    const famPartyIds = new Set<string>();
-    parties.forEach(p => {
-      if (p.spaceId === 'keluarga' || (p.name || '').toLowerCase().includes('keluarga')) {
-        famPartyIds.add(p.id);
-      }
-    });
-    debtTxns.forEach(dt => {
-      if (dt.spaceId === 'keluarga' || (dt.note || '').includes('[space:keluarga]') || (dt.note || '').toLowerCase().includes('keluarga')) {
-        famPartyIds.add(dt.partyId);
-      }
-    });
-
     let partiesChanged = false;
     const updatedParties = parties.map(p => {
-      const isFam = famPartyIds.has(p.id);
-      const target: SpaceId = isFam ? 'keluarga' : (p.spaceId || 'pribadi');
-      if (p.spaceId !== target) {
+      if (!p.spaceId) {
         partiesChanged = true;
-        try {
-          supabase.from('debt_parties').update({ space_id: target }).eq('id', p.id).then();
-        } catch {}
-        return { ...p, spaceId: target };
+        return { ...p, spaceId: 'pribadi' as SpaceId };
       }
       return p;
     });
     if (partiesChanged) save(KEYS.debtParties, updatedParties);
 
+    const debtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
     let debtTxnsChanged = false;
     const updatedDebtTxns = debtTxns.map(dt => {
-      const isFam = famPartyIds.has(dt.partyId) || dt.spaceId === 'keluarga' || (dt.note || '').includes('[space:keluarga]');
-      const target: SpaceId = isFam ? 'keluarga' : (dt.spaceId || 'pribadi');
-      if (dt.spaceId !== target) {
+      if (!dt.spaceId) {
         debtTxnsChanged = true;
-        try {
-          supabase.from('debt_transactions').update({ space_id: target }).eq('id', dt.id).then();
-        } catch {}
-        return { ...dt, spaceId: target };
+        return { ...dt, spaceId: 'pribadi' as SpaceId };
       }
       return dt;
     });
@@ -398,23 +271,6 @@ export async function syncWithSupabase(): Promise<void> {
     throw new Error('SCHEMA_MISSING');
   }
 
-  // Precompute family goals and budgets for transaction classification
-  const familyGoalIdsSet = new Set<string>();
-  (goalsRes.data || []).forEach(g => {
-    const nameLower = (g.name || '').toLowerCase();
-    if (g.space_id === 'keluarga' || nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('bayi') || nameLower.includes('anak') || nameLower.includes('aqiqah')) {
-      familyGoalIdsSet.add(g.id);
-    }
-  });
-
-  const familyBudgetIdsSet = new Set<string>();
-  (budgetRes.data || []).forEach(b => {
-    const nameLower = (b.name || '').toLowerCase();
-    if (b.space_id === 'keluarga' || nameLower.includes('melahirkan') || nameLower.includes('persalinan') || nameLower.includes('keluarga') || nameLower.includes('dapur') || nameLower.includes('anak') || nameLower.includes('rumah')) {
-      familyBudgetIdsSet.add(b.id);
-    }
-  });
-
   // 1. Transactions Sync
   const localTxns = load<Transaction[]>(KEYS.transactions, []);
   const localSpaceMap = new Map<string, SpaceId>();
@@ -424,28 +280,18 @@ export async function syncWithSupabase(): Promise<void> {
 
   const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
     const rawNote = t.note || '';
-    const cleanNote = rawNote.replace(/\s*\[space:keluarga\]/g, '').trim();
+    const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
 
-    const isFamily = isLikelyFamilyTransaction(
-      {
-        spaceId: t.space_id || localSpaceMap.get(t.id),
-        space_id: t.space_id,
-        note: rawNote,
-        category: t.category,
-        goalId: t.goal_id,
-        budgetPosId: t.budget_pos_id,
-      },
-      familyGoalIdsSet,
-      familyBudgetIdsSet
-    );
-
-    const assignedSpace: SpaceId = isFamily ? 'keluarga' : 'pribadi';
-
-    if (t.space_id !== assignedSpace) {
-      try {
-        supabase.from('transactions').update({ space_id: assignedSpace }).eq('id', t.id).then();
-      } catch {}
-    }
+    // STRICT SPACE PARTITION:
+    // What is created in family login is family; what is created in pribadi login is pribadi.
+    // 1. t.space_id from database
+    // 2. localSpaceMap (local session where it was created)
+    // 3. note tag [space:keluarga]
+    // 4. default 'pribadi'
+    const assignedSpace: SpaceId =
+      (t.space_id as SpaceId) ||
+      localSpaceMap.get(t.id) ||
+      (rawNote.includes('[space:keluarga]') ? 'keluarga' : 'pribadi');
 
     return {
       id: t.id,
@@ -458,6 +304,8 @@ export async function syncWithSupabase(): Promise<void> {
       debtTxnId: t.debt_txn_id || undefined,
       amount: Number(t.amount),
       note: cleanNote,
+      paidBy: t.paid_by || undefined,
+      reimbursed: t.reimbursed || false,
       date: t.date,
       createdAt: t.created_at,
     };
@@ -537,10 +385,10 @@ export async function syncWithSupabase(): Promise<void> {
   });
   const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => {
     const localSpace = localPartySpaceMap.get(p.id);
-    const isFam = localSpace === 'keluarga' || (p.space_id as SpaceId) === 'keluarga' || (p.name || '').toLowerCase().includes('keluarga');
+    const assignedSpace: SpaceId = (p.space_id as SpaceId) || localSpace || 'pribadi';
     return {
       id: p.id,
-      spaceId: isFam ? 'keluarga' : ((p.space_id as SpaceId) || localSpace || 'pribadi'),
+      spaceId: assignedSpace,
       name: p.name,
       createdAt: p.created_at,
     };
@@ -581,14 +429,17 @@ export async function syncWithSupabase(): Promise<void> {
   });
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => {
     const rawNote = dt.note || '';
-    const hasSpaceTag = rawNote.includes('[space:keluarga]');
     const partySpace = remoteParties.find(p => p.id === dt.party_id)?.spaceId;
     const localSpace = localDebtTxnSpaceMap.get(dt.id);
-    const isFam = localSpace === 'keluarga' || partySpace === 'keluarga' || hasSpaceTag || (dt.space_id as SpaceId) === 'keluarga';
     const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
+    const assignedSpace: SpaceId =
+      (dt.space_id as SpaceId) ||
+      localSpace ||
+      (partySpace === 'keluarga' ? 'keluarga' : rawNote.includes('[space:keluarga]') ? 'keluarga' : 'pribadi');
+
     return {
       id: dt.id,
-      spaceId: isFam ? 'keluarga' : ((dt.space_id as SpaceId) || localSpace || 'pribadi'),
+      spaceId: assignedSpace,
       partyId: dt.party_id,
       type: dt.type,
       txnId: dt.txn_id || undefined,
@@ -623,23 +474,11 @@ export async function syncWithSupabase(): Promise<void> {
     if (g.spaceId) localGoalSpaceMap.set(g.id, g.spaceId);
   });
   const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => {
-    const nameLower = (g.name || '').toLowerCase();
-    const isFamily =
-      (g.space_id as SpaceId) === 'keluarga' ||
-      localGoalSpaceMap.get(g.id) === 'keluarga' ||
-      nameLower.includes('melahirkan') ||
-      nameLower.includes('persalinan') ||
-      nameLower.includes('keluarga');
-
-    if (isFamily && g.space_id !== 'keluarga') {
-      try {
-        supabase.from('saving_goals').update({ space_id: 'keluarga' }).eq('id', g.id).then();
-      } catch {}
-    }
-
+    const localSpace = localGoalSpaceMap.get(g.id);
+    const assignedSpace: SpaceId = (g.space_id as SpaceId) || localSpace || 'pribadi';
     return {
       id: g.id,
-      spaceId: isFamily ? 'keluarga' : ((g.space_id as SpaceId) || localGoalSpaceMap.get(g.id) || 'pribadi'),
+      spaceId: assignedSpace,
       name: g.name,
       targetAmount: Number(g.target_amount),
       createdAt: g.created_at,
