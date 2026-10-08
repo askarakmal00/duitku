@@ -6,7 +6,7 @@ import {
   Wallet, MoreHorizontal, Pencil, Trash2, Bell, FileSpreadsheet,
   ArrowUp, ArrowDown, Calendar, ChevronDown, Eye, EyeOff,
   ShoppingBag, Landmark, Home, Utensils, CreditCard, Car, Banknote,
-  Zap, ShoppingBasket, ArrowDownLeft, ArrowLeftRight, CheckCircle2
+  Zap, ShoppingBasket, ArrowDownLeft, CheckCircle2
 } from 'lucide-react';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
 import TransactionModal from '@/components/TransactionModal';
@@ -391,13 +391,6 @@ export default function TransactionsPage() {
     setActionMenuId(null);
     setEditTarget(t);
     setShowModal(true);
-  };
-
-  const handleToggleSpace = async (t: Transaction) => {
-    setActionMenuId(null);
-    const targetSpace = (t.spaceId || 'pribadi') === 'keluarga' ? 'pribadi' : 'keluarga';
-    await updateTransaction(t.id, { spaceId: targetSpace });
-    load();
   };
 
   const handleToggleReimburse = async (t: Transaction) => {
@@ -972,19 +965,6 @@ export default function TransactionsPage() {
                                       {t.reimbursed ? 'Tandai Belum Diganti' : 'Ganti dari Kas (Reimburse)'}
                                     </button>
                                   )}
-                                  <button
-                                    type="button"
-                                    onClick={() => handleToggleSpace(t)}
-                                    style={{
-                                      display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                                      padding: '8px 10px', borderRadius: 8, border: 'none', background: 'transparent',
-                                      color: '#4F46E5', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', textAlign: 'left',
-                                      whiteSpace: 'nowrap'
-                                    }}
-                                  >
-                                    <ArrowLeftRight size={13} />
-                                    {(t.spaceId || 'pribadi') === 'keluarga' ? 'Pindah ke Pribadi' : 'Pindah ke Keluarga'}
-                                  </button>
                                   <button
                                     type="button"
                                     onClick={() => handleEdit(t)}

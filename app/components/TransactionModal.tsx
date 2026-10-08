@@ -14,7 +14,7 @@ interface TransactionModalProps {
 
 export default function TransactionModal({ existing, onSave, onClose }: TransactionModalProps) {
   const { activeSpace } = useSpace();
-  const [space, setSpace] = useState<'pribadi' | 'keluarga'>(existing?.spaceId || activeSpace || 'pribadi');
+  const space = existing?.spaceId || activeSpace || 'pribadi';
   const isFamily = space === 'keluarga';
 
   const [type, setType] = useState<'masuk' | 'keluar'>(existing?.type || 'keluar');
@@ -123,43 +123,17 @@ export default function TransactionModal({ existing, onSave, onClose }: Transact
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
-            {/* Ruang Transaksi Selector */}
-            <div className="form-group" style={{ marginBottom: 14 }}>
-              <label className="form-label" style={{ marginBottom: 6 }}>Ruang Transaksi</label>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <button
-                  type="button"
-                  onClick={() => setSpace('pribadi')}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: space === 'pribadi' ? '2px solid #4F46E5' : '1px solid var(--border)',
-                    background: space === 'pribadi' ? '#EEF2FF' : 'var(--card)',
-                    color: space === 'pribadi' ? '#4F46E5' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: 'pointer'
-                  }}
-                >
-                  👤 Pribadi (Asykar)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSpace('keluarga')}
-                  style={{
-                    padding: '8px 12px',
-                    borderRadius: 8,
-                    border: space === 'keluarga' ? '2px solid #10B981' : '1px solid var(--border)',
-                    background: space === 'keluarga' ? '#ECFDF5' : 'var(--card)',
-                    color: space === 'keluarga' ? '#059669' : 'var(--text-secondary)',
-                    fontWeight: 600,
-                    fontSize: 13,
-                    cursor: 'pointer'
-                  }}
-                >
-                  🏠 Keluarga (Kas Bersama)
-                </button>
-              </div>
+            {/* Ruang Transaksi Indicator (Non-interactive) */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '9px 12px', borderRadius: 10, marginBottom: 14,
+              background: isFamily ? '#ECFDF5' : '#F1F5F9',
+              border: isFamily ? '1px solid #A7F3D0' : '1px solid #E2E8F0'
+            }}>
+              <span style={{ fontSize: 12, fontWeight: 500, color: '#64748B' }}>Ruang Transaksi:</span>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: isFamily ? '#065F46' : '#1E293B' }}>
+                {isFamily ? '🏠 Keluarga (Kas Bersama)' : '👤 Pribadi (Asykar)'}
+              </span>
             </div>
 
             {/* Type Selector */}
