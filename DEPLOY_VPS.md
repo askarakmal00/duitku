@@ -106,7 +106,7 @@ Cek status container:
 ```bash
 docker compose ps
 ```
-Aplikasi sekarang sudah berjalan di dalam container pada port `3000`. Anda bisa menguji akses via browser dengan membuka: `http://IP_VPS_ANDA:3000`.
+Aplikasi sekarang sudah berjalan di dalam container dan dibind aman ke `127.0.0.1:3005` (tidak bentrok dengan port 3000 webcompro).
 
 ---
 
@@ -137,8 +137,7 @@ server_name finance.domainanda.com;
 # Aktifkan konfigurasi dengan membuat symlink
 sudo ln -s /etc/nginx/sites-available/duitku.conf /etc/nginx/sites-enabled/
 
-# Hapus default page nginx jika ada
-sudo rm -f /etc/nginx/sites-enabled/default
+# CATATAN: JANGAN hapus /etc/nginx/sites-enabled/default jika webcompro Anda memakainya!
 
 # Tes apakah konfigurasi Nginx valid
 sudo nginx -t
@@ -192,3 +191,4 @@ Proses build Next.js dioptimalkan menggunakan multi-stage Dockerfile sehingga ha
 | **Cek status Nginx** | `sudo systemctl status nginx` |
 | **Cek log error Nginx** | `sudo tail -f /var/log/nginx/error.log` |
 | **Bersihkan image Docker lama** | `docker image prune -f` |
+
