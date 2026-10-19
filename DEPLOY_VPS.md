@@ -1,12 +1,12 @@
-# 🚀 Panduan Migrasi & Deploy DuitKu ke VPS
+# 🚀 Panduan Migrasi & Deploy DuitKu ke VPS (PostgreSQL Host)
 
-Panduan lengkap deployment aplikasi **DuitKu (Next.js 16 + Supabase)** ke VPS (Ubuntu / Debian) menggunakan **Docker & Docker Compose**, **Nginx Reverse Proxy**, dan **SSL Gratis (Let's Encrypt / Certbot)**.
+Panduan lengkap deployment aplikasi **DuitKu (Next.js 16 + PostgreSQL VPS)** menggunakan **Docker & Docker Compose**, **Nginx Reverse Proxy**, dan **SSL Gratis (Let's Encrypt / Certbot)**.
 
 ---
 
 ## 📋 Daftar Isi
 1. [Prasyarat & Persiapan Domain](#1-prasyarat--persiapan-domain)
-2. [Instalasi Docker & Nginx di VPS](#2-instalasi-docker--nginx-di-vps)
+2. [Setup Database PostgreSQL di Host VPS](#2-setup-database-postgresql-di-host-vps)
 3. [Clone Repository & Konfigurasi Lingkungan](#3-clone-repository--konfigurasi-lingkungan)
 4. [Jalankan Aplikasi dengan Docker Compose](#4-jalankan-aplikasi-dengan-docker-compose)
 5. [Konfigurasi Nginx & Pasang SSL Gratis](#5-konfigurasi-nginx--pasang-ssl-gratis)
@@ -17,60 +17,81 @@ Panduan lengkap deployment aplikasi **DuitKu (Next.js 16 + Supabase)** ke VPS (U
 
 ## 1. Prasyarat & Persiapan Domain
 
-1. **VPS**: Ubuntu 22.04 / 24.04 LTS atau Debian 12 (RAM minimal 1 GB, disarankan 2 GB jika ada swap).
+1. **VPS**: Ubuntu 22.04 / 24.04 LTS atau Debian 12 dengan PostgreSQL yang sudah aktif di port `5432`.
 2. **Domain / Subdomain**: Misalnya `finance.domainanda.com` atau `duitku.domainanda.com`.
 3. **DNS Record**:
-   - Buka penyedia domain Anda (Cloudflare, Niagahoster, Domainesia, Namecheap, dll).
+   - Buka penyedia DNS domain Anda (Cloudflare, Niagahoster, Domainesia, Namecheap, dll).
    - Tambahkan **DNS A Record**:
      - **Type**: `A`
      - **Name / Host**: `finance` (atau `@` jika root domain)
-     - **IPv4 Address**: `IP_VPS_ANDA` (contoh: `103.123.45.67`)
-     - **TTL**: Auto / 1 min (jika memakai Cloudflare, disarankan DNS Only / grey cloud dulu saat proses verifikasi SSL).
+     - **IPv4 Address**: `IP_VPS_ANDA`
+     - **TTL**: Auto / 1 min (jika menggunakan Cloudflare, set DNS Only / grey cloud saat setup SSL).
 
 ---
 
-## 2. Instalasi Docker & Nginx di VPS
+## 2. Setup Database PostgreSQL di Host VPS
 
-Login ke VPS Anda via SSH:
+Masuk ke terminal PostgreSQL di VPS:
 ```bash
-ssh root@IP_VPS_ANDA
+sudo -u postgres psql
 ```
 
-Jalankan perintah update dan instalasi dependensi (Docker, Nginx, Certbot):
+Jalankan perintah SQL berikut untuk membuat database dan user khusus DuitKu:
+```sql
+-- 1. Buat database
+CREATE DATABASE duitku_db;
 
-```bash
-# 1. Update paket sistem
-sudo apt update && sudo apt upgrade -y
+-- 2. Buat user dengan password pilihan Anda (ganti PasswordRahasia123!)
+CREATE USER duitku_user WITH ENCRYPTED PASSWORD 'PasswordRahasia123!';
 
-# 2. Install Docker & Docker Compose plugin
-sudo apt install -y ca-certificates curl gnupg lsb-release
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+-- 3. Berikan hak akses penuh
+GRANT ALL PRIVILEGES ON DATABASE duitku_db TO duitku_user;
+ALTER DATABASE duitku_db OWNER TO duitku_user;
 
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
-  $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+-- 4. Pindah ke database duitku_db dan berikan akses ke schema public
+\c duitku_db
+GRANT ALL ON SCHEMA public TO duitku_user;
 
-sudo apt update
-sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-# 3. Install Nginx & Certbot
-sudo apt install -y nginx certbot python3-certbot-nginx
-
-# 4. Pastikan Docker dan Nginx berjalan otomatis saat booting
-sudo systemctl enable docker
-sudo systemctl enable nginx
+-- 5. Keluar dari psql
+\q
 ```
+
+### Mengizinkan Akses dari Docker ke PostgreSQL Host:
+Agar container Docker dapat terhubung ke PostgreSQL yang berjalan di host:
+
+1. Buka file konfigurasi PostgreSQL (ganti `14`/`15`/`16` sesuai versi postgres Anda):
+```bash
+sudo nano /etc/postgresql/*/main/postgresql.conf
+```
+Pastikan `listen_addresses` mengizinkan koneksi dari lokal / docker:
+```text
+listen_addresses = '*'
+```
+
+2. Buka file otentikasi `pg_hba.conf`:
+```bash
+sudo nano /etc/postgresql/*/main/pg_hba.conf
+```
+Tambahkan baris berikut di paling bawah (mengizinkan subnet Docker `172.17.0.0/16`):
+```text
+host    duitku_db       duitku_user     172.17.0.0/16           scram-sha-256
+```
+*(Catatan: Jika PostgreSQL Anda menggunakan md5, ganti `scram-sha-256` menjadi `md5`)*
+
+3. Restart service PostgreSQL:
+```bash
+sudo systemctl restart postgresql
+```
+
+> 💡 **Info Otomatis**: Skema tabel, kolom, default categories, dan app settings akan **dibuat secara otomatis** oleh Next.js saat pertama kali dijalankan. Anda tidak perlu repot mengimpor file SQL manual!
 
 ---
 
 ## 3. Clone Repository & Konfigurasi Lingkungan
 
-Pilih folder untuk meletakkan project (misalnya di `/var/www/duitku` atau `/root/duitku`):
+Pilih folder untuk meletakkan project (misalnya di `/var/www/duitku`):
 
 ```bash
-# Pindah ke direktori /var/www
 mkdir -p /var/www
 cd /var/www
 
@@ -87,10 +108,9 @@ nano .env
 
 Isi variabel di dalam file `.env`:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+DATABASE_URL=postgresql://duitku_user:PasswordRahasia123!@host.docker.internal:5432/duitku_db?sslmode=disable
 ```
-*(Tekan `Ctrl + O` lalu `Enter` untuk simpan, dan `Ctrl + X` untuk keluar dari nano)*
+*(Tekan `Ctrl + O` lalu `Enter` untuk simpan, dan `Ctrl + X` untuk keluar)*
 
 ---
 
@@ -106,18 +126,15 @@ Cek status container:
 ```bash
 docker compose ps
 ```
-Aplikasi sekarang sudah berjalan di dalam container dan dibind aman ke `127.0.0.1:3005` (tidak bentrok dengan port 3000 webcompro).
+Aplikasi sekarang sudah berjalan di dalam container dan dibind aman ke `127.0.0.1:3005` (sehingga port `3000` milik webcompro tidak terganggu).
 
 ---
 
 ## 5. Konfigurasi Nginx & Pasang SSL Gratis
 
-Agar aplikasi dapat diakses dengan domain dan protokol HTTPS (SSL), kita gunakan Nginx sebagai reverse proxy.
-
 ### A. Siapkan Konfigurasi Nginx
 
-Salin file konfigurasi yang sudah disediakan ke Nginx:
-
+Salin file konfigurasi yang sudah disediakan:
 ```bash
 sudo cp nginx/duitku.conf /etc/nginx/sites-available/duitku.conf
 ```
@@ -137,7 +154,7 @@ server_name finance.domainanda.com;
 # Aktifkan konfigurasi dengan membuat symlink
 sudo ln -s /etc/nginx/sites-available/duitku.conf /etc/nginx/sites-enabled/
 
-# CATATAN: JANGAN hapus /etc/nginx/sites-enabled/default jika webcompro Anda memakainya!
+# PENTING: JANGAN hapus default jika webcompro Anda memakainya!
 
 # Tes apakah konfigurasi Nginx valid
 sudo nginx -t
@@ -148,35 +165,20 @@ sudo systemctl reload nginx
 
 ### C. Pasang SSL Gratis (Let's Encrypt) dengan Certbot
 
-Jalankan perintah berikut untuk mendapatkan sertifikat SSL HTTPS otomatis:
-
 ```bash
 sudo certbot --nginx -d finance.domainanda.com
 ```
-* Certbot akan meminta email Anda (untuk pengingat sertifikat).
-* Ketik `Y` untuk menyetujui ToS.
-* Certbot akan otomatis mengonfigurasi redirect dari HTTP ke HTTPS.
-
-Tes auto-renewal SSL:
-```bash
-sudo certbot renew --dry-run
-```
-*(Sertifikat akan diperbarui otomatis oleh systemd timer setiap 60-90 hari)*
-
-🎉 **Selamat! Aplikasi Anda sekarang live dengan aman di `https://finance.domainanda.com`!**
 
 ---
 
 ## 6. Cara Update Aplikasi di Masa Mendatang
 
-Setiap kali Anda melakukan update kode (push ke GitHub):
-
+Setiap kali ada pembaruan kode di GitHub:
 ```bash
 cd /var/www/duitku
 git pull origin main
 docker compose up -d --build
 ```
-Proses build Next.js dioptimalkan menggunakan multi-stage Dockerfile sehingga hanya memakan waktu ~1-2 menit tanpa downtime yang lama.
 
 ---
 
@@ -187,8 +189,5 @@ Proses build Next.js dioptimalkan menggunakan multi-stage Dockerfile sehingga ha
 | **Lihat log aplikasi realtime** | `docker compose logs -f web` |
 | **Restart container** | `docker compose restart` |
 | **Stop container** | `docker compose down` |
-| **Cek penggunaan CPU/RAM** | `docker stats` |
-| **Cek status Nginx** | `sudo systemctl status nginx` |
-| **Cek log error Nginx** | `sudo tail -f /var/log/nginx/error.log` |
-| **Bersihkan image Docker lama** | `docker image prune -f` |
-
+| **Cek status database Postgres** | `sudo systemctl status postgresql` |
+| **Buka konsol psql** | `sudo -u postgres psql -d duitku_db` |

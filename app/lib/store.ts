@@ -352,7 +352,7 @@ export async function syncWithSupabase(): Promise<void> {
     if (t.spaceId) localSpaceMap.set(t.id, t.spaceId);
   });
 
-  const remoteTxns: Transaction[] = (txnsRes.data || []).map(t => {
+  const remoteTxns: Transaction[] = (txnsRes.data || []).map((t: any) => {
     const rawNote = t.note || '';
     const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
 
@@ -424,7 +424,7 @@ export async function syncWithSupabase(): Promise<void> {
   localBudgets.forEach(b => {
     if (b.spaceId) localBudgetSpaceMap.set(b.id, b.spaceId);
   });
-  const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map(b => ({
+  const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map((b: any) => ({
     id: b.id,
     spaceId: (b.space_id as SpaceId) || localBudgetSpaceMap.get(b.id) || 'pribadi',
     name: b.name,
@@ -468,7 +468,7 @@ export async function syncWithSupabase(): Promise<void> {
   localParties.forEach(p => {
     if (p.spaceId) localPartySpaceMap.set(p.id, p.spaceId);
   });
-  const remoteParties: DebtParty[] = (partiesRes.data || []).map(p => {
+  const remoteParties: DebtParty[] = (partiesRes.data || []).map((p: any) => {
     const localSpace = localPartySpaceMap.get(p.id);
     const assignedSpace: SpaceId = (p.space_id as SpaceId) || localSpace || 'pribadi';
     return {
@@ -502,7 +502,7 @@ export async function syncWithSupabase(): Promise<void> {
       }
     }
   }
-  const remotePartyIds = new Set(remoteParties.map(p => p.id));
+  const remotePartyIds = new Set(remoteParties.map((p: any) => p.id));
   const stillPendingParties = localParties.filter(p => pendingPartyIds.has(p.id) && !remotePartyIds.has(p.id));
   save(KEYS.debtParties, [...remoteParties, ...stillPendingParties]);
 
@@ -512,7 +512,7 @@ export async function syncWithSupabase(): Promise<void> {
   localDebtTxns.forEach(dt => {
     if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
   });
-  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map(dt => {
+  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map((dt: any) => {
     const rawNote = dt.note || '';
     const partySpace = remoteParties.find(p => p.id === dt.party_id)?.spaceId;
     const localSpace = localDebtTxnSpaceMap.get(dt.id);
@@ -548,7 +548,7 @@ export async function syncWithSupabase(): Promise<void> {
       }
     }
   }
-  const remoteDebtTxnIds = new Set(remoteDebtTxns.map(dt => dt.id));
+  const remoteDebtTxnIds = new Set(remoteDebtTxns.map((dt: any) => dt.id));
   const stillPendingDebtTxns = localDebtTxns.filter(dt => pendingDebtTxnIds.has(dt.id) && !remoteDebtTxnIds.has(dt.id));
   save(KEYS.debtTransactions, [...remoteDebtTxns, ...stillPendingDebtTxns]);
 
@@ -558,7 +558,7 @@ export async function syncWithSupabase(): Promise<void> {
   localGoals.forEach(g => {
     if (g.spaceId) localGoalSpaceMap.set(g.id, g.spaceId);
   });
-  const remoteGoals: SavingGoal[] = (goalsRes.data || []).map(g => {
+  const remoteGoals: SavingGoal[] = (goalsRes.data || []).map((g: any) => {
     const localSpace = localGoalSpaceMap.get(g.id);
     const assignedSpace: SpaceId = (g.space_id as SpaceId) || localSpace || 'pribadi';
     return {
@@ -594,12 +594,12 @@ export async function syncWithSupabase(): Promise<void> {
       }
     }
   }
-  const remoteGoalIds = new Set(remoteGoals.map(g => g.id));
+  const remoteGoalIds = new Set(remoteGoals.map((g: any) => g.id));
   const stillPendingGoals = localGoals.filter(g => pendingGoalIds.has(g.id) && !remoteGoalIds.has(g.id));
   save(KEYS.savingGoals, [...remoteGoals, ...stillPendingGoals]);
 
   // 6. Categories - Merge remote categories with local custom categories
-  const mappedCats = (catsRes.data || []).map(c => ({
+  const mappedCats = (catsRes.data || []).map((c: any) => ({
     id: c.id,
     name: c.name,
     type: c.type,
@@ -607,7 +607,7 @@ export async function syncWithSupabase(): Promise<void> {
   }));
   const localCats = getCategories();
   if (mappedCats.length > 0) {
-    const remoteNames = new Set(mappedCats.map(c => c.name.toLowerCase()));
+    const remoteNames = new Set(mappedCats.map((c: any) => c.name.toLowerCase()));
     const localCustom = localCats.filter(c => !remoteNames.has(c.name.toLowerCase()));
     save(KEYS.categories, [...mappedCats, ...localCustom]);
   } else if (localCats.length > 0) {
