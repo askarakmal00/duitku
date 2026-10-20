@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Database, ArrowDownCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import { getSettings, saveSettings, getCategories, addCategory, deleteCategory, clearAllData } from '@/lib/store';
 import { AppSettings, Category } from '@/lib/types';
@@ -11,6 +11,38 @@ export default function SettingsPage() {
   const [newCat, setNewCat] = useState('');
   const [newCatType, setNewCatType] = useState<'masuk' | 'keluar' | 'both'>('both');
   const [saved, setSaved] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const [migrationResult, setMigrationResult] = useState<any>(null);
+  const [supaUrl, setSupaUrl] = useState('');
+  const [supaKey, setSupaKey] = useState('');
+
+  const handleMigrateFromSupabase = async () => {
+    if (!supaUrl.trim() || !supaKey.trim()) {
+      alert('Harap masukkan Supabase URL dan Anon Key terlebih dahulu.');
+      return;
+    }
+    setMigrating(true);
+    setMigrationResult(null);
+    try {
+      const res = await fetch('/api/migrate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabaseUrl: supaUrl.trim(), supabaseKey: supaKey.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal melakukan migrasi.');
+      }
+      setMigrationResult(data);
+      setTimeout(() => {
+        window.location.reload();
+      }, 3000);
+    } catch (err: any) {
+      alert('Gagal migrasi: ' + err.message);
+    } finally {
+      setMigrating(false);
+    }
+  };
 
   const load = () => {
     setSettings(getSettings());
@@ -209,6 +241,78 @@ export default function SettingsPage() {
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          {/* Supabase Migration */}
+          <div className="card" style={{ border: '1px solid #C7D2FE', background: '#F8FAFC' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: '#EEF2FF', color: '#4F46E5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Database size={20} />
+              </div>
+              <div>
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#0F172A' }}>Migrasi Data dari Supabase</h2>
+                <p className="text-sm text-secondary" style={{ margin: 0 }}>
+                  Pindahkan seluruh transaksi, anggaran, hutang, dan goals dari Supabase Cloud ke PostgreSQL VPS ini.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 }}>
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: 12.5 }}>Supabase Project URL</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="https://xxxxxxxxxxxx.supabase.co"
+                  value={supaUrl}
+                  onChange={e => setSupaUrl(e.target.value)}
+                  disabled={migrating}
+                />
+              </div>
+
+              <div className="form-group" style={{ marginBottom: 0 }}>
+                <label className="form-label" style={{ fontSize: 12.5 }}>Supabase Anon / Public Key</label>
+                <input
+                  className="form-input"
+                  type="password"
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  value={supaKey}
+                  onChange={e => setSupaKey(e.target.value)}
+                  disabled={migrating}
+                />
+              </div>
+
+              {migrationResult && (
+                <div style={{ padding: 12, borderRadius: 10, background: '#ECFDF5', border: '1px solid #A7F3D0', color: '#065F46', fontSize: 13 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, marginBottom: 4 }}>
+                    <CheckCircle2 size={16} /> {migrationResult.message}
+                  </div>
+                  <div style={{ fontSize: 12 }}>
+                    Transaksi: {migrationResult.summary?.transactions ?? 0} | Anggaran: {migrationResult.summary?.budget_pos ?? 0} | Goals: {migrationResult.summary?.saving_goals ?? 0} | Kategori: {migrationResult.summary?.categories ?? 0}
+                  </div>
+                  <div style={{ fontSize: 11, marginTop: 4, color: '#047857' }}>Halaman akan otomatis dimuat ulang...</div>
+                </div>
+              )}
+
+              <div>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleMigrateFromSupabase}
+                  disabled={migrating}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  {migrating ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" /> Sedang Menarik Data...
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownCircle size={16} /> Tarik Data dari Supabase Sekarang
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
 

@@ -143,3 +143,4 @@ export async function ensureDatabaseSchema(): Promise<void> {
     client.release();
   }
 }
+
