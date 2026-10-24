@@ -44,6 +44,15 @@ async function executeFinancialAnalytics(pool: any, params: any) {
 
   const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
 
+  // Get current date and yesterday from database
+  const dateRes = await pool.query(`
+    SELECT 
+      to_char(CURRENT_DATE, 'YYYY-MM-DD') as today_str,
+      to_char(CURRENT_DATE - INTERVAL '1 day', 'YYYY-MM-DD') as yesterday_str
+  `);
+  const todayStr = dateRes.rows[0]?.today_str || now.toISOString().slice(0, 10);
+  const yesterdayStr = dateRes.rows[0]?.yesterday_str || '';
+
   // Overall Family Treasury Data
   const allTxnsRes = await pool.query(`
     SELECT 
@@ -58,19 +67,48 @@ async function executeFinancialAnalytics(pool: any, params: any) {
       note
     FROM transactions
     WHERE space_id != 'pribadi' OR space_id IS NULL
+    ORDER BY created_at DESC
   `);
 
   let saldoKas = 0;
   let totalKeluarBulanIni = 0;
   let totalMasukBulanIni = 0;
+  let totalKeluarHariIni = 0;
+  let totalMasukHariIni = 0;
+  let totalKeluarKemarin = 0;
   let categoryTotal = 0;
   let talanganAsykar = 0;
   let talanganRiska = 0;
 
-  for (const t of allTxnsRes.rows) {
+  const txnsHariIni: string[] = [];
+  const txnsKemarin: string[] = [];
+  const recentTxns: string[] = [];
+
+  for (let i = 0; i < allTxnsRes.rows.length; i++) {
+    const t = allTxnsRes.rows[i];
     const amt = Number(t.amount) || 0;
     const isThisMonth = t.month_str === monthStr;
+    const isToday = t.date_str === todayStr;
+    const isYesterday = t.date_str === yesterdayStr;
     const cat = (t.category || '').toLowerCase();
+
+    // 5 most recent transactions
+    if (i < 5) {
+      recentTxns.push(`${t.date_str}: ${t.type === 'keluar' ? '💸' : '📈'} ${t.note || t.category} (${formatRupiah(amt)})`);
+    }
+
+    // Today's stats
+    if (isToday) {
+      if (t.type === 'keluar') totalKeluarHariIni += amt;
+      if (t.type === 'masuk') totalMasukHariIni += amt;
+      txnsHariIni.push(`${t.type === 'keluar' ? '💸' : '📈'} ${t.note || t.category} (${formatRupiah(amt)})`);
+    }
+
+    // Yesterday's stats
+    if (isYesterday) {
+      if (t.type === 'keluar') totalKeluarKemarin += amt;
+      txnsKemarin.push(`${t.type === 'keluar' ? '💸' : '📈'} ${t.note || t.category} (${formatRupiah(amt)})`);
+    }
 
     // Family Treasury Balance Calculation
     if (t.type === 'masuk') {
@@ -102,8 +140,16 @@ async function executeFinancialAnalytics(pool: any, params: any) {
   `);
 
   return {
+    todayStr,
+    yesterdayStr,
     monthStr,
     saldoKas,
+    totalKeluarHariIni,
+    totalMasukHariIni,
+    txnsHariIni,
+    totalKeluarKemarin,
+    txnsKemarin,
+    recentTxns,
     totalKeluarBulanIni,
     totalMasukBulanIni,
     categoryTotal,
@@ -321,17 +367,29 @@ FORMAT OUTPUT JSON (Keluarkan JSON murni tanpa markdown, tanpa backtick):
 
       const queryPrompt = `
 Data dari database Keuangan Keluarga DuitKu:
-- Bulan yang dicek: ${stats.monthStr}
+- Hari Ini: ${stats.todayStr}
+- Total Pengeluaran Hari Ini: ${formatRupiah(stats.totalKeluarHariIni)}
+- Total Pemasukan Hari Ini: ${formatRupiah(stats.totalMasukHariIni)}
+${stats.txnsHariIni.length > 0 ? `- Rincian Transaksi Hari Ini:\n  * ${stats.txnsHariIni.join('\n  * ')}` : '- Transaksi Hari Ini: Belum ada transaksi yang dicatat untuk hari ini.'}
+
+- Kemarin (${stats.yesterdayStr}):
+- Total Pengeluaran Kemarin: ${formatRupiah(stats.totalKeluarKemarin)}
+${stats.txnsKemarin.length > 0 ? `- Rincian Transaksi Kemarin:\n  * ${stats.txnsKemarin.join('\n  * ')}` : ''}
+
+- Bulan Ini (${stats.monthStr}):
 - Saldo Kas Bersama: ${formatRupiah(stats.saldoKas)}
 - Total Pengeluaran Keluarga Bulan Ini: ${formatRupiah(stats.totalKeluarBulanIni)}
 - Total Pemasukan Keluarga Bulan Ini: ${formatRupiah(stats.totalMasukBulanIni)}
 ${stats.targetCategory ? `- Total Kategori "${stats.targetCategory}": ${formatRupiah(stats.categoryTotal)}` : ''}
 - Total Talangan Belum Diganti: ${formatRupiah(stats.totalTalangan)} (Asykar: ${formatRupiah(stats.talanganAsykar)}, Istri: ${formatRupiah(stats.talanganRiska)})
 
+- 5 Transaksi Keluarga Terakhir:
+  * ${stats.recentTxns.join('\n  * ')}
+
 Pertanyaan pengguna:
 "${input.text}"
 
-Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif tentang keuangan keluarga dalam bahasa Indonesia (bisa gunakan emoji). Jangan mengarang angka selain yang ada di atas.
+Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif tentang keuangan keluarga dalam bahasa Indonesia (bisa gunakan emoji). Jika ditanya pengeluaran hari ini/kemarin, jawab berdasarkan angka hari ini/kemarin di atas. Jangan mengarang angka selain yang ada di atas.
 `;
 
       let naturalReply = '';
