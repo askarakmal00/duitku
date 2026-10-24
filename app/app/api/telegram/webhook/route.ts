@@ -8,8 +8,11 @@ const ALLOWED_USER_IDS = (process.env.TELEGRAM_ALLOWED_USERS || '')
   .map((id) => id.trim())
   .filter(Boolean);
 
-async function sendTelegramMessage(chatId: number | string, text: string) {
-  if (!TELEGRAM_BOT_TOKEN) return;
+// In-memory update_id deduplication set to prevent Telegram webhook retries from duplicating replies
+const processedUpdates = new Set<number>();
+
+async function sendTelegramMessage(chatId: number | string, text: string): Promise<number | null> {
+  if (!TELEGRAM_BOT_TOKEN) return null;
   try {
     const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
@@ -21,19 +24,57 @@ async function sendTelegramMessage(chatId: number | string, text: string) {
       }),
     });
 
+    const data = await res.json().catch(() => null);
+    if (res.ok && data?.result?.message_id) {
+      return data.result.message_id;
+    }
+
+    // Fallback: If Telegram rejected due to invalid HTML formatting or entities, send as plain text
+    const fallbackRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text: text.replace(/<[^>]*>/g, ''), // Strip tags for plain text
+      }),
+    });
+    const fallbackData = await fallbackRes.json().catch(() => null);
+    return fallbackData?.result?.message_id || null;
+  } catch (err) {
+    console.error('Failed to send telegram message:', err);
+    return null;
+  }
+}
+
+async function editTelegramMessage(chatId: number | string, messageId: number, text: string): Promise<boolean> {
+  if (!TELEGRAM_BOT_TOKEN) return false;
+  try {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: chatId,
+        message_id: messageId,
+        text,
+        parse_mode: 'HTML',
+      }),
+    });
+
     if (!res.ok) {
-      // Fallback: If Telegram rejected due to invalid HTML formatting or entities, send as plain text
-      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+      const fallbackRes = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/editMessageText`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chat_id: chatId,
-          text: text.replace(/<[^>]*>/g, ''), // Strip tags for plain text
+          message_id: messageId,
+          text: text.replace(/<[^>]*>/g, ''),
         }),
       });
+      return fallbackRes.ok;
     }
-  } catch (err) {
-    console.error('Failed to send telegram message:', err);
+    return true;
+  } catch {
+    return false;
   }
 }
 
@@ -70,6 +111,18 @@ export async function POST(req: NextRequest) {
     const body = await req.json().catch(() => null);
     if (!body || !body.message) {
       return NextResponse.json({ ok: true });
+    }
+
+    // 0. Deduplicate webhook updates from Telegram retries
+    if (body.update_id) {
+      if (processedUpdates.has(body.update_id)) {
+        return NextResponse.json({ ok: true });
+      }
+      processedUpdates.add(body.update_id);
+      if (processedUpdates.size > 1000) {
+        const oldest = processedUpdates.values().next().value;
+        if (oldest) processedUpdates.delete(oldest);
+      }
     }
 
     const { message } = body;
@@ -159,32 +212,55 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 5. Download Photo if present
-    let imageBase64: string | undefined;
-    if (hasPhoto) {
-      const highestResPhoto = message.photo[message.photo.length - 1];
-      const b64 = await downloadTelegramPhotoBase64(highestResPhoto.file_id);
-      if (b64) imageBase64 = b64;
-    }
-
-    if (!text && !imageBase64) {
+    if (!text && !hasPhoto) {
       return NextResponse.json({ ok: true });
     }
 
-    // Notify user that AI is processing
-    await sendTelegramMessage(chatId, hasPhoto ? '🔍 <i>Menganalisis foto struk...</i>' : '💭 <i>Memproses...</i>');
+    // Process asynchronous in background so Telegram receives 200 OK immediately
+    // and never triggers timeout retries
+    (async () => {
+      let statusMsgId: number | null = null;
+      try {
+        statusMsgId = await sendTelegramMessage(
+          chatId,
+          hasPhoto ? '🔍 <i>Menganalisis foto struk...</i>' : '💭 <i>Memproses...</i>'
+        );
 
-    // 6. Process message with Gemini 2.0 Flash AI
-    const result = await processAiMessage({
-      text,
-      imageBase64,
-      imageMimeType: 'image/jpeg',
-      source: 'telegram',
-      userId,
-    });
+        let imageBase64: string | undefined;
+        if (hasPhoto) {
+          const highestResPhoto = message.photo[message.photo.length - 1];
+          const b64 = await downloadTelegramPhotoBase64(highestResPhoto.file_id);
+          if (b64) imageBase64 = b64;
+        }
 
-    await sendTelegramMessage(chatId, result.replyText);
+        const result = await processAiMessage({
+          text,
+          imageBase64,
+          imageMimeType: 'image/jpeg',
+          source: 'telegram',
+          userId,
+        });
 
+        let edited = false;
+        if (statusMsgId) {
+          edited = await editTelegramMessage(chatId, statusMsgId, result.replyText);
+        }
+
+        if (!edited) {
+          await sendTelegramMessage(chatId, result.replyText);
+        }
+      } catch (err: any) {
+        console.error('Async Telegram process error:', err);
+        const errMsg = `❌ Gagal memproses: ${err?.message || 'Terjadi kesalahan sistem'}`;
+        if (statusMsgId) {
+          await editTelegramMessage(chatId, statusMsgId, errMsg);
+        } else {
+          await sendTelegramMessage(chatId, errMsg);
+        }
+      }
+    })();
+
+    // Return 200 OK immediately to Telegram so it never retries
     return NextResponse.json({ ok: true });
   } catch (err: any) {
     console.error('Telegram Webhook unhandled error:', err);
