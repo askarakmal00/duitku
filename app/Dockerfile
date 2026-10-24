@@ -30,7 +30,6 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/scripts ./scripts
 
 # Leverage standalone output for minimal image size (~100-150MB instead of 1GB+)
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
