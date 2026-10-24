@@ -34,9 +34,18 @@ async function executeFinancialAnalytics(pool: any, params: any) {
 
   const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
 
-  // 1. Overall Balance
+  // 1. Overall Balance & Analytical Data
   const allTxnsRes = await pool.query(`
-    SELECT space_id, type, amount, paid_by, reimbursed, date, category, note
+    SELECT 
+      space_id, 
+      type, 
+      amount, 
+      paid_by, 
+      reimbursed, 
+      to_char(date, 'YYYY-MM') as month_str,
+      to_char(date, 'YYYY-MM-DD') as date_str,
+      category, 
+      note
     FROM transactions
   `);
 
@@ -51,7 +60,7 @@ async function executeFinancialAnalytics(pool: any, params: any) {
   for (const t of allTxnsRes.rows) {
     const amt = Number(t.amount) || 0;
     const space = t.space_id || 'pribadi';
-    const isThisMonth = (t.date ? String(t.date).slice(0, 7) : '') === monthStr;
+    const isThisMonth = t.month_str === monthStr;
     const cat = (t.category || '').toLowerCase();
 
     // Balances
@@ -317,17 +326,27 @@ Pertanyaan pengguna:
 Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif dalam bahasa Indonesia (bisa gunakan emoji). Jangan mengarang angka selain yang ada di atas.
 `;
 
-      const qJson = await callGeminiApi(
-        [{ parts: [{ text: queryPrompt }] }],
-        undefined,
-        0.3
-      );
-      const naturalReply = qJson.candidates?.[0]?.content?.parts?.[0]?.text ||
-        `📊 <b>Ringkasan ${stats.monthStr}:</b>\n` +
-        `• Total Pengeluaran: ${formatRupiah(stats.totalKeluarBulanIni)}\n` +
-        `• Total Pemasukan: ${formatRupiah(stats.totalMasukBulanIni)}\n` +
-        `• Saldo Kas Keluarga: ${formatRupiah(stats.saldoKeluarga)}\n` +
-        `• Saldo Pribadi: ${formatRupiah(stats.saldoPribadi)}`;
+      let naturalReply = '';
+      try {
+        const qJson = await callGeminiApi(
+          [{ parts: [{ text: queryPrompt }] }],
+          undefined,
+          0.3
+        );
+        naturalReply = qJson.candidates?.[0]?.content?.parts?.[0]?.text;
+      } catch (e) {
+        console.warn('CallGeminiApi query reply error, using template fallback:', e);
+      }
+
+      if (!naturalReply) {
+        naturalReply =
+          `📊 <b>Ringkasan Keuangan ${stats.monthStr}:</b>\n\n` +
+          `💸 <b>Total Pengeluaran:</b> ${formatRupiah(stats.totalKeluarBulanIni)}\n` +
+          `📈 <b>Total Pemasukan:</b> ${formatRupiah(stats.totalMasukBulanIni)}\n` +
+          `🏠 <b>Saldo Kas Keluarga:</b> ${formatRupiah(stats.saldoKeluarga)}\n` +
+          `👤 <b>Saldo Pribadi:</b> ${formatRupiah(stats.saldoPribadi)}\n` +
+          (stats.totalTalangan > 0 ? `💳 <b>Total Talangan:</b> ${formatRupiah(stats.totalTalangan)}\n` : '');
+      }
 
       return {
         action: 'query_finances',
