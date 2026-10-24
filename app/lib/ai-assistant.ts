@@ -103,6 +103,49 @@ async function executeFinancialAnalytics(pool: any, params: any) {
   };
 }
 
+async function callGeminiApi(
+  contents: any[],
+  responseMimeType?: string,
+  temperature: number = 0.1
+): Promise<any> {
+  const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+  const fallbackModels = [primaryModel, 'gemini-3.5-flash', 'gemini-2.5-flash'];
+  const triedModels = new Set<string>();
+  let lastError: any = null;
+
+  for (const model of fallbackModels) {
+    if (triedModels.has(model)) continue;
+    triedModels.add(model);
+
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents,
+          generationConfig: {
+            temperature,
+            ...(responseMimeType ? { responseMimeType } : {}),
+          },
+        }),
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        lastError = new Error(`Gemini Error (${res.status}): ${errText}`);
+        continue;
+      }
+
+      return await res.json();
+    } catch (err: any) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('Gagal menghubungi layanan AI');
+}
+
 export async function processAiMessage(input: AiProcessInput): Promise<AiProcessOutput> {
   if (!GEMINI_API_KEY) {
     return {
@@ -195,49 +238,8 @@ FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
   parts.push({ text: textPrompt });
   contents.push({ parts });
 
-  const primaryModel = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-  const fallbackModels = [primaryModel, 'gemini-3.5-flash', 'gemini-2.5-flash'];
-  const triedModels = new Set<string>();
-
-  let resJson: any = null;
-  let lastError: any = null;
-
-  for (const model of fallbackModels) {
-    if (triedModels.has(model)) continue;
-    triedModels.add(model);
-
-    try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${GEMINI_API_KEY}`;
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents,
-          generationConfig: {
-            temperature: 0.1,
-            responseMimeType: 'application/json',
-          },
-        }),
-      });
-
-      if (!res.ok) {
-        const errText = await res.text();
-        lastError = new Error(`Gemini Error (${res.status}): ${errText}`);
-        continue;
-      }
-
-      resJson = await res.json();
-      break;
-    } catch (err: any) {
-      lastError = err;
-    }
-  }
-
-  if (!resJson) {
-    throw lastError || new Error('Gagal menghubungi layanan AI');
-  }
-
   try {
+    const resJson = await callGeminiApi(contents, 'application/json', 0.1);
     const rawAiText = resJson.candidates?.[0]?.content?.parts?.[0]?.text;
     if (!rawAiText) {
       throw new Error('AI tidak memberikan respon');
@@ -315,16 +317,11 @@ Pertanyaan pengguna:
 Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif dalam bahasa Indonesia (bisa gunakan emoji). Jangan mengarang angka selain yang ada di atas.
 `;
 
-      const qRes = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: queryPrompt }] }],
-          generationConfig: { temperature: 0.3 },
-        }),
-      });
-
-      const qJson = await qRes.json();
+      const qJson = await callGeminiApi(
+        [{ parts: [{ text: queryPrompt }] }],
+        undefined,
+        0.3
+      );
       const naturalReply = qJson.candidates?.[0]?.content?.parts?.[0]?.text ||
         `📊 <b>Ringkasan ${stats.monthStr}:</b>\n` +
         `• Total Pengeluaran: ${formatRupiah(stats.totalKeluarBulanIni)}\n` +
