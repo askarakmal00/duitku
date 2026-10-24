@@ -11,7 +11,7 @@ const ALLOWED_USER_IDS = (process.env.TELEGRAM_ALLOWED_USERS || '')
 async function sendTelegramMessage(chatId: number | string, text: string) {
   if (!TELEGRAM_BOT_TOKEN) return;
   try {
-    await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+    const res = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -20,6 +20,18 @@ async function sendTelegramMessage(chatId: number | string, text: string) {
         parse_mode: 'HTML',
       }),
     });
+
+    if (!res.ok) {
+      // Fallback: If Telegram rejected due to invalid HTML formatting or entities, send as plain text
+      await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: text.replace(/<[^>]*>/g, ''), // Strip tags for plain text
+        }),
+      });
+    }
   } catch (err) {
     console.error('Failed to send telegram message:', err);
   }
