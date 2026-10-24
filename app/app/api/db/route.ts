@@ -122,20 +122,33 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'update') {
-      if (!match || !match.id) {
-        return NextResponse.json({ error: 'Update requires match.id' }, { status: 400 });
+      if (!match || Object.keys(match).length === 0) {
+        return NextResponse.json({ error: 'Update requires match criteria' }, { status: 400 });
       }
 
-      const keys = Object.keys(payload || {}).filter((k) => /^[a-z_][a-z0-9_]*$/i.test(k) && k !== 'id');
+      const keys = Object.keys(payload || {}).filter((k) => /^[a-z_][a-z0-9_]*$/i.test(k));
       if (keys.length === 0) {
         return NextResponse.json({ data: null });
       }
 
-      const sets = keys.map((k, i) => `${k} = $${i + 1}`).join(', ');
-      const values = keys.map((k) => payload[k]);
-      values.push(match.id);
+      const values: any[] = [];
+      const sets = keys.map((k) => {
+        values.push(payload[k]);
+        return `${k} = $${values.length}`;
+      });
 
-      const query = `UPDATE ${table} SET ${sets} WHERE id = $${values.length} RETURNING *`;
+      const conditions: string[] = [];
+      for (const [key, value] of Object.entries(match)) {
+        if (!/^[a-z_][a-z0-9_]*$/i.test(key)) continue;
+        values.push(value);
+        conditions.push(`${key} = $${values.length}`);
+      }
+
+      if (conditions.length === 0) {
+        return NextResponse.json({ error: 'Valid match column required' }, { status: 400 });
+      }
+
+      const query = `UPDATE ${table} SET ${sets.join(', ')} WHERE ${conditions.join(' AND ')} RETURNING *`;
       const res = await pool.query(query, values);
       return NextResponse.json({ data: res.rows[0] || null });
     }

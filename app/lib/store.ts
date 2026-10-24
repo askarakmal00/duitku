@@ -2,7 +2,7 @@ import {
   Transaction, BudgetPos, DebtParty, DebtTransaction, SavingGoal, Category, AppSettings, SpaceId
 } from './types';
 import { getActiveSpace, migrateExistingData } from './spaceStore';
-import { supabase } from './supabase';
+import { localPostgresClient as db } from './db-client';
 
 const KEYS = {
   transactions: 'pf_transactions',
@@ -106,7 +106,7 @@ export function fixSpaceAssignments(): void {
       if (t.spaceId !== spaceId || t.note !== cleanNote) {
         txnsChanged = true;
         try {
-          supabase.from('transactions').update({ space_id: spaceId, note: cleanNote }).eq('id', t.id).then();
+          db.from('transactions').update({ space_id: spaceId, note: cleanNote }).eq('id', t.id).then();
         } catch {}
         return { ...t, spaceId, note: cleanNote };
       }
@@ -256,7 +256,7 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
   if (t.reimbursed !== undefined) payload.reimbursed = Boolean(t.reimbursed);
 
   try {
-    const { error } = await supabase.from('transactions').upsert(payload);
+    const { error } = await db.from('transactions').upsert(payload);
     if (error) {
       if (error.code === '42703' && error.message?.includes('space_id')) {
         delete payload.space_id;
@@ -270,7 +270,7 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
       if (error.code === '42703' && error.message?.includes('reimbursed')) {
         delete payload.reimbursed;
       }
-      const res = await supabase.from('transactions').upsert(payload);
+      const res = await db.from('transactions').upsert(payload);
       if (res.error) throw res.error;
     }
   } catch (err) {
@@ -293,17 +293,17 @@ async function safeInsertDebtTransaction(dt: DebtTransaction): Promise<void> {
   if (dt.txnId) payload.txn_id = dt.txnId;
 
   try {
-    const { error } = await supabase.from('debt_transactions').upsert(payload);
+    const { error } = await db.from('debt_transactions').upsert(payload);
     if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
       delete payload.space_id;
       if (error.message?.includes('txn_id')) delete payload.txn_id;
-      await supabase.from('debt_transactions').upsert(payload);
+      await db.from('debt_transactions').upsert(payload);
     }
   } catch {
     delete payload.space_id;
     delete payload.txn_id;
     try {
-      await supabase.from('debt_transactions').upsert(payload);
+      await db.from('debt_transactions').upsert(payload);
     } catch (e) {
       console.warn('Failed to upsert debt transaction:', e);
     }
@@ -311,7 +311,7 @@ async function safeInsertDebtTransaction(dt: DebtTransaction): Promise<void> {
 }
 
 // ─── Syncing ───────────────────────────────────────────────────
-export async function syncWithSupabase(): Promise<void> {
+export async function syncWithDb(): Promise<void> {
   const [
     txnsRes,
     budgetRes,
@@ -321,13 +321,13 @@ export async function syncWithSupabase(): Promise<void> {
     catsRes,
     settingsRes,
   ] = await Promise.all([
-    supabase.from('transactions').select('*'),
-    supabase.from('budget_pos').select('*'),
-    supabase.from('debt_parties').select('*'),
-    supabase.from('debt_transactions').select('*'),
-    supabase.from('saving_goals').select('*'),
-    supabase.from('categories').select('*'),
-    supabase.from('app_settings').select('*').maybeSingle(),
+    db.from('transactions').select('*'),
+    db.from('budget_pos').select('*'),
+    db.from('debt_parties').select('*'),
+    db.from('debt_transactions').select('*'),
+    db.from('saving_goals').select('*'),
+    db.from('categories').select('*'),
+    db.from('app_settings').select('*').maybeSingle(),
   ]);
 
   const errors = [
@@ -374,7 +374,7 @@ export async function syncWithSupabase(): Promise<void> {
 
     if (t.space_id !== assignedSpace) {
       try {
-        supabase.from('transactions').update({ space_id: assignedSpace, note: cleanNote }).eq('id', t.id).then();
+        db.from('transactions').update({ space_id: assignedSpace, note: cleanNote }).eq('id', t.id).then();
       } catch {}
     }
 
@@ -446,10 +446,10 @@ export async function syncWithSupabase(): Promise<void> {
           space_id: b.spaceId || 'pribadi',
         };
         try {
-          const { error } = await supabase.from('budget_pos').upsert(bPayload);
+          const { error } = await db.from('budget_pos').upsert(bPayload);
           if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
             delete bPayload.space_id;
-            await supabase.from('budget_pos').upsert(bPayload);
+            await db.from('budget_pos').upsert(bPayload);
           }
           removePending(PENDING_KEYS.budgetPos, id);
         } catch {}
@@ -490,10 +490,10 @@ export async function syncWithSupabase(): Promise<void> {
           space_id: p.spaceId || 'pribadi',
         };
         try {
-          const { error } = await supabase.from('debt_parties').upsert(pPayload);
+          const { error } = await db.from('debt_parties').upsert(pPayload);
           if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
             delete pPayload.space_id;
-            await supabase.from('debt_parties').upsert(pPayload);
+            await db.from('debt_parties').upsert(pPayload);
           }
           removePending(PENDING_KEYS.debtParties, id);
         } catch {}
@@ -582,10 +582,10 @@ export async function syncWithSupabase(): Promise<void> {
           space_id: g.spaceId || 'pribadi',
         };
         try {
-          const { error } = await supabase.from('saving_goals').upsert(gPayload);
+          const { error } = await db.from('saving_goals').upsert(gPayload);
           if (error && (error.code === '42703' || error.message?.includes('column') || error.message?.includes('space_id'))) {
             delete gPayload.space_id;
-            await supabase.from('saving_goals').upsert(gPayload);
+            await db.from('saving_goals').upsert(gPayload);
           }
           removePending(PENDING_KEYS.savingGoals, id);
         } catch {}
@@ -625,6 +625,7 @@ export async function syncWithSupabase(): Promise<void> {
 
   notifyDataChanged();
 }
+
 
 // ─── Transactions ─────────────────────────────────────────────
 export function getTransactions(spaceId?: SpaceId): Transaction[] {
@@ -697,7 +698,7 @@ export async function addBulkTransactions(items: Omit<Transaction, 'id' | 'creat
       return p;
     });
 
-    const { error } = await supabase.from('transactions').upsert(payloads);
+    const { error } = await db.from('transactions').upsert(payloads);
     if (!error) {
       for (const t of newTxns) {
         removePending(PENDING_KEYS.transactions, t.id);
@@ -738,16 +739,17 @@ export async function updateTransaction(id: string, data: Partial<Omit<Transacti
   if (data.reimbursed !== undefined) updateData.reimbursed = Boolean(data.reimbursed);
 
   try {
-    const { error } = await supabase.from('transactions').update(updateData).eq('id', id);
+    const { error } = await db.from('transactions').update(updateData).eq('id', id);
     if (error) {
       if (error.message?.includes('debt_txn_id')) delete updateData.debt_txn_id;
       if (error.code === '42703' && error.message?.includes('paid_by')) delete updateData.paid_by;
       if (error.code === '42703' && error.message?.includes('reimbursed')) delete updateData.reimbursed;
-      await supabase.from('transactions').update(updateData).eq('id', id);
+      await db.from('transactions').update(updateData).eq('id', id);
     }
   } catch {}
   notifyDataChanged();
 }
+
 
 export async function deleteTransaction(id: string): Promise<void> {
   const current = load<Transaction[]>(KEYS.transactions, []);
@@ -758,7 +760,7 @@ export async function deleteTransaction(id: string): Promise<void> {
   removePending(PENDING_KEYS.transactions, id);
 
   try {
-    await supabase.from('transactions').delete().eq('id', id);
+    await db.from('transactions').delete().eq('id', id);
   } catch (err) {
     console.error('Supabase transaction delete warning:', err);
   }
@@ -772,13 +774,14 @@ export async function deleteTransaction(id: string): Promise<void> {
     for (const dt of linkedDebtTxns) {
       removePending(PENDING_KEYS.debtTransactions, dt.id);
       try {
-        await supabase.from('debt_transactions').delete().eq('id', dt.id);
+        await db.from('debt_transactions').delete().eq('id', dt.id);
       } catch {}
     }
   }
 
   notifyDataChanged();
 }
+
 
 
 // ─── Budget Pos ────────────────────────────────────────────────
@@ -808,10 +811,10 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
       created_at: newPos.createdAt,
       space_id: newPos.spaceId || 'pribadi',
     };
-    const { error } = await supabase.from('budget_pos').insert(payload);
+    const { error } = await db.from('budget_pos').insert(payload);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
       delete payload.space_id;
-      await supabase.from('budget_pos').insert(payload);
+      await db.from('budget_pos').insert(payload);
     }
     removePending(PENDING_KEYS.budgetPos, newPos.id);
   } catch {}
@@ -831,14 +834,15 @@ export async function updateBudgetPos(id: string, data: Partial<Omit<BudgetPos, 
   if (data.spaceId !== undefined) updateData.space_id = data.spaceId;
 
   try {
-    const { error } = await supabase.from('budget_pos').update(updateData).eq('id', id);
+    const { error } = await db.from('budget_pos').update(updateData).eq('id', id);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
       delete updateData.space_id;
-      await supabase.from('budget_pos').update(updateData).eq('id', id);
+      await db.from('budget_pos').update(updateData).eq('id', id);
     }
   } catch {}
   notifyDataChanged();
 }
+
 
 export async function deleteBudgetPos(id: string): Promise<void> {
   const all = load<BudgetPos[]>(KEYS.budgetPos, []);
@@ -851,11 +855,12 @@ export async function deleteBudgetPos(id: string): Promise<void> {
   save(KEYS.transactions, updatedTxns);
 
   try {
-    await supabase.from('budget_pos').delete().eq('id', id);
-    await supabase.from('transactions').update({ budget_pos_id: null }).eq('budget_pos_id', id);
+    await db.from('budget_pos').delete().eq('id', id);
+    await db.from('transactions').update({ budget_pos_id: null }).eq('budget_pos_id', id);
   } catch {}
   notifyDataChanged();
 }
+
 
 export function getBudgetUsed(posId: string, year: number, month: number, spaceId?: SpaceId): number {
   const txns = getTransactions(spaceId);
@@ -891,10 +896,10 @@ export async function addDebtParty(name: string, spaceId?: SpaceId): Promise<Deb
       created_at: newParty.createdAt,
       space_id: space,
     };
-    const { error } = await supabase.from('debt_parties').insert(payload);
+    const { error } = await db.from('debt_parties').insert(payload);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
       delete payload.space_id;
-      await supabase.from('debt_parties').insert(payload);
+      await db.from('debt_parties').insert(payload);
     }
     removePending(PENDING_KEYS.debtParties, newParty.id);
   } catch {}
@@ -917,7 +922,7 @@ export async function deleteDebtParty(id: string): Promise<void> {
     if (dt.txnId) {
       removePending(PENDING_KEYS.transactions, dt.txnId);
       try {
-        await supabase.from('transactions').delete().eq('id', dt.txnId);
+        await db.from('transactions').delete().eq('id', dt.txnId);
       } catch {}
     }
   }
@@ -928,10 +933,11 @@ export async function deleteDebtParty(id: string): Promise<void> {
   removePending(PENDING_KEYS.debtParties, id);
 
   try {
-    await supabase.from('debt_parties').delete().eq('id', id);
+    await db.from('debt_parties').delete().eq('id', id);
   } catch {}
   notifyDataChanged();
 }
+
 
 export function getDebtTransactions(spaceId?: SpaceId): DebtTransaction[] {
   const all = load<DebtTransaction[]>(KEYS.debtTransactions, []);
@@ -970,14 +976,15 @@ export async function updateDebtTransaction(id: string, data: Partial<Omit<DebtT
   if (data.date !== undefined) updateData.date = data.date;
 
   try {
-    const { error } = await supabase.from('debt_transactions').update(updateData).eq('id', id);
+    const { error } = await db.from('debt_transactions').update(updateData).eq('id', id);
     if (error && error.message?.includes('txn_id')) {
       delete updateData.txn_id;
-      await supabase.from('debt_transactions').update(updateData).eq('id', id);
+      await db.from('debt_transactions').update(updateData).eq('id', id);
     }
   } catch {}
   notifyDataChanged();
 }
+
 
 export async function deleteDebtTransaction(id: string): Promise<void> {
   const allDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
@@ -986,7 +993,7 @@ export async function deleteDebtTransaction(id: string): Promise<void> {
   removePending(PENDING_KEYS.debtTransactions, id);
 
   try {
-    await supabase.from('debt_transactions').delete().eq('id', id);
+    await db.from('debt_transactions').delete().eq('id', id);
   } catch {}
 
   // Cross-module sync: Delete linked main transaction if exists
@@ -996,12 +1003,13 @@ export async function deleteDebtTransaction(id: string): Promise<void> {
     save(KEYS.transactions, allTxns.filter(t => t.id !== linkedTxn.id));
     removePending(PENDING_KEYS.transactions, linkedTxn.id);
     try {
-      await supabase.from('transactions').delete().eq('id', linkedTxn.id);
+      await db.from('transactions').delete().eq('id', linkedTxn.id);
     } catch {}
   }
 
   notifyDataChanged();
 }
+
 
 export function getDebtBalance(partyId: string, spaceId?: SpaceId): number {
   return getDebtTransactions(spaceId)
@@ -1039,10 +1047,10 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
       created_at: newGoal.createdAt,
       space_id: newGoal.spaceId || 'pribadi',
     };
-    const { error } = await supabase.from('saving_goals').insert(payload);
+    const { error } = await db.from('saving_goals').insert(payload);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
       delete payload.space_id;
-      await supabase.from('saving_goals').insert(payload);
+      await db.from('saving_goals').insert(payload);
     }
     removePending(PENDING_KEYS.savingGoals, newGoal.id);
   } catch {}
@@ -1061,14 +1069,15 @@ export async function updateSavingGoal(id: string, data: Partial<Omit<SavingGoal
   if (data.spaceId !== undefined) updateData.space_id = data.spaceId;
 
   try {
-    const { error } = await supabase.from('saving_goals').update(updateData).eq('id', id);
+    const { error } = await db.from('saving_goals').update(updateData).eq('id', id);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
       delete updateData.space_id;
-      await supabase.from('saving_goals').update(updateData).eq('id', id);
+      await db.from('saving_goals').update(updateData).eq('id', id);
     }
   } catch {}
   notifyDataChanged();
 }
+
 
 export async function deleteSavingGoal(id: string): Promise<void> {
   const all = load<SavingGoal[]>(KEYS.savingGoals, []);
@@ -1081,11 +1090,12 @@ export async function deleteSavingGoal(id: string): Promise<void> {
   save(KEYS.transactions, updatedTxns);
 
   try {
-    await supabase.from('saving_goals').delete().eq('id', id);
-    await supabase.from('transactions').update({ goal_id: null }).eq('goal_id', id);
+    await db.from('saving_goals').delete().eq('id', id);
+    await db.from('transactions').update({ goal_id: null }).eq('goal_id', id);
   } catch {}
   notifyDataChanged();
 }
+
 
 export function getGoalProgress(goalId: string, spaceId?: SpaceId): number {
   return getTransactions(spaceId)
@@ -1140,7 +1150,7 @@ export async function addCategory(data: Omit<Category, 'id'>): Promise<Category>
   save(KEYS.categories, [...list, newCat]);
 
   try {
-    const { error } = await supabase.from('categories').insert({
+    const { error } = await db.from('categories').insert({
       id: newCat.id,
       name: newCat.name,
       type: newCat.type,
@@ -1160,10 +1170,11 @@ export async function addCategory(data: Omit<Category, 'id'>): Promise<Category>
 export async function deleteCategory(id: string): Promise<void> {
   save(KEYS.categories, getCategories().filter(c => c.id !== id));
   try {
-    await supabase.from('categories').delete().eq('id', id);
+    await db.from('categories').delete().eq('id', id);
   } catch {}
   notifyDataChanged();
 }
+
 
 // ─── Settings ──────────────────────────────────────────────────
 const DEFAULT_SETTINGS: AppSettings = { userName: 'Pengguna', darkMode: false };
@@ -1176,7 +1187,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
   save(KEYS.settings, settings);
 
   try {
-    await supabase.from('app_settings').upsert({
+    await db.from('app_settings').upsert({
       id: 1,
       user_name: settings.userName,
       dark_mode: settings.darkMode,
@@ -1186,6 +1197,7 @@ export async function saveSettings(settings: AppSettings): Promise<void> {
 
   notifyDataChanged();
 }
+
 
 // ─── Dashboard Unified Financial Selector ──────────────────────
 export interface DashboardFinanceSummary {
@@ -1666,15 +1678,20 @@ export async function clearAllData(): Promise<void> {
 
   try {
     await Promise.all([
-      supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('debt_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('debt_parties').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('budget_pos').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('saving_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
-      supabase.from('categories').delete().neq('is_default', true),
-      supabase.from('app_settings').upsert({ id: 1, user_name: 'Pengguna', dark_mode: false }),
+      db.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      db.from('debt_transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      db.from('debt_parties').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      db.from('budget_pos').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      db.from('saving_goals').delete().neq('id', '00000000-0000-0000-0000-000000000000'),
+      db.from('categories').delete().neq('is_default', true),
+      db.from('app_settings').upsert({ id: 1, user_name: 'Pengguna', dark_mode: false }),
     ]);
   } catch {}
 
   notifyDataChanged();
 }
+
+// Backward-compatible alias
+export const syncWithSupabase = syncWithDb;
+
+

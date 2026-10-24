@@ -1,108 +1,47 @@
-# 🚀 Panduan Deploy FinKu ke Vercel + Supabase
+# Panduan Deployment FinKu (Self-Hosted PostgreSQL & AI Assistant)
 
-## Prasyarat
-- Akun GitHub (gratis)
-- Akun Vercel (gratis, hobby plan)
-- Akun Supabase (gratis)
+Aplikasi FinKu sekarang 100% mandiri (*self-hosted*), menggunakan **PostgreSQL internal/VPS**, **Next.js Standalone**, dan terintegrasi dengan **AI Assistant (Google Gemini 2.0 Flash)** untuk pencatatan transaksi via teks / foto struk di Web & Telegram Bot.
 
 ---
 
-## Langkah 1: Push ke GitHub
+## 1. Arsitektur
 
-```bash
-cd d:/personal_finance/app
-git init  # (sudah dilakukan otomatis)
-git add .
-git commit -m "Initial commit - FinKu personal finance app"
+- **Web App**: Next.js 16 (Standalone output, container port `3000` -> Host `127.0.0.1:3005`)
+- **Web Server / Proxy**: Nginx Reverse Proxy dengan SSL Let's Encrypt (`finku.akmalasykar.my.id`)
+- **Database**: PostgreSQL 16 di Host VPS (`host.docker.internal:5432`, database: `duitku_db`)
+- **AI Assistant**: Google Gemini 2.0 Flash (`gemini-2.0-flash`) untuk NLP pencatatan & analitik database.
+- **Telegram Bot**: Webhook endpoint `/api/telegram/webhook`.
 
-# Buat repo baru di github.com, lalu:
-git remote add origin https://github.com/USERNAME/finku.git
-git branch -M main
-git push -u origin main
+---
+
+## 2. File Environment (`.env`) di Server
+
+Buat atau perbarui file `/var/www/duitku/.env`:
+
+```env
+NODE_ENV=production
+DATABASE_URL=postgresql://duitku_user:PASSWORD_ANDA@host.docker.internal:5432/duitku_db?sslmode=disable
+
+# AI & Telegram
+TELEGRAM_BOT_TOKEN=123456789:ABCdefGHIjklMNOpqrsTUVwxyz
+GEMINI_API_KEY=AIzaSy...
+TELEGRAM_ALLOWED_USERS=
 ```
 
 ---
 
-## Langkah 2: Setup Supabase
+## 3. Jalankan Aplikasi dengan Docker
 
-1. Buka **https://supabase.com** → Sign Up (gratis)
-2. Klik **New Project** → isi nama, password database, pilih region Asia (Singapore)
-3. Tunggu ~2 menit sampai project aktif
-4. Buka **SQL Editor** di sidebar Supabase
-5. Copy-paste seluruh isi file `supabase/schema.sql` dan klik **Run**
-6. Buka **Project Settings → API**:
-   - Copy **Project URL** → ini adalah `NEXT_PUBLIC_SUPABASE_URL`
-   - Copy **anon/public key** → ini adalah `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   
-DB PASSWORD: U8ky1NH22bKzQDmX
----
-
-## Langkah 3: Deploy ke Vercel
-
-1. Buka **https://vercel.com** → Sign Up dengan GitHub
-2. Klik **Add New Project** → Import repo `finku` dari GitHub
-3. Di bagian **Environment Variables**, tambahkan:
-   ```
-   NEXT_PUBLIC_SUPABASE_URL = https://xxxxxx.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY = eyJxxx...
-   ```
-4. **Root Directory**: Set ke `app` (karena Next.js ada di subfolder)
-   - Di Vercel: General → Root Directory → `app`
-5. Klik **Deploy** → tunggu ~2 menit
-6. Aplikasi live di `https://finku-xxx.vercel.app`! 🎉
+```bash
+docker compose up -d --build
+```
 
 ---
 
-## Langkah 4: Custom Domain (opsional)
+## 4. Setup Webhook Telegram Bot
 
-Di Vercel → Project Settings → Domains → Add `finku.yourdomain.com`
+Setelah container berjalan dan HTTPS aktif:
 
----
-
-## ⚠️ Catatan Penting Supabase Free Tier
-
-> Project Supabase gratis otomatis **di-pause** jika tidak ada request API selama **7 hari berturut-turut**.
-> - Jika aplikasi dibuka rutin setiap hari → tidak masalah
-> - Jika lama tidak dipakai → resume manual di dashboard Supabase
-> - **Solusi**: Jadwalkan cron job gratis di [cron-job.org](https://cron-job.org) untuk ping API setiap 6 hari
-
----
-
-## Migrasi Data ke Supabase
-
-Saat ini app menggunakan **localStorage** (data tersimpan di browser lokal).
-Untuk mengaktifkan Supabase sebagai backend:
-
-1. Install Supabase client (sudah ada di package.json):
-   ```bash
-   npm install @supabase/supabase-js
-   ```
-2. Buat file `lib/supabase.ts`:
-   ```ts
-   import { createClient } from '@supabase/supabase-js';
-   export const supabase = createClient(
-     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-   );
-   ```
-3. Ganti fungsi di `lib/store.ts` untuk menggunakan `supabase.from('transactions').select()` dll.
-
----
-
-## Vercel Limits (Hobby Plan - Gratis Selamanya)
-
-| Resource | Limit | Cukup? |
-|----------|-------|--------|
-| Bandwidth | 100 GB/bulan | ✅ Jauh lebih dari cukup |
-| Serverless Functions | 100k invokasi/bulan | ✅ Ya |
-| Build | 6000 menit/bulan | ✅ Ya |
-| Projects | Unlimited | ✅ Ya |
-
-## Supabase Limits (Free Tier)
-
-| Resource | Limit |
-|----------|-------|
-| Database | 500 MB |
-| Monthly Active Users | 50,000 |
-| Storage | 1 GB |
-| Edge Functions | 500k invokasi/bulan |
+```bash
+curl -F "url=https://finku.akmalasykar.my.id/api/telegram/webhook" https://api.telegram.org/bot<TOKEN_TELEGRAM_ANDA>/setWebhook
+```

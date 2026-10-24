@@ -1,13 +1,13 @@
 'use client';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { syncWithSupabase } from '@/lib/store';
-import { supabase } from '@/lib/supabase';
-import { Database, AlertTriangle, RefreshCw, ServerOff, FileText } from 'lucide-react';
+import { Database, AlertTriangle, RefreshCw, ServerOff } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
 import { SpaceProvider, useSpace } from '@/lib/useSpace';
 import SpaceSelectModal from '@/components/SpaceSelectModal';
+import AiChatDrawer from '@/components/AiChatDrawer';
 
-interface SupabaseContextType {
+interface AppContextType {
   isSynced: boolean;
   syncData: () => Promise<void>;
 }
@@ -16,7 +16,7 @@ export interface MobileMenuContextType {
   openSidebar: () => void;
 }
 
-const SupabaseContext = createContext<SupabaseContextType | undefined>(undefined);
+const AppContext = createContext<AppContextType | undefined>(undefined);
 export const MobileMenuContext = createContext<MobileMenuContextType>({ openSidebar: () => {} });
 
 function MainLayoutContent({ children }: { children: React.ReactNode }) {
@@ -58,13 +58,13 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
         <main className="main-content">
           {children}
         </main>
+        <AiChatDrawer />
       </div>
     </MobileMenuContext.Provider>
   );
-
 }
 
-export default function SupabaseProvider({ children }: { children: React.ReactNode }) {
+export function AppProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [errorType, setErrorType] = useState<'schema_missing' | 'connection_failed' | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -76,7 +76,7 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
       await syncWithSupabase();
       setIsLoading(false);
     } catch (err: any) {
-      console.error('Supabase Sync Error:', err);
+      console.error('Database Sync Error:', err);
       if (err.message === 'SCHEMA_MISSING') {
         setErrorType('schema_missing');
       } else {
@@ -89,18 +89,6 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
 
   useEffect(() => {
     sync();
-
-    // Supabase Realtime Listener (auto-sync when database changes on HP or other devices)
-    const channel = supabase
-      .channel('public-db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public' }, async () => {
-        try {
-          await syncWithSupabase();
-        } catch (e) {
-          console.warn('Realtime sync exception:', e);
-        }
-      })
-      .subscribe();
 
     // Auto-sync when window receives focus or tab becomes visible
     const handleFocusSync = async () => {
@@ -119,10 +107,16 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
+    // Auto-sync on local changes
+    const handleLocalChange = () => {
+      handleFocusSync();
+    };
+    window.addEventListener('pf_data_changed', handleLocalChange);
+
     return () => {
-      supabase.removeChannel(channel);
       window.removeEventListener('focus', handleFocusSync);
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pf_data_changed', handleLocalChange);
     };
   }, []);
 
@@ -133,9 +127,9 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
           <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 shadow-md">
             <Database size={32} className="animate-pulse" />
           </div>
-          <h2 className="text-xl font-semibold tracking-tight">Menghubungkan ke Supabase...</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Memuat Data Keuangan...</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Sedang mensinkronisasi data keuangan Anda dari database cloud. Mohon tunggu sebentar.
+            Sedang mensinkronisasi data keuangan dari database. Mohon tunggu sebentar.
           </p>
           <div className="flex items-center justify-center pt-2">
             <RefreshCw size={24} className="animate-spin text-indigo-600 dark:text-indigo-400" />
@@ -153,23 +147,10 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
             <AlertTriangle size={32} />
           </div>
           
-          <h2 className="text-2xl font-bold tracking-tight mb-2">Tabel Database Belum Dibuat</h2>
+          <h2 className="text-2xl font-bold tracking-tight mb-2">Inisialisasi Database Diperlukan</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-6 max-w-md">
-            Koneksi ke Supabase berhasil! Namun, tabel database belum dibuat di proyek Supabase Anda. Anda perlu menjalankan skema SQL terlebih dahulu.
+            Koneksi ke server database berhasil, namun skema tabel belum lengkap. Silakan jalankan migrasi database di server PostgreSQL.
           </p>
-
-          <div className="w-full bg-slate-50 dark:bg-slate-900 rounded-xl p-5 mb-6 text-left border border-slate-100 dark:border-slate-800">
-            <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-              <FileText size={16} className="text-indigo-500" /> Langkah-langkah penyelesaian:
-            </h3>
-            <ol className="list-decimal list-inside text-xs space-y-2 text-slate-600 dark:text-slate-450">
-              <li>Buka dashboard proyek Anda di <a href="https://supabase.com" target="_blank" rel="noreferrer" className="text-indigo-600 dark:text-indigo-400 underline font-medium">supabase.com</a>.</li>
-              <li>Pilih menu <strong>SQL Editor</strong> di sidebar sebelah kiri.</li>
-              <li>Buka file proyek lokal Anda di <span className="font-mono bg-slate-250 dark:bg-slate-800 px-1 py-0.5 rounded text-indigo-600 dark:text-indigo-400">supabase/schema.sql</span> dan salin (Copy) seluruh isinya.</li>
-              <li>Tempel (Paste) kode tersebut ke SQL Editor Supabase, lalu klik tombol <strong>Run</strong>.</li>
-              <li>Setelah berhasil dijalankan, klik tombol di bawah untuk mencoba kembali.</li>
-            </ol>
-          </div>
 
           <button 
             onClick={sync} 
@@ -192,7 +173,7 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
           
           <h2 className="text-2xl font-bold tracking-tight mb-2">Gagal Menghubungkan Database</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-            Terjadi masalah saat mencoba terhubung ke API Supabase. Silakan periksa kembali konfigurasi file env Anda.
+            Terjadi masalah saat mencoba terhubung ke API database. Silakan periksa koneksi PostgreSQL dan DATABASE_URL.
           </p>
 
           <div className="text-xs text-rose-600 dark:text-rose-400 font-mono bg-rose-50 dark:bg-rose-950/30 border border-rose-100 dark:border-rose-900/50 rounded-lg p-3 w-full text-left mb-6 overflow-x-auto whitespace-pre-wrap">
@@ -211,20 +192,25 @@ export default function SupabaseProvider({ children }: { children: React.ReactNo
   }
 
   return (
-    <SupabaseContext.Provider value={{ isSynced: true, syncData: sync }}>
+    <AppContext.Provider value={{ isSynced: true, syncData: sync }}>
       <SpaceProvider>
         <MainLayoutContent>{children}</MainLayoutContent>
       </SpaceProvider>
-    </SupabaseContext.Provider>
+    </AppContext.Provider>
   );
 }
 
-export const useSupabase = () => {
-  const context = useContext(SupabaseContext);
+export default AppProvider;
+
+export const useApp = () => {
+  const context = useContext(AppContext);
   if (!context) {
-    throw new Error('useSupabase must be used within a SupabaseProvider');
+    throw new Error('useApp must be used within an AppProvider');
   }
   return context;
 };
 
+// Backward-compatible alias
+export const useSupabase = useApp;
+export const SupabaseProvider = AppProvider;
 export const useMobileMenu = () => useContext(MobileMenuContext);
