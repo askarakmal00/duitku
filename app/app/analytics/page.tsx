@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { Chart, registerables } from 'chart.js';
 import Header from '@/components/Header';
 import { getMonthlyFlowData, getTransactions } from '@/lib/store';
@@ -7,7 +7,6 @@ import { formatCurrency, CHART_COLORS } from '@/lib/helpers';
 import { Transaction } from '@/lib/types';
 import { useSpace } from '@/lib/useSpace';
 import { useDataRefresh } from '@/lib/useDataRefresh';
-import { useCallback } from 'react';
 import { SpaceId } from '@/lib/spaceStore';
 import { TrendingUp, TrendingDown, BarChart2, Percent } from 'lucide-react';
 
@@ -89,6 +88,8 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const inst = useRef<Chart | null>(null);
 
+  const total = useMemo(() => data.reduce((sum, d) => sum + d.value, 0), [data]);
+
   useEffect(() => {
     if (!ref.current || data.length === 0) return;
     inst.current?.destroy();
@@ -104,25 +105,28 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
           backgroundColor: data.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
           borderWidth: 3,
           borderColor: 'transparent',
-          hoverOffset: 8,
+          hoverBorderColor: '#ffffff',
+          hoverOffset: 6,
         }],
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
-        cutout: '68%',
+        maintainAspectRatio: true,
+        aspectRatio: 1,
+        cutout: '70%',
         plugins: {
           legend: {
-            position: 'bottom',
-            labels: { usePointStyle: true, pointStyle: 'circle', font: { family: 'Inter', size: 12 }, color: '#6B7280', padding: 12 },
+            display: false,
           },
           tooltip: {
             backgroundColor: '#1E1B4B',
-            titleFont: { family: 'Inter', size: 13, weight: 600 as const },
+            titleFont: { family: 'Inter', size: 12, weight: 600 as const },
             bodyFont: { family: 'Inter', size: 12 },
-            padding: 12,
+            padding: 10,
             cornerRadius: 10,
-            callbacks: { label: (ctx) => ` ${formatCurrency(ctx.parsed as number)}` },
+            callbacks: {
+              label: (ctx) => ` ${ctx.label}: ${formatCurrency(ctx.parsed as number)}`,
+            },
           },
         },
       },
@@ -130,7 +134,19 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
     return () => { inst.current?.destroy(); };
   }, [data]);
 
-  return <div className="chart-responsive-wrap"><canvas ref={ref} /></div>;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px 0' }}>
+      <div className="donut-wrap" style={{ position: 'relative', width: 200, height: 200 }}>
+        <canvas ref={ref} />
+        <div className="donut-center">
+          <div className="donut-center-value" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+            {formatCurrency(total)}
+          </div>
+          <div className="donut-center-label" style={{ fontSize: 10, color: 'var(--text-muted)' }}>Total Keluar</div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function AnalyticsPage() {

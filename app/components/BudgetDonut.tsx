@@ -27,29 +27,33 @@ export default function BudgetDonut({ items }: BudgetDonutProps) {
     const ctx = chartRef.current.getContext('2d');
     if (!ctx) return;
 
-    const data = items.map(i => i.used || 0.001);
-    const colors = items.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+    const isAllZero = totalUsed === 0;
+    const data = isAllZero ? [1] : items.map(i => i.used || 0.001);
+    const colors = isAllZero ? ['#E2E8F0'] : items.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]);
+    const labels = isAllZero ? ['Belum ada pengeluaran'] : items.map(i => i.name);
 
     chartInstanceRef.current = new Chart(ctx, {
       type: 'doughnut',
       data: {
-        labels: items.map(i => i.name),
+        labels,
         datasets: [{
           data,
           backgroundColor: colors,
           borderWidth: 3,
           borderColor: 'transparent',
           hoverBorderColor: 'white',
-          hoverOffset: 6,
+          hoverOffset: isAllZero ? 0 : 6,
         }],
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
+        maintainAspectRatio: true,
+        aspectRatio: 1,
         cutout: '72%',
         plugins: {
           legend: { display: false },
           tooltip: {
+            enabled: !isAllZero,
             backgroundColor: '#1E1B4B',
             titleFont: { family: 'Inter', size: 12, weight: 600 as const },
             bodyFont: { family: 'Inter', size: 12 },
