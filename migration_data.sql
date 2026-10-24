@@ -1,7 +1,86 @@
 --
--- DuitKu Database Migration Export from Supabase
+-- DuitKu Database Migration Export with Schema Creation
 --
 BEGIN;
+-- 1. Setup Extension
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+-- 2. Setup Tables
+CREATE TABLE IF NOT EXISTS categories (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,
+  is_default BOOLEAN DEFAULT false
+);
+
+CREATE TABLE IF NOT EXISTS budget_pos (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  monthly_allocation NUMERIC(15,2) NOT NULL DEFAULT 0,
+  rollover BOOLEAN DEFAULT false,
+  space_id TEXT DEFAULT 'pribadi',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE budget_pos ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+
+CREATE TABLE IF NOT EXISTS debt_parties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  space_id TEXT DEFAULT 'pribadi',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE debt_parties ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+
+CREATE TABLE IF NOT EXISTS debt_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  party_id UUID,
+  type TEXT NOT NULL,
+  txn_id UUID,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  note TEXT DEFAULT '',
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  space_id TEXT DEFAULT 'pribadi',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS txn_id UUID;
+ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+
+CREATE TABLE IF NOT EXISTS saving_goals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  target_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  space_id TEXT DEFAULT 'pribadi',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE saving_goals ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+
+CREATE TABLE IF NOT EXISTS transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type TEXT NOT NULL,
+  category TEXT NOT NULL,
+  sub_category TEXT,
+  budget_pos_id UUID,
+  goal_id UUID,
+  debt_txn_id UUID,
+  amount NUMERIC(15,2) NOT NULL DEFAULT 0,
+  note TEXT DEFAULT '',
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  space_id TEXT DEFAULT 'pribadi',
+  paid_by TEXT DEFAULT 'bersama',
+  reimbursed BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS debt_txn_id UUID;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS paid_by TEXT DEFAULT 'bersama';
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS reimbursed BOOLEAN DEFAULT false;
+
+CREATE TABLE IF NOT EXISTS app_settings (
+  id INTEGER PRIMARY KEY DEFAULT 1,
+  user_name TEXT DEFAULT 'Pengguna',
+  dark_mode BOOLEAN DEFAULT false,
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
 
 -- Table: categories (26 rows)
 INSERT INTO categories ("id", "name", "type", "is_default") VALUES ('f9a17862-7fc8-463e-8418-aeea3d6aacb0', 'Gaji', 'masuk', TRUE) ON CONFLICT ("id") DO UPDATE SET "name" = EXCLUDED."name", "type" = EXCLUDED."type", "is_default" = EXCLUDED."is_default";
