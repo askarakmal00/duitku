@@ -117,6 +117,26 @@ export async function ensureDatabaseSchema(): Promise<void> {
       VALUES (1, 'Pengguna', false)
       ON CONFLICT (id) DO NOTHING;
 
+      -- Purge personal (pribadi) financial records so DuitKu operates 100% as family finance
+      DELETE FROM transactions WHERE space_id = 'pribadi';
+      DELETE FROM budget_pos WHERE space_id = 'pribadi';
+      DELETE FROM debt_parties WHERE space_id = 'pribadi';
+      DELETE FROM debt_transactions WHERE space_id = 'pribadi';
+      DELETE FROM saving_goals WHERE space_id = 'pribadi';
+
+      -- Ensure all existing and new records default to keluarga
+      UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
+      UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
+      UPDATE debt_parties SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
+      UPDATE debt_transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
+      UPDATE saving_goals SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
+
+      ALTER TABLE transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      ALTER TABLE budget_pos ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      ALTER TABLE debt_parties ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      ALTER TABLE debt_transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      ALTER TABLE saving_goals ALTER COLUMN space_id SET DEFAULT 'keluarga';
+
       -- Seed default categories if empty
       INSERT INTO categories (name, type, is_default)
       SELECT * FROM (VALUES

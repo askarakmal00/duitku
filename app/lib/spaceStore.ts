@@ -39,24 +39,21 @@ export function changePin(space: SpaceId, oldPin: string, newPin: string): boole
 }
 
 // ─── Active Space Session ──────────────────────────────────────────────────────
-
-export function getActiveSpace(): SpaceId | null {
-  if (typeof window === 'undefined') return null;
-  const val = sessionStorage.getItem(SESSION_KEY) || localStorage.getItem(SESSION_KEY);
-  if (val === 'pribadi' || val === 'keluarga') return val;
-  return null;
+// DuitKu is dedicated 100% to Keluarga (Family Finance)
+export function getActiveSpace(): SpaceId {
+  return 'keluarga';
 }
 
-export function setActiveSpace(space: SpaceId): void {
+export function setActiveSpace(_space?: SpaceId): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.setItem(SESSION_KEY, space);
-  localStorage.setItem(SESSION_KEY, space);
+  sessionStorage.setItem(SESSION_KEY, 'keluarga');
+  localStorage.setItem(SESSION_KEY, 'keluarga');
 }
 
 export function clearActiveSpace(): void {
   if (typeof window === 'undefined') return;
-  sessionStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(SESSION_KEY);
+  sessionStorage.setItem(SESSION_KEY, 'keluarga');
+  localStorage.setItem(SESSION_KEY, 'keluarga');
 }
 
 // ─── Data Migration ────────────────────────────────────────────────────────────

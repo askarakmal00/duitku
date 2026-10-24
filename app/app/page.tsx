@@ -175,7 +175,7 @@ export default function DashboardPage() {
                 Halo, {userName.split(' ')[0]}
               </div>
               <div className="mobile-db-appname">
-                Duitku Pribadi
+                Duitku Keluarga
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

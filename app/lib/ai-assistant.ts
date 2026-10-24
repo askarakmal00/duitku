@@ -24,17 +24,27 @@ function formatRupiah(amount: number): string {
   }).format(amount);
 }
 
-// Execute analytical query on PostgreSQL based on AI parameters
+function formatDisplayDate(d: any): string {
+  if (!d) return '';
+  const dateObj = d instanceof Date ? d : new Date(d);
+  if (isNaN(dateObj.getTime())) return String(d);
+  return dateObj.toLocaleDateString('id-ID', {
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+}
+
+// Execute analytical query on PostgreSQL for Family Finance
 async function executeFinancialAnalytics(pool: any, params: any) {
   const now = new Date();
   const targetYear = params.year || now.getFullYear();
   const targetMonth = params.month || now.getMonth() + 1;
-  const targetSpace = params.spaceId || 'all'; // 'pribadi', 'keluarga', or 'all'
   const targetCategory = (params.category || '').toLowerCase();
 
   const monthStr = `${targetYear}-${String(targetMonth).padStart(2, '0')}`;
 
-  // 1. Overall Balance & Analytical Data
+  // Overall Family Treasury Data
   const allTxnsRes = await pool.query(`
     SELECT 
       space_id, 
@@ -47,10 +57,10 @@ async function executeFinancialAnalytics(pool: any, params: any) {
       category, 
       note
     FROM transactions
+    WHERE space_id != 'pribadi' OR space_id IS NULL
   `);
 
-  let saldoPribadi = 0;
-  let saldoKeluarga = 0;
+  let saldoKas = 0;
   let totalKeluarBulanIni = 0;
   let totalMasukBulanIni = 0;
   let categoryTotal = 0;
@@ -59,48 +69,41 @@ async function executeFinancialAnalytics(pool: any, params: any) {
 
   for (const t of allTxnsRes.rows) {
     const amt = Number(t.amount) || 0;
-    const space = t.space_id || 'pribadi';
     const isThisMonth = t.month_str === monthStr;
     const cat = (t.category || '').toLowerCase();
 
-    // Balances
-    if (space === 'keluarga') {
-      if (t.type === 'masuk') saldoKeluarga += amt;
-      else if (t.type === 'keluar') {
-        const isUnreimbursed = t.paid_by && t.paid_by !== 'bersama' && !t.reimbursed;
-        if (!isUnreimbursed) saldoKeluarga -= amt;
-        else {
-          if (t.paid_by === 'asykar') talanganAsykar += amt;
-          else if (t.paid_by === 'istri') talanganRiska += amt;
-        }
+    // Family Treasury Balance Calculation
+    if (t.type === 'masuk') {
+      saldoKas += amt;
+    } else if (t.type === 'keluar') {
+      const isUnreimbursed = t.paid_by && t.paid_by !== 'bersama' && !t.reimbursed;
+      if (!isUnreimbursed) {
+        saldoKas -= amt;
+      } else {
+        if (t.paid_by === 'asykar') talanganAsykar += amt;
+        else if (t.paid_by === 'istri') talanganRiska += amt;
       }
-    } else {
-      if (t.type === 'masuk') saldoPribadi += amt;
-      else if (t.type === 'keluar') saldoPribadi -= amt;
     }
 
     // Monthly stats
     if (isThisMonth) {
-      if (targetSpace === 'all' || targetSpace === space) {
-        if (t.type === 'keluar') totalKeluarBulanIni += amt;
-        if (t.type === 'masuk') totalMasukBulanIni += amt;
+      if (t.type === 'keluar') totalKeluarBulanIni += amt;
+      if (t.type === 'masuk') totalMasukBulanIni += amt;
 
-        if (targetCategory && cat.includes(targetCategory)) {
-          categoryTotal += amt;
-        }
+      if (targetCategory && cat.includes(targetCategory)) {
+        categoryTotal += amt;
       }
     }
   }
 
-  // Budget Pos
+  // Family Budget Pos
   const budgetRes = await pool.query(`
-    SELECT name, monthly_allocation, space_id FROM budget_pos
+    SELECT name, monthly_allocation FROM budget_pos WHERE space_id != 'pribadi' OR space_id IS NULL
   `);
 
   return {
     monthStr,
-    saldoPribadi,
-    saldoKeluarga,
+    saldoKas,
     totalKeluarBulanIni,
     totalMasukBulanIni,
     categoryTotal,
@@ -173,7 +176,7 @@ export async function processAiMessage(input: AiProcessInput): Promise<AiProcess
 
   await ensureDatabaseSchema();
 
-  // Fetch available categories and budget pos for AI context
+  // Fetch available categories for AI context
   const catsRes = await pool.query('SELECT name FROM categories ORDER BY name ASC');
   const availableCategories = catsRes.rows.map((c: any) => c.name);
 
@@ -181,23 +184,34 @@ export async function processAiMessage(input: AiProcessInput): Promise<AiProcess
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 
-  // Construct Prompt for Gemini 2.0 Flash
+  // Construct Prompt for Gemini 3.8 Flash (Dedicated Family Finance)
   const systemInstruction = `
-Kamu adalah asisten keuangan pribadi cerdas dan ramah untuk aplikasi DuitKu.
-Kamu memiliki 2 tugas utama:
-1. MENCATAT TRANSAKSI: Baik dari pesan teks maupun dari foto struk belanja, nota, atau bukti transfer.
-2. MENJAWAB PERTANYAAN KEUANGAN: Menjawab pertanyaan pengguna tentang saldo, pengeluaran, anggaran, dan talangan dari database.
+Kamu adalah asisten keuangan cerdas, teliti, dan ramah untuk aplikasi DuitKu Keuangan Keluarga.
+Aplikasi ini DEDIKASI KHUSUS 100% UNTUK KEUANGAN KELUARGA (kas bersama keluarga, belanja dapur, makan harian, kebutuhan anak, tagihan rumah tangga).
+
+TUGAS UTAMA:
+1. MENCATAT TRANSAKSI KELUARGA:
+   - Dari pesan teks pengguna (contoh: "makan malam 10rb", "beli popok baby 120k ditalangi asykar", "setoran kas 3jt")
+   - Dari foto struk belanjaan kasir / nota / bukti transfer.
+   - Semua transaksi otomatis dicatat sebagai keuangan keluarga.
+   - Sumber dana / Pelaku (paidBy):
+     * "bersama": Kas Bersama (default jika tidak disebutkan siapa yang menalangi)
+     * "asykar": ditalangi oleh Asykar (belum diganti dari kas keluarga)
+     * "istri": ditalangi oleh Istri / Riska (belum diganti dari kas keluarga)
+
+2. MENJAWAB ANALITIK KEUANGAN:
+   - Menjawab pertanyaan tentang saldo kas bersama keluarga, total pengeluaran keluarga, total pemasukan, dan rincian talangan dari database PostgreSQL.
 
 HARI INI: ${todayStr} (Bulan ${currentMonth}, Tahun ${currentYear})
 DAFTAR KATEGORI TERSEDIA DI APLIKASI:
 ${availableCategories.join(', ')}
 
 ATURAN KLASIFIKASI NIAT:
-- Jika pengguna meminta mencatat / menyebutkan pengeluaran atau pemasukan (misal: "beli kopi 25k", "makan siang nasi uduk 30rb", "gaji freelance 1.5jt", atau mengirimkan foto struk belanjaan kasir) -> tentukan "action": "record_transaction".
-- Jika pengguna bertanya tentang data keuangan (misal: "berapa pengeluaran bulan ini?", "berapa sisa saldo?", "berapa talangan saya?", "berapa habis buat makan?") -> tentukan "action": "query_finances".
+- Jika pengguna meminta mencatat / menyebutkan pengeluaran atau pemasukan atau mengirim foto struk -> tentukan "action": "record_transaction".
+- Jika pengguna bertanya tentang data keuangan (contoh: "berapa pengeluaran bulan ini?", "berapa saldo kas keluarga?", "ada talangan apa saja?") -> tentukan "action": "query_finances".
 - Jika pengguna hanya menyapa, mengobrol, atau berterima kasih -> tentukan "action": "general_chat".
 
-FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
+FORMAT OUTPUT JSON (Keluarkan JSON murni tanpa markdown, tanpa backtick):
 {
   "action": "record_transaction" | "query_finances" | "general_chat",
   
@@ -208,17 +222,15 @@ FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
     "category": string (pilih salah satu dari DAFTAR KATEGORI yang paling cocok),
     "note": string (nama barang / tempat / keperluan yang rapi),
     "date": "YYYY-MM-DD" (tanggal transaksi, default hari ini),
-    "spaceId": "keluarga" | "pribadi" (pilih 'keluarga' jika belanja kebutuhan rumah/kas bersama/anak/istri, atau jika user menyebutkan 'keluarga'. Default 'pribadi'),
-    "paidBy": "asykar" | "istri" | "bersama" (default 'bersama' jika keluarga, atau nama yang menalangi),
-    "isTalangan": boolean (true jika transaksi keluarga dibayar uang pribadi asykar/istri dulu)
+    "paidBy": "bersama" | "asykar" | "istri" (pilih 'asykar' jika disebut ditalangi asykar, 'istri' jika disebut ditalangi istri/riska, default 'bersama'),
+    "isTalangan": boolean (true jika dibayar uang pribadi asykar/istri dulu untuk ditalangi)
   },
 
   // Jika action = "query_finances":
   "queryParams": {
     "year": number (default ${currentYear}),
     "month": number (default ${currentMonth}),
-    "spaceId": "pribadi" | "keluarga" | "all",
-    "category": string (jika bertanya kategori tertentu, misal 'makan', 'bensin', atau kosongkan jika umum)
+    "category": string (jika bertanya kategori spesifik misal 'makan', 'listrik', atau kosongkan jika umum)
   },
 
   // Respon langsung ramah (untuk general_chat):
@@ -242,7 +254,7 @@ FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
   // Add text part
   const textPrompt = input.text
     ? `${systemInstruction}\n\nPESAN/KETERANGAN DARI PENGGUNA:\n"${input.text}"`
-    : `${systemInstruction}\n\nPengguna mengirimkan foto struk/bukti transaksi tanpa teks tambahan. Tolong baca struk tersebut dan ekstrak transaksi.`;
+    : `${systemInstruction}\n\nPengguna mengirimkan foto struk/bukti transaksi tanpa teks tambahan. Tolong baca struk tersebut dan ekstrak transaksi keluarga.`;
 
   parts.push({ text: textPrompt });
   contents.push({ parts });
@@ -256,13 +268,16 @@ FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
 
     const aiResult = JSON.parse(rawAiText.replace(/```json/g, '').replace(/```/g, '').trim());
 
-    // ACTION 1: Record Transaction
+    // ACTION 1: Record Transaction (100% Family Finance)
     if (aiResult.action === 'record_transaction' && aiResult.transaction?.amount) {
       const t = aiResult.transaction;
+      const isTalangan = Boolean(t.isTalangan || (t.paidBy && t.paidBy !== 'bersama'));
+      const paidBy = t.paidBy || 'bersama';
+
       const insertRes = await pool.query(`
         INSERT INTO transactions (
           type, category, amount, note, date, space_id, paid_by, reimbursed
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        ) VALUES ($1, $2, $3, $4, $5, 'keluarga', $6, $7)
         RETURNING *
       `, [
         t.type || 'keluar',
@@ -270,33 +285,28 @@ FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
         t.amount,
         t.note || '',
         t.date || todayStr,
-        t.spaceId || 'pribadi',
-        t.paidBy || 'bersama',
-        t.isTalangan ? false : true,
+        paidBy,
+        !isTalangan, // if talangan, reimbursed = false
       ]);
 
       const inserted = insertRes.rows[0];
       const typeLabel = inserted.type === 'masuk' ? '📈 Pemasukan' : '💸 Pengeluaran';
-      const spaceLabel = inserted.space_id === 'keluarga' ? '🏠 Keluarga' : '👤 Pribadi';
       const amountStr = formatRupiah(Number(inserted.amount));
 
-      let talanganText = '';
-      if (inserted.space_id === 'keluarga') {
-        if (inserted.paid_by !== 'bersama') {
-          const person = inserted.paid_by === 'asykar' ? 'Asykar' : 'Riska';
-          talanganText = `\n💳 <b>Sumber Dana:</b> Talangan ${person} <i>(Belum diganti)</i>`;
-        } else {
-          talanganText = `\n💳 <b>Sumber Dana:</b> Kas Bersama`;
-        }
+      let sumberDana = 'Kas Bersama';
+      if (inserted.paid_by === 'asykar') {
+        sumberDana = 'Talangan Asykar <i>(Belum diganti)</i>';
+      } else if (inserted.paid_by === 'istri') {
+        sumberDana = 'Talangan Istri <i>(Belum diganti)</i>';
       }
 
       const replyText =
-        `✅ <b>Transaksi Berhasil Dicatat!</b>\n\n` +
+        `✅ <b>Transaksi Keluarga Dicatat!</b>\n\n` +
         `<b>${typeLabel}:</b> ${amountStr}\n` +
         `📁 <b>Kategori:</b> ${inserted.category}\n` +
         `📝 <b>Catatan:</b> ${inserted.note || '-'}\n` +
-        `📍 <b>Ruang:</b> ${spaceLabel}${talanganText}\n` +
-        `📅 <b>Tanggal:</b> ${inserted.date}`;
+        `💳 <b>Sumber Dana:</b> ${sumberDana}\n` +
+        `📅 <b>Tanggal:</b> ${formatDisplayDate(inserted.date)}`;
 
       return {
         action: 'record_transaction',
@@ -309,21 +319,19 @@ FORMAT OUTPUT JSON (Hanya keluarkan JSON murni tanpa markdown, tanpa backtick):
     if (aiResult.action === 'query_finances') {
       const stats = await executeFinancialAnalytics(pool, aiResult.queryParams || {});
 
-      // Use Gemini to write a conversational natural language reply based on real data
       const queryPrompt = `
-Data dari database PostgreSQL DuitKu:
+Data dari database Keuangan Keluarga DuitKu:
 - Bulan yang dicek: ${stats.monthStr}
-- Saldo Kas Keluarga: ${formatRupiah(stats.saldoKeluarga)}
-- Saldo Pribadi: ${formatRupiah(stats.saldoPribadi)}
-- Total Pengeluaran Bulan Ini: ${formatRupiah(stats.totalKeluarBulanIni)}
-- Total Pemasukan Bulan Ini: ${formatRupiah(stats.totalMasukBulanIni)}
+- Saldo Kas Bersama: ${formatRupiah(stats.saldoKas)}
+- Total Pengeluaran Keluarga Bulan Ini: ${formatRupiah(stats.totalKeluarBulanIni)}
+- Total Pemasukan Keluarga Bulan Ini: ${formatRupiah(stats.totalMasukBulanIni)}
 ${stats.targetCategory ? `- Total Kategori "${stats.targetCategory}": ${formatRupiah(stats.categoryTotal)}` : ''}
-- Total Talangan Belum Diganti: ${formatRupiah(stats.totalTalangan)} (Asykar: ${formatRupiah(stats.talanganAsykar)}, Riska: ${formatRupiah(stats.talanganRiska)})
+- Total Talangan Belum Diganti: ${formatRupiah(stats.totalTalangan)} (Asykar: ${formatRupiah(stats.talanganAsykar)}, Istri: ${formatRupiah(stats.talanganRiska)})
 
 Pertanyaan pengguna:
 "${input.text}"
 
-Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif dalam bahasa Indonesia (bisa gunakan emoji). Jangan mengarang angka selain yang ada di atas.
+Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif tentang keuangan keluarga dalam bahasa Indonesia (bisa gunakan emoji). Jangan mengarang angka selain yang ada di atas.
 `;
 
       let naturalReply = '';
@@ -340,12 +348,11 @@ Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif dalam bahasa In
 
       if (!naturalReply) {
         naturalReply =
-          `📊 <b>Ringkasan Keuangan ${stats.monthStr}:</b>\n\n` +
-          `💸 <b>Total Pengeluaran:</b> ${formatRupiah(stats.totalKeluarBulanIni)}\n` +
-          `📈 <b>Total Pemasukan:</b> ${formatRupiah(stats.totalMasukBulanIni)}\n` +
-          `🏠 <b>Saldo Kas Keluarga:</b> ${formatRupiah(stats.saldoKeluarga)}\n` +
-          `👤 <b>Saldo Pribadi:</b> ${formatRupiah(stats.saldoPribadi)}\n` +
-          (stats.totalTalangan > 0 ? `💳 <b>Total Talangan:</b> ${formatRupiah(stats.totalTalangan)}\n` : '');
+          `📊 <b>Ringkasan Keuangan Keluarga (${stats.monthStr}):</b>\n\n` +
+          `💸 <b>Pengeluaran Keluarga:</b> ${formatRupiah(stats.totalKeluarBulanIni)}\n` +
+          `📈 <b>Pemasukan Kas:</b> ${formatRupiah(stats.totalMasukBulanIni)}\n` +
+          `🏠 <b>Saldo Kas Bersama:</b> ${formatRupiah(stats.saldoKas)}\n` +
+          (stats.totalTalangan > 0 ? `💳 <b>Total Talangan Belum Diganti:</b> ${formatRupiah(stats.totalTalangan)}\n` : '');
       }
 
       return {
@@ -357,7 +364,7 @@ Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif dalam bahasa In
     // ACTION 3: General Chat
     return {
       action: 'general_chat',
-      replyText: aiResult.chatReply || 'Halo! Saya asisten DuitKu. Ada yang bisa saya bantu catat atau periksa?',
+      replyText: aiResult.chatReply || 'Halo! Saya asisten DuitKu Keuangan Keluarga. Ada transaksi kas bersama yang ingin dicatat atau dicek hari ini?',
     };
   } catch (err: any) {
     console.error('processAiMessage error:', err);
@@ -367,4 +374,3 @@ Tuliskan jawaban yang ramah, jelas, to-the-point, dan informatif dalam bahasa In
     };
   }
 }
-

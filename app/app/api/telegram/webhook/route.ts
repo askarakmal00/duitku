@@ -148,27 +148,87 @@ export async function POST(req: NextRequest) {
     if (text === '/start' || text === '/help') {
       await sendTelegramMessage(
         chatId,
-        `👋 <b>Halo! Saya Asisten AI DuitKu</b>\n\n` +
-        `Anda bisa mencatat transaksi atau bertanya seputar keuangan Anda:\n\n` +
-        `📝 <b>Catat via Teks:</b>\n` +
-        `• <i>"Makan siang soto 25rb"</i>\n` +
-        `• <i>"Beli popok baby 120k keluarga ditalangi asykar"</i>\n` +
-        `• <i>"Gaji freelance masuk 2jt"</i>\n\n` +
+        `👋 <b>Halo! Saya Asisten AI DuitKu Keuangan Keluarga</b>\n\n` +
+        `Saya siap membantu mencatat transaksi kas keluarga dan menjawab kondisi keuangan:\n\n` +
+        `📝 <b>Catat Transaksi Keluarga:</b>\n` +
+        `• <i>"Makan malam 10rb"</i> (otomatis dari Kas Bersama)\n` +
+        `• <i>"Beli popok baby 120k ditalangi asykar"</i>\n` +
+        `• <i>"Belanja bulanan superindo 450rb ditalangi istri"</i>\n` +
+        `• <i>"Setoran kas keluarga 5jt"</i>\n\n` +
         `📸 <b>Catat via Foto Struk:</b>\n` +
-        `• Langsung kirim foto struk belanjaan kasir / nota / bukti transfer\n\n` +
-        `💬 <b>Tanya Jawab Data:</b>\n` +
-        `• <i>"Berapa pengeluaran saya bulan ini?"</i>\n` +
-        `• <i>"Berapa total talangan asykar yang belum diganti?"</i>\n` +
-        `• <i>"Berapa habis buat makan bulan ini?"</i>\n\n` +
+        `• Kirim foto struk belanjaan kasir / nota / bukti transfer\n\n` +
+        `💬 <b>Tanya Jawab Analitik:</b>\n` +
+        `• <i>"Berapa pengeluaran keluarga bulan ini?"</i>\n` +
+        `• <i>"Berapa saldo kas bersama saat ini?"</i>\n` +
+        `• <i>"Berapa total talangan yang belum diganti?"</i>\n\n` +
         `<b>Perintah Cepat:</b>\n` +
-        `• /saldo - Cek ringkasan saldo pribadi & kas keluarga\n` +
-        `• /batal - Hapus transaksi terakhir yang baru saja diinput\n` +
+        `• /saldo - Cek ringkasan kas bersama & talangan\n` +
+        `• /batal - Hapus transaksi keluarga yang baru saja diinput\n` +
         `• /id - Cek ID Telegram Anda`
       );
       return NextResponse.json({ ok: true });
     }
 
-    // 3. Command /id
+    // 3. Command /saldo
+    if (text === '/saldo') {
+      const pool = getDbPool();
+      if (!pool) {
+        await sendTelegramMessage(chatId, '⚠️ Error: DATABASE_URL belum dikonfigurasi di server.');
+        return NextResponse.json({ ok: true });
+      }
+
+      const now = new Date();
+      const monthStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+
+      const txnsRes = await pool.query(`
+        SELECT type, amount, paid_by, reimbursed, to_char(date, 'YYYY-MM') as month_str
+        FROM transactions
+        WHERE space_id != 'pribadi' OR space_id IS NULL
+      `);
+
+      let saldoKas = 0;
+      let totalKeluarBulanIni = 0;
+      let totalMasukBulanIni = 0;
+      let talanganAsykar = 0;
+      let talanganRiska = 0;
+
+      for (const t of txnsRes.rows) {
+        const amt = Number(t.amount) || 0;
+        const isThisMonth = t.month_str === monthStr;
+
+        if (t.type === 'masuk') {
+          saldoKas += amt;
+        } else if (t.type === 'keluar') {
+          const isUnreimbursed = t.paid_by && t.paid_by !== 'bersama' && !t.reimbursed;
+          if (!isUnreimbursed) {
+            saldoKas -= amt;
+          } else {
+            if (t.paid_by === 'asykar') talanganAsykar += amt;
+            else if (t.paid_by === 'istri') talanganRiska += amt;
+          }
+        }
+
+        if (isThisMonth) {
+          if (t.type === 'keluar') totalKeluarBulanIni += amt;
+          if (t.type === 'masuk') totalMasukBulanIni += amt;
+        }
+      }
+
+      await sendTelegramMessage(
+        chatId,
+        `💰 <b>Ringkasan Kas Keluarga (${monthStr}):</b>\n\n` +
+        `🏠 <b>Saldo Kas Bersama:</b> ${formatRupiah(saldoKas)}\n` +
+        `💸 <b>Pengeluaran Bulan Ini:</b> ${formatRupiah(totalKeluarBulanIni)}\n` +
+        `📈 <b>Pemasukan Bulan Ini:</b> ${formatRupiah(totalMasukBulanIni)}\n\n` +
+        `💳 <b>Status Talangan (Belum Diganti):</b>\n` +
+        `• Asykar: ${formatRupiah(talanganAsykar)}\n` +
+        `• Istri: ${formatRupiah(talanganRiska)}\n` +
+        `• Total: ${formatRupiah(talanganAsykar + talanganRiska)}`
+      );
+      return NextResponse.json({ ok: true });
+    }
+
+    // 4. Command /id
     if (text === '/id') {
       await sendTelegramMessage(
         chatId,
@@ -178,7 +238,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true });
     }
 
-    // 4. Command /batal (Undo last transaction)
+    // 5. Command /batal (Undo last transaction)
     if (text === '/batal') {
       const pool = getDbPool();
       if (!pool) {
@@ -187,7 +247,7 @@ export async function POST(req: NextRequest) {
       }
 
       const lastTxnRes = await pool.query(`
-        SELECT id, type, category, amount, note, space_id 
+        SELECT id, type, category, amount, note, paid_by 
         FROM transactions 
         ORDER BY created_at DESC 
         LIMIT 1
@@ -201,13 +261,17 @@ export async function POST(req: NextRequest) {
       const last = lastTxnRes.rows[0];
       await pool.query('DELETE FROM transactions WHERE id = $1', [last.id]);
 
+      let sumberDana = 'Kas Bersama';
+      if (last.paid_by === 'asykar') sumberDana = 'Talangan Asykar';
+      else if (last.paid_by === 'istri') sumberDana = 'Talangan Istri';
+
       await sendTelegramMessage(
         chatId,
-        `🗑️ <b>Transaksi Terakhir Dibatalkan:</b>\n` +
+        `🗑️ <b>Transaksi Keluarga Dibatalkan:</b>\n` +
         `• ${last.type === 'masuk' ? 'Pemasukan' : 'Pengeluaran'}: ${formatRupiah(Number(last.amount))}\n` +
         `• Kategori: ${last.category}\n` +
         `• Catatan: ${last.note || '-'}\n` +
-        `• Ruang: ${last.space_id === 'keluarga' ? 'Keluarga' : 'Pribadi'}`
+        `• Sumber Dana: ${sumberDana}`
       );
       return NextResponse.json({ ok: true });
     }

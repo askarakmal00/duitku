@@ -92,13 +92,13 @@ export default function SettingsPage() {
 
           {/* PIN Security Management */}
           <div className="card">
-            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Keamanan & PIN Ruang</h2>
+            <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 16 }}>Keamanan & Akses Keluarga</h2>
             <p className="text-sm text-secondary" style={{ marginBottom: 16 }}>
-              Aplikasi Duitku dilindungi 6 digit PIN untuk masing-masing ruang finansial.
+              Aplikasi Duitku didedikasikan untuk pengelolaan keuangan keluarga bersama.
             </p>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 14 }}>
-              {/* Pribadi PIN Card */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 14 }}>
+              {/* Keluarga Card */}
               <div style={{
                 padding: 16,
                 borderRadius: 12,
@@ -109,34 +109,13 @@ export default function SettingsPage() {
                 gap: 8,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>👤 Duitku Pribadi (Asykar)</span>
-                  <span style={{ fontSize: 11, background: '#EEF2FF', color: '#4F46E5', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
-                    Default: 235689
-                  </span>
-                </div>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-                  PIN digunakan saat membuka aplikasi atau beralih ke ruang pribadi Asykar.
-                </p>
-              </div>
-
-              {/* Keluarga PIN Card */}
-              <div style={{
-                padding: 16,
-                borderRadius: 12,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-secondary)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 8,
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontWeight: 600, fontSize: 14 }}>🏠 Duitku Keluarga</span>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>🏠 Duitku Keluarga (Kas Bersama)</span>
                   <span style={{ fontSize: 11, background: '#ECFDF5', color: '#059669', padding: '2px 8px', borderRadius: 6, fontWeight: 700 }}>
-                    Default: 080808
+                    Aktif
                   </span>
                 </div>
                 <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>
-                  PIN bersama untuk Asykar & Istri saat mengelola kas bersama.
+                  Aplikasi dikonfigurasi penuh untuk keuangan keluarga Asykar & Istri.
                 </p>
               </div>
             </div>

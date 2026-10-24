@@ -3,8 +3,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react';
 import { syncWithSupabase } from '@/lib/store';
 import { Database, AlertTriangle, RefreshCw, ServerOff } from 'lucide-react';
 import Sidebar from '@/components/Sidebar';
-import { SpaceProvider, useSpace } from '@/lib/useSpace';
-import SpaceSelectModal from '@/components/SpaceSelectModal';
+import { SpaceProvider } from '@/lib/useSpace';
 import AiChatDrawer from '@/components/AiChatDrawer';
 
 interface AppContextType {
@@ -20,7 +19,6 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const MobileMenuContext = createContext<MobileMenuContextType>({ openSidebar: () => {} });
 
 function MainLayoutContent({ children }: { children: React.ReactNode }) {
-  const { isUnlocked, setSpace } = useSpace();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Close sidebar with Escape key
@@ -41,15 +39,6 @@ function MainLayoutContent({ children }: { children: React.ReactNode }) {
     }
     return () => { document.body.style.overflow = ''; };
   }, [sidebarOpen]);
-
-  if (!isUnlocked) {
-    return (
-      <SpaceSelectModal
-        isOpen={true}
-        onSelectSpace={(space) => setSpace(space)}
-      />
-    );
-  }
 
   return (
     <MobileMenuContext.Provider value={{ openSidebar: () => setSidebarOpen(true) }}>
@@ -127,9 +116,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           <div className="relative flex items-center justify-center w-16 h-16 rounded-2xl bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 shadow-md">
             <Database size={32} className="animate-pulse" />
           </div>
-          <h2 className="text-xl font-semibold tracking-tight">Memuat Data Keuangan...</h2>
+          <h2 className="text-xl font-semibold tracking-tight">Memuat Data Keuangan Keluarga...</h2>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            Sedang mensinkronisasi data keuangan dari database. Mohon tunggu sebentar.
+            Sedang mensinkronisasi data keuangan keluarga dari database. Mohon tunggu sebentar.
           </p>
           <div className="flex items-center justify-center pt-2">
             <RefreshCw size={24} className="animate-spin text-indigo-600 dark:text-indigo-400" />

@@ -30,7 +30,7 @@ export function notifyDataChanged(): void {
 
 // ─── Active Space Helper ────────────────────────────────────────────────────
 export function getActiveSpaceId(): SpaceId {
-  return getActiveSpace() || 'pribadi';
+  return 'keluarga';
 }
 
 export function isExactUserFamilyTransaction(t: {
@@ -352,25 +352,12 @@ export async function syncWithDb(): Promise<void> {
     if (t.spaceId) localSpaceMap.set(t.id, t.spaceId);
   });
 
-  const remoteTxns: Transaction[] = (txnsRes.data || []).map((t: any) => {
-    const rawNote = t.note || '';
-    const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
-
-    // Strict persistence: space_id from Supabase or local map is trusted 100%.
-    // Space is NEVER modified by date or category heuristics.
-    let assignedSpace: SpaceId =
-      (t.space_id as SpaceId) ||
-      localSpaceMap.get(t.id) ||
-      'pribadi';
-
-    // Self-healing recovery: If user's October 2026 "makan / minum" transaction was mistakenly pushed to pribadi, restore to keluarga
-    const cat = (t.category || '').toLowerCase();
-    const note = cleanNote.toLowerCase();
-    const isMakanMinum = cat.includes('makan') || cat.includes('minum') || note.includes('makan') || note.includes('minum');
-    const isOct2026 = (t.date || '').slice(0, 7) >= '2026-10';
-    if (assignedSpace === 'pribadi' && isOct2026 && isMakanMinum) {
-      assignedSpace = 'keluarga';
-    }
+  const remoteTxns: Transaction[] = (txnsRes.data || [])
+    .filter((t: any) => t.space_id !== 'pribadi')
+    .map((t: any) => {
+      const rawNote = t.note || '';
+      const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
+      const assignedSpace: SpaceId = 'keluarga';
 
     if (t.space_id !== assignedSpace) {
       try {
@@ -424,14 +411,16 @@ export async function syncWithDb(): Promise<void> {
   localBudgets.forEach(b => {
     if (b.spaceId) localBudgetSpaceMap.set(b.id, b.spaceId);
   });
-  const remoteBudgets: BudgetPos[] = (budgetRes.data || []).map((b: any) => ({
-    id: b.id,
-    spaceId: (b.space_id as SpaceId) || localBudgetSpaceMap.get(b.id) || 'pribadi',
-    name: b.name,
-    monthlyAllocation: Number(b.monthly_allocation),
-    rollover: b.rollover || false,
-    createdAt: b.created_at,
-  }));
+  const remoteBudgets: BudgetPos[] = (budgetRes.data || [])
+    .filter((b: any) => b.space_id !== 'pribadi')
+    .map((b: any) => ({
+      id: b.id,
+      spaceId: 'keluarga',
+      name: b.name,
+      monthlyAllocation: Number(b.monthly_allocation),
+      rollover: b.rollover || false,
+      createdAt: b.created_at,
+    }));
   const pendingBudgetIds = getPending(PENDING_KEYS.budgetPos);
   if (pendingBudgetIds.size > 0) {
     for (const id of Array.from(pendingBudgetIds)) {
@@ -468,16 +457,14 @@ export async function syncWithDb(): Promise<void> {
   localParties.forEach(p => {
     if (p.spaceId) localPartySpaceMap.set(p.id, p.spaceId);
   });
-  const remoteParties: DebtParty[] = (partiesRes.data || []).map((p: any) => {
-    const localSpace = localPartySpaceMap.get(p.id);
-    const assignedSpace: SpaceId = (p.space_id as SpaceId) || localSpace || 'pribadi';
-    return {
+  const remoteParties: DebtParty[] = (partiesRes.data || [])
+    .filter((p: any) => p.space_id !== 'pribadi')
+    .map((p: any) => ({
       id: p.id,
-      spaceId: assignedSpace,
+      spaceId: 'keluarga',
       name: p.name,
       createdAt: p.created_at,
-    };
-  });
+    }));
   const pendingPartyIds = getPending(PENDING_KEYS.debtParties);
   if (pendingPartyIds.size > 0) {
     for (const id of Array.from(pendingPartyIds)) {
@@ -512,28 +499,24 @@ export async function syncWithDb(): Promise<void> {
   localDebtTxns.forEach(dt => {
     if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
   });
-  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || []).map((dt: any) => {
-    const rawNote = dt.note || '';
-    const partySpace = remoteParties.find(p => p.id === dt.party_id)?.spaceId;
-    const localSpace = localDebtTxnSpaceMap.get(dt.id);
-    const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
-    const assignedSpace: SpaceId =
-      (dt.space_id as SpaceId) ||
-      localSpace ||
-      (partySpace === 'keluarga' ? 'keluarga' : rawNote.includes('[space:keluarga]') ? 'keluarga' : 'pribadi');
+  const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || [])
+    .filter((dt: any) => dt.space_id !== 'pribadi')
+    .map((dt: any) => {
+      const rawNote = dt.note || '';
+      const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
 
-    return {
-      id: dt.id,
-      spaceId: assignedSpace,
-      partyId: dt.party_id,
-      type: dt.type,
-      txnId: dt.txn_id || undefined,
-      amount: Number(dt.amount),
-      note: cleanNote,
-      date: dt.date,
-      createdAt: dt.created_at,
-    };
-  });
+      return {
+        id: dt.id,
+        spaceId: 'keluarga',
+        partyId: dt.party_id,
+        type: dt.type,
+        txnId: dt.txn_id || undefined,
+        amount: Number(dt.amount),
+        note: cleanNote,
+        date: dt.date,
+        createdAt: dt.created_at,
+      };
+    });
   const pendingDebtTxnIds = getPending(PENDING_KEYS.debtTransactions);
   if (pendingDebtTxnIds.size > 0) {
     for (const id of Array.from(pendingDebtTxnIds)) {
@@ -558,17 +541,15 @@ export async function syncWithDb(): Promise<void> {
   localGoals.forEach(g => {
     if (g.spaceId) localGoalSpaceMap.set(g.id, g.spaceId);
   });
-  const remoteGoals: SavingGoal[] = (goalsRes.data || []).map((g: any) => {
-    const localSpace = localGoalSpaceMap.get(g.id);
-    const assignedSpace: SpaceId = (g.space_id as SpaceId) || localSpace || 'pribadi';
-    return {
+  const remoteGoals: SavingGoal[] = (goalsRes.data || [])
+    .filter((g: any) => g.space_id !== 'pribadi')
+    .map((g: any) => ({
       id: g.id,
-      spaceId: assignedSpace,
+      spaceId: 'keluarga',
       name: g.name,
       targetAmount: Number(g.target_amount),
       createdAt: g.created_at,
-    };
-  });
+    }));
   const pendingGoalIds = getPending(PENDING_KEYS.savingGoals);
   if (pendingGoalIds.size > 0) {
     for (const id of Array.from(pendingGoalIds)) {
