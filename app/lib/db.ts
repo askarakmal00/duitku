@@ -124,6 +124,10 @@ export async function ensureDatabaseSchema(): Promise<void> {
       DELETE FROM debt_transactions WHERE space_id = 'pribadi';
       DELETE FROM saving_goals WHERE space_id = 'pribadi';
 
+      -- Retain only October 2026 onwards for family finance; purge older transactions
+      DELETE FROM transactions WHERE date < '2026-10-01';
+      DELETE FROM debt_transactions WHERE date < '2026-10-01';
+
       -- Ensure all existing and new records default to keluarga
       UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
       UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
