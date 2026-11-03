@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { X, ArrowDownRight } from 'lucide-react';
+import { X, ArrowDownRight, AlertCircle } from 'lucide-react';
 import { SavingGoal } from '@/lib/types';
-import { toInputDate, formatCurrency, clamp } from '@/lib/helpers';
+import { toInputDate, formatCurrency } from '@/lib/helpers';
 import { getGoalProgress } from '@/lib/store';
 
 interface GoalWithdrawModalProps {
@@ -15,21 +15,29 @@ export default function GoalWithdrawModal({ goal, onSave, onClose }: GoalWithdra
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(toInputDate());
+  const [error, setError] = useState<string | null>(null);
 
-  const progress = getGoalProgress(goal.id);
-  const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
+  const currentBalance = getGoalProgress(goal.id);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/[^0-9]/g, '');
     setAmount(val);
+    setError(null);
+  };
+
+  const handleSetMax = () => {
+    if (currentBalance > 0) {
+      setAmount(currentBalance.toString());
+      setError(null);
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const withdrawAmount = parseInt(amount, 10);
     if (!withdrawAmount || withdrawAmount <= 0) return;
-    if (withdrawAmount > progress) {
-      alert('Jumlah penarikan melebihi saldo tabungan goal ini!');
+    if (withdrawAmount > currentBalance) {
+      setError(`Jumlah penarikan melebihi saldo tersedia (${formatCurrency(currentBalance)})!`);
       return;
     }
     onSave(withdrawAmount, note || `Tarik dari: ${goal.name}`, date);
@@ -40,31 +48,58 @@ export default function GoalWithdrawModal({ goal, onSave, onClose }: GoalWithdra
       <div className="modal" style={{ maxWidth: 420 }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <ArrowDownRight size={18} color="var(--danger)" />
-            <span className="modal-title">Tarik dari Goal</span>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: '#FEF2F2', color: '#DC2626',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <ArrowDownRight size={18} />
+            </div>
+            <span className="modal-title">Tarik dari Tabungan</span>
           </div>
           <button className="modal-close" onClick={onClose}><X size={16} /></button>
         </div>
 
-        <div style={{ background: 'var(--primary-50)', padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
-          <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 6 }}>{goal.name}</p>
-          <div className="progress-bar" style={{ height: 8, marginBottom: 6 }}>
-            <div className="progress-fill" style={{ width: `${pct}%` }} />
+        {/* Current Pocket Info */}
+        <div style={{ background: '#F8FAFC', padding: '16px 20px', borderBottom: '1px solid #E2E8F0' }}>
+          <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Kantong Tabungan
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-            <span className="text-muted">Terkumpul saat ini: <strong style={{ color: 'var(--success)' }}>{formatCurrency(progress)}</strong></span>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+            {goal.name}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 12, color: '#64748B' }}>Saldo tersedia:</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: currentBalance > 0 ? '#059669' : '#DC2626' }}>
+                {formatCurrency(currentBalance)}
+              </span>
+            </div>
+            {currentBalance > 0 && (
+              <button
+                type="button"
+                onClick={handleSetMax}
+                style={{
+                  background: '#EEF2FF', border: '1px solid #C7D2FE',
+                  borderRadius: 6, padding: '3px 8px', fontSize: 11,
+                  color: '#4F46E5', fontWeight: 700, cursor: 'pointer'
+                }}
+              >
+                Tarik Semua
+              </button>
+            )}
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label className="form-label">Jumlah Tarik (Rp) *</label>
+              <label className="form-label">Nominal Tarik (Rp) *</label>
               <input
                 className="form-input"
                 type="text"
                 inputMode="numeric"
-                placeholder={`Maks penarikan: Rp ${progress.toLocaleString('id-ID')}`}
+                placeholder={`Maks: Rp ${currentBalance.toLocaleString('id-ID')}`}
                 value={amount}
                 onChange={handleAmountChange}
                 autoFocus
@@ -74,6 +109,12 @@ export default function GoalWithdrawModal({ goal, onSave, onClose }: GoalWithdra
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
                   Rp {parseInt(amount || '0').toLocaleString('id-ID')}
                 </span>
+              )}
+              {error && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#DC2626', fontSize: 12, marginTop: 4 }}>
+                  <AlertCircle size={13} />
+                  <span>{error}</span>
+                </div>
               )}
             </div>
             <div className="form-group">
@@ -87,27 +128,31 @@ export default function GoalWithdrawModal({ goal, onSave, onClose }: GoalWithdra
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Keterangan</label>
+              <label className="form-label">Keterangan Penarikan</label>
               <input
                 className="form-input"
                 type="text"
-                placeholder="Catatan penarikan..."
+                placeholder="cth: Keperluan darurat, belanja kebutuhan..."
                 value={note}
                 onChange={e => setNote(e.target.value)}
               />
             </div>
             <div style={{
-              background: 'var(--warning-bg)', borderRadius: 'var(--radius-sm)',
-              padding: '10px 14px', fontSize: 13, color: 'var(--warning)',
-              border: '1px solid #FCD34D'
+              background: '#FFFBEB', borderRadius: 10,
+              padding: '10px 14px', fontSize: 12.5, color: '#B45309',
+              border: '1px solid #FDE68A', lineHeight: 1.5
             }}>
-              💡 Penarikan ini akan <strong>menambahkan ke saldo utama</strong> dan mengurangi progress target
+              💡 <strong>Otomatis Terhubung:</strong> Dana yang ditarik akan <strong>langsung kembali ke saldo Kas Bersama</strong> dan memotong saldo kantong tabungan ini.
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Batal</button>
-            <button type="submit" className="btn btn-danger">
-              💸 Tarik Uang
+            <button
+              type="submit"
+              className="btn btn-danger"
+              disabled={currentBalance <= 0}
+            >
+              💸 Konfirmasi Penarikan
             </button>
           </div>
         </form>

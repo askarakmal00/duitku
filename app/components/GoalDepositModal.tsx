@@ -1,8 +1,8 @@
 'use client';
 import { useState } from 'react';
-import { X, Target } from 'lucide-react';
+import { X, PiggyBank, ArrowUpRight } from 'lucide-react';
 import { SavingGoal } from '@/lib/types';
-import { toInputDate, formatCurrency, clamp } from '@/lib/helpers';
+import { toInputDate, formatCurrency } from '@/lib/helpers';
 import { getGoalProgress } from '@/lib/store';
 
 interface GoalDepositModalProps {
@@ -16,9 +16,7 @@ export default function GoalDepositModal({ goal, onSave, onClose }: GoalDepositM
   const [note, setNote] = useState('');
   const [date, setDate] = useState(toInputDate());
 
-  const progress = getGoalProgress(goal.id);
-  const remaining = Math.max(0, goal.targetAmount - progress);
-  const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
+  const currentBalance = getGoalProgress(goal.id);
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value.replace(/[^0-9]/g, '');
@@ -37,32 +35,43 @@ export default function GoalDepositModal({ goal, onSave, onClose }: GoalDepositM
       <div className="modal" style={{ maxWidth: 420 }}>
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Target size={18} color="var(--primary)" />
-            <span className="modal-title">Setor ke Goal</span>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: '#ECFDF5', color: '#059669',
+              display: 'flex', alignItems: 'center', justifyContent: 'center'
+            }}>
+              <ArrowUpRight size={18} />
+            </div>
+            <span className="modal-title">Setor ke Tabungan</span>
           </div>
           <button className="modal-close" onClick={onClose}><X size={16} /></button>
         </div>
 
-        <div style={{ background: 'var(--primary-50)', padding: '14px 24px', borderBottom: '1px solid var(--border)' }}>
-          <p style={{ fontWeight: 700, fontSize: 15, color: 'var(--text-primary)', marginBottom: 6 }}>{goal.name}</p>
-          <div className="progress-bar" style={{ height: 8, marginBottom: 6 }}>
-            <div className="progress-fill" style={{ width: `${pct}%` }} />
+        {/* Current Pocket Info */}
+        <div style={{ background: '#F8FAFC', padding: '16px 20px', borderBottom: '1px solid #E2E8F0' }}>
+          <div style={{ fontSize: 12, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Kantong Tabungan
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-            <span className="text-muted">Terkumpul: <strong style={{ color: 'var(--success)' }}>{formatCurrency(progress)}</strong></span>
-            <span className="text-muted">Sisa: <strong style={{ color: 'var(--primary)' }}>{formatCurrency(remaining)}</strong></span>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+            {goal.name}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 8 }}>
+            <span style={{ fontSize: 12, color: '#64748B' }}>Saldo saat ini:</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#059669' }}>
+              {formatCurrency(currentBalance)}
+            </span>
           </div>
         </div>
 
         <form onSubmit={handleSubmit}>
           <div className="modal-body">
             <div className="form-group">
-              <label className="form-label">Jumlah Setor (Rp) *</label>
+              <label className="form-label">Nominal Setor (Rp) *</label>
               <input
                 className="form-input"
                 type="text"
                 inputMode="numeric"
-                placeholder={`Maks sisa: Rp ${remaining.toLocaleString('id-ID')}`}
+                placeholder="0"
                 value={amount}
                 onChange={handleAmountChange}
                 autoFocus
@@ -85,27 +94,27 @@ export default function GoalDepositModal({ goal, onSave, onClose }: GoalDepositM
               />
             </div>
             <div className="form-group">
-              <label className="form-label">Keterangan</label>
+              <label className="form-label">Catatan</label>
               <input
                 className="form-input"
                 type="text"
-                placeholder="Catatan setor..."
+                placeholder="cth: Tabungan rutin bulanan, bonus..."
                 value={note}
                 onChange={e => setNote(e.target.value)}
               />
             </div>
             <div style={{
-              background: 'var(--primary-50)', borderRadius: 'var(--radius-sm)',
-              padding: '10px 14px', fontSize: 13, color: 'var(--text-secondary)',
-              border: '1px solid var(--primary-200)'
+              background: '#EEF2FF', borderRadius: 10,
+              padding: '10px 14px', fontSize: 12.5, color: '#4338CA',
+              border: '1px solid #C7D2FE', lineHeight: 1.5
             }}>
-              💡 Setoran ini akan <strong>memotong saldo utama</strong> dan menambah progress target
+              💡 <strong>Otomatis Terhubung:</strong> Setoran ini akan <strong>memotong saldo Kas Bersama</strong> dan menambah saldo kantong tabungan ini.
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn btn-ghost" onClick={onClose}>Batal</button>
-            <button type="submit" className="btn btn-primary">
-              💰 Setor ke Goal
+            <button type="submit" className="btn btn-primary" style={{ background: '#059669', borderColor: '#059669' }}>
+              💰 Konfirmasi Setor
             </button>
           </div>
         </form>

@@ -278,11 +278,9 @@ export default function FamilyDashboardRedesign({
   const totalBudgetUsed = budgetPos.reduce((s, p) => s + getBudgetUsed(p.id, year, month, 'keluarga'), 0);
   const budgetPct = totalBudget > 0 ? Math.round(clamp((totalBudgetUsed / totalBudget) * 100, 0, 100)) : 0;
 
-  // Savings / Goals
+  // Savings / Tabungan Pockets
   const goals = getSavingGoals('keluarga');
-  const totalGoalProgress = goals.reduce((s, g) => s + getGoalProgress(g.id, 'keluarga'), 0);
-  const totalGoalTarget = goals.reduce((s, g) => s + g.targetAmount, 0);
-  const goalPct = totalGoalTarget > 0 ? Math.round(clamp((totalGoalProgress / totalGoalTarget) * 100, 0, 100)) : 0;
+  const totalGoalProgress = goals.reduce((s, g) => s + Math.max(0, getGoalProgress(g.id, 'keluarga')), 0);
 
   // Debt
   const totalDebt = getTotalDebt('keluarga');
@@ -557,19 +555,18 @@ export default function FamilyDashboardRedesign({
           <Link href="/savings" style={{ textDecoration: 'none' }}>
             <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '14px 12px', textAlign: 'center' }}>
               <PiggyBank size={20} color="#10B981" style={{ marginBottom: 6 }} />
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Tabungan</div>
-              <div style={{ fontSize: 10, color: '#64748B', marginBottom: 6 }}>{compactRp(totalGoalProgress)}</div>
-              <div style={{ height: 4, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
-                <div style={{ height: '100%', width: `${goalPct}%`, background: '#10B981', borderRadius: 9999 }} />
-              </div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', marginBottom: 2 }}>Tabungan</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#059669', marginBottom: 2 }}>{compactRp(totalGoalProgress)}</div>
+              <div style={{ fontSize: 10, color: '#64748B' }}>{goals.length} kantong</div>
             </div>
           </Link>
           {/* Hutang */}
-          <Link href="/debts" style={{ textDecoration: 'none' }}>
+          <Link href="/wallet" style={{ textDecoration: 'none' }}>
             <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '14px 12px', textAlign: 'center' }}>
               <CreditCard size={20} color="#F59E0B" style={{ marginBottom: 6 }} />
-              <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Hutang</div>
-              <div style={{ fontSize: 10, color: '#64748B' }}>{compactRp(totalDebt)}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', marginBottom: 2 }}>Hutang</div>
+              <div style={{ fontSize: 12, fontWeight: 800, color: totalDebt > 0 ? '#DC2626' : '#059669', marginBottom: 2 }}>{compactRp(totalDebt)}</div>
+              <div style={{ fontSize: 10, color: '#64748B' }}>Kewajiban</div>
             </div>
           </Link>
         </div>
@@ -722,10 +719,25 @@ export default function FamilyDashboardRedesign({
                 </span>
               </div>
             )}
+
+            {/* Net Cashflow indicator */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 8, flexWrap: 'wrap' }}>
+              <div style={{
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+                background: summary.netCashFlow >= 0 ? '#ECFDF5' : '#FEF2F2',
+                color: summary.netCashFlow >= 0 ? '#059669' : '#DC2626',
+                padding: '3px 10px', borderRadius: 9999, fontSize: 12, fontWeight: 700
+              }}>
+                <span>Arus Kas: {summary.netCashFlow >= 0 ? '+' : ''}{formatRupiah(summary.netCashFlow)}</span>
+              </div>
+              <span style={{ fontSize: 11.5, color: '#64748B' }}>
+                (Masuk: +{compactRp(summary.totalCashIn)} · Keluar: -{compactRp(summary.totalCashOut)})
+              </span>
+            </div>
           </div>
 
           {/* Buttons */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 20 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 18 }}>
             <button
               onClick={() => setShowAddModal(true)}
               style={{
@@ -763,7 +775,7 @@ export default function FamilyDashboardRedesign({
           </div>
         </div>
 
-        {/* CARD 2: TARGET TABUNGAN (light green) */}
+        {/* CARD 2: TABUNGAN KELUARGA (light green) */}
         <div style={{
           background: '#F0FDF4', borderRadius: 24, padding: '24px 26px',
           border: '1px solid #BBF7D0', boxShadow: '0 2px 8px rgba(16,185,129,0.08)',
@@ -771,31 +783,44 @@ export default function FamilyDashboardRedesign({
           position: 'relative', overflow: 'hidden',
         }}>
           {/* decorative plant SVG */}
-          <div style={{ position: 'absolute', right: 20, bottom: 20, opacity: 0.3, fontSize: 60, lineHeight: 1 }}>🌱</div>
+          <div style={{ position: 'absolute', right: 20, bottom: 20, opacity: 0.15, fontSize: 60, lineHeight: 1 }}>🌱</div>
           <div style={{ position: 'absolute', top: 16, right: 16 }}>
-            <span style={{ background: '#10B981', color: '#fff', borderRadius: 9999, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>Target Tabungan ⭐</span>
+            <span style={{ background: '#10B981', color: '#fff', borderRadius: 9999, padding: '4px 10px', fontSize: 11, fontWeight: 700 }}>Pos Simpanan 🛡️</span>
           </div>
 
           <div>
-            <div style={{ fontSize: 12, color: '#059669', fontWeight: 600, marginBottom: 8, marginTop: 4 }}>Terkumpul</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, marginTop: 4 }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <PiggyBank size={16} color="#059669" />
+              </div>
+              <span style={{ fontSize: 12, color: '#059669', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Total Tabungan Keluarga
+              </span>
+            </div>
+
             <div style={{ fontSize: 'clamp(26px, 4vw, 36px)', fontWeight: 800, color: '#0F172A', letterSpacing: '-0.02em', lineHeight: 1.1, marginBottom: 10 }}>
               {formatRupiah(totalGoalProgress)}
             </div>
 
-            {/* Progress bar */}
-            <div style={{ height: 8, background: '#BBF7D0', borderRadius: 9999, overflow: 'hidden', marginBottom: 8 }}>
-              <div style={{ height: '100%', width: `${goalPct}%`, background: '#10B981', borderRadius: 9999, transition: 'width 0.4s ease' }} />
-            </div>
-            <div style={{ fontSize: 12, color: '#059669', fontWeight: 500 }}>
-              {goalPct}% dari target {formatRupiah(totalGoalTarget)}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#059669', fontWeight: 600 }}>
+              <span>{goals.length} kantong tabungan aktif</span>
+              {goals.length > 0 && (
+                <span style={{ color: '#64748B', fontWeight: 400 }}>
+                  ({goals.slice(0, 2).map(g => g.name).join(', ')}{goals.length > 2 ? '...' : ''})
+                </span>
+              )}
             </div>
           </div>
 
           <button
             onClick={() => router.push('/savings')}
-            style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', marginTop: 16 }}
+            style={{
+              background: '#10B981', color: '#fff', border: 'none', borderRadius: 10,
+              padding: '9px 18px', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+              alignSelf: 'flex-start', marginTop: 16, display: 'flex', alignItems: 'center', gap: 6
+            }}
           >
-            Lihat Detail →
+            Kelola Tabungan →
           </button>
         </div>
       </div>

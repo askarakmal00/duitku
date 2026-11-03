@@ -300,16 +300,13 @@ export default function DashboardPage() {
                     </Link>
                   )}
                   {goals.length > 0 && (
-                    <Link href="/goals" className="mobile-progress-card" style={{ textDecoration: 'none' }}>
-                      <div className="mobile-progress-title">Target tabungan</div>
-                      <div className="mobile-progress-bar-wrap">
-                        <div
-                          className="mobile-progress-bar-fill goal"
-                          style={{ width: `${totalGoalPct}%` }}
-                        />
+                    <Link href="/savings" className="mobile-progress-card" style={{ textDecoration: 'none' }}>
+                      <div className="mobile-progress-title">Tabungan keluarga</div>
+                      <div style={{ fontSize: 16, fontWeight: 800, color: '#059669', margin: '4px 0 2px' }}>
+                        {formatCurrency(totalGoalProgress, true)}
                       </div>
                       <div className="mobile-progress-sub">
-                        {formatCurrency(totalGoalProgress, true)} / {formatCurrency(totalGoalTarget, true)}
+                        {goals.length} kantong simpanan aktif
                       </div>
                     </Link>
                   )}
@@ -463,8 +460,8 @@ export default function DashboardPage() {
 
                   <div className="card">
                     <div className="card-header" style={{ minWidth: 0 }}>
-                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Target Tabungan</span>
-                      <a href="/goals" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
+                      <span className="card-title" style={{ minWidth: 0, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Tabungan Keluarga</span>
+                      <a href="/savings" className="card-action" style={{ flexShrink: 0 }}>Lihat semua →</a>
                     </div>
                     <SavingGoalsList goals={goals.slice(0, 4)} />
                   </div>

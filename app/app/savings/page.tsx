@@ -1,9 +1,8 @@
 'use client';
 import { useState, useCallback, useMemo } from 'react';
 import {
-  PiggyBank, Target, Plus, TrendingUp, Coins,
-  MoreVertical, ArrowUpRight, ArrowDownLeft, ShieldCheck,
-  CheckCircle2, Filter
+  PiggyBank, Plus, ArrowUpRight, ArrowDownLeft,
+  Coins, MoreVertical, Pencil, Trash2, Filter, Wallet, Sparkles
 } from 'lucide-react';
 import Header from '@/components/Header';
 import GoalModal from '@/components/GoalModal';
@@ -14,7 +13,7 @@ import {
   getGoalProgress, addTransaction, getSavingsTransactions, getTransactions
 } from '@/lib/store';
 import { SavingGoal, Transaction } from '@/lib/types';
-import { formatCurrency, formatDate, clamp, getCurrentMonth } from '@/lib/helpers';
+import { formatCurrency, formatDate, getCurrentMonth } from '@/lib/helpers';
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useSpace } from '@/lib/useSpace';
 
@@ -42,18 +41,26 @@ export default function SavingsPage() {
 
   useDataRefresh(load);
 
-  // Financial metrics
-  const totalTarget = useMemo(() => goals.reduce((s, g) => s + g.targetAmount, 0), [goals]);
-  const totalProgress = useMemo(() => goals.reduce((s, g) => s + getGoalProgress(g.id, currentSpace), 0), [goals, currentSpace]);
-  const overallPct = totalTarget > 0 ? clamp((totalProgress / totalTarget) * 100, 0, 100) : 0;
+  // Financial metrics — Total Saldo Akumulasi Seluruh Kantong Tabungan
+  const totalBalance = useMemo(() => {
+    return goals.reduce((s, g) => s + Math.max(0, getGoalProgress(g.id, currentSpace)), 0);
+  }, [goals, currentSpace]);
 
-  // Monthly savings allocation
+  // Monthly savings activity
   const { year, month } = getCurrentMonth();
   const monthPrefix = `${year}-${String(month).padStart(2, '0')}`;
-  const thisMonthSavings = useMemo(() => {
-    return allTxns
-      .filter(t => (t.date || '').startsWith(monthPrefix) && (t.category === 'Tabungan' || Boolean(t.goalId)))
-      .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
+  
+  const monthlyStats = useMemo(() => {
+    const monthTxns = allTxns.filter(t => 
+      (t.date || '').startsWith(monthPrefix) && (t.category === 'Tabungan' || Boolean(t.goalId))
+    );
+    
+    // type 'keluar' = uang dari kas bersama masuk ke tabungan (setor)
+    const deposits = monthTxns.filter(t => t.type === 'keluar').reduce((sum, t) => sum + t.amount, 0);
+    // type 'masuk' = uang dari tabungan kembali ke kas bersama (tarik)
+    const withdrawals = monthTxns.filter(t => t.type === 'masuk').reduce((sum, t) => sum + t.amount, 0);
+    
+    return { deposits, withdrawals, net: deposits - withdrawals };
   }, [allTxns, monthPrefix]);
 
   const handleSaveGoal = async (data: Omit<SavingGoal, 'id' | 'createdAt'>) => {
@@ -70,13 +77,15 @@ export default function SavingsPage() {
   const handleEdit = (g: SavingGoal) => {
     setEditTarget(g);
     setShowModal(true);
+    setActiveMenuId(null);
   };
 
   const handleDelete = async (id: string) => {
-    if (confirm('Hapus pos tabungan ini? Riwayat mutasi tetap aman di pembukuan.')) {
+    if (confirm('Hapus kantong tabungan ini? Riwayat mutasi tetap tercatat di pembukuan.')) {
       await deleteSavingGoal(id);
       load();
     }
+    setActiveMenuId(null);
   };
 
   const handleDeposit = async (amount: number, note: string, date: string) => {
@@ -124,351 +133,331 @@ export default function SavingsPage() {
     <>
       <Header
         title="Tabungan Keluarga"
-        subtitle="Kelola kantong tabungan impian, alokasi dana, dan mutasi simpanan keluarga"
+        subtitle="Simpan dan pisahkan dana keluarga ke dalam berbagai kantong tanpa batasan target"
       />
 
-      <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: 24, paddingBottom: 60 }}>
+      <div className="page-container" style={{ display: 'flex', flexDirection: 'column', gap: 20, paddingBottom: 60 }}>
         {/* ─── STAT CARDS HERO (GRID 4) ─── */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: 16
+          gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))',
+          gap: 14,
         }}>
-          {/* Card 1: Total Tabungan Terkumpul */}
+          {/* Card 1: Total Tabungan */}
           <div style={{
-            background: 'linear-gradient(135deg, #059669 0%, #10B981 100%)',
+            background: 'linear-gradient(135deg, #065F46 0%, #059669 60%, #10B981 100%)',
+            borderRadius: 18,
+            padding: '18px 20px',
             color: '#FFFFFF',
-            borderRadius: 20,
-            padding: '20px 22px',
-            boxShadow: '0 8px 20px rgba(16, 185, 129, 0.22)',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
+            boxShadow: '0 4px 16px rgba(5, 150, 105, 0.25)',
             position: 'relative',
-            overflow: 'hidden'
+            overflow: 'hidden',
           }}>
-            <div style={{ position: 'absolute', right: -15, bottom: -15, opacity: 0.15, pointerEvents: 'none' }}>
-              <PiggyBank size={110} />
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ background: 'rgba(255, 255, 255, 0.2)', padding: 6, borderRadius: 10 }}>
+            <div style={{ position: 'absolute', top: -15, right: -15, width: 90, height: 90, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: 'rgba(255,255,255,0.2)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
                 <PiggyBank size={18} color="#FFFFFF" />
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#D1FAE5' }}>Total Tabungan Tersimpan</span>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', opacity: 0.9 }}>
+                Total Saldo Tabungan
+              </span>
             </div>
-            <div>
-              <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: '-0.5px' }}>
-                {formatCurrency(totalProgress)}
-              </div>
-              <div style={{ fontSize: 11, color: '#A7F3D0', marginTop: 4 }}>
-                Dari {goals.length} pos tabungan aktif
-              </div>
+            <div style={{ fontSize: 26, fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+              {formatCurrency(totalBalance)}
             </div>
-          </div>
-
-          {/* Card 2: Total Target */}
-          <div style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 20,
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ background: '#EEF2FF', padding: 6, borderRadius: 10 }}>
-                <Target size={18} color="#4F46E5" />
-              </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B' }}>Total Target Tabungan</span>
-            </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', letterSpacing: '-0.5px' }}>
-                {formatCurrency(totalTarget)}
-              </div>
-              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-                Sisa butuh: {formatCurrency(Math.max(0, totalTarget - totalProgress))}
-              </div>
+            <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 6 }}>
+              {goals.length} kantong tabungan aktif
             </div>
           </div>
 
-          {/* Card 3: Pencapaian Keseluruhan */}
+          {/* Card 2: Setoran Bulan Ini */}
           <div style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 20,
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
+            background: 'var(--card)',
+            borderRadius: 18,
+            padding: '18px 20px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ background: '#FAF5FF', padding: 6, borderRadius: 10 }}>
-                <TrendingUp size={18} color="#9333EA" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: '#ECFDF5', color: '#059669',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <ArrowUpRight size={18} />
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B' }}>Progress Keseluruhan</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Setoran Bulan Ini
+              </span>
             </div>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-                <span style={{ fontSize: 24, fontWeight: 800, color: '#9333EA' }}>{overallPct.toFixed(1)}%</span>
-                <span style={{ fontSize: 12, color: '#94A3B8' }}>tercapai</span>
-              </div>
-              <div style={{ height: 6, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden', marginTop: 8 }}>
-                <div style={{ height: '100%', width: `${overallPct}%`, background: 'linear-gradient(90deg, #9333EA 0%, #C084FC 100%)', borderRadius: 9999 }} />
-              </div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#059669', lineHeight: 1.1 }}>
+              +{formatCurrency(monthlyStats.deposits)}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 6 }}>
+              Uang disisihkan dari kas
             </div>
           </div>
 
-          {/* Card 4: Setoran Bulan Ini */}
+          {/* Card 3: Penarikan Bulan Ini */}
           <div style={{
-            background: '#FFFFFF',
-            border: '1px solid #E2E8F0',
-            borderRadius: 20,
-            padding: '20px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between'
+            background: 'var(--card)',
+            borderRadius: 18,
+            padding: '18px 20px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-              <div style={{ background: '#F0FDF4', padding: 6, borderRadius: 10 }}>
-                <Coins size={18} color="#16A34A" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: '#FEF2F2', color: '#DC2626',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <ArrowDownLeft size={18} />
               </div>
-              <span style={{ fontSize: 13, fontWeight: 600, color: '#64748B' }}>Setoran Bulan Ini</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Penarikan Bulan Ini
+              </span>
             </div>
-            <div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: '#16A34A', letterSpacing: '-0.5px' }}>
-                {formatCurrency(thisMonthSavings)}
+            <div style={{ fontSize: 22, fontWeight: 800, color: monthlyStats.withdrawals > 0 ? '#DC2626' : 'var(--text-primary)', lineHeight: 1.1 }}>
+              -{formatCurrency(monthlyStats.withdrawals)}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 6 }}>
+              Kembali ke kas operasional
+            </div>
+          </div>
+
+          {/* Card 4: Net Tabungan Bulan Ini */}
+          <div style={{
+            background: 'var(--card)',
+            borderRadius: 18,
+            padding: '18px 20px',
+            border: '1px solid var(--border)',
+            boxShadow: 'var(--shadow)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: '#EEF2FF', color: '#6366F1',
+                display: 'flex', alignItems: 'center', justifyContent: 'center'
+              }}>
+                <Sparkles size={18} />
               </div>
-              <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 4 }}>
-                Masuk ke pos tabungan
-              </div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Arus Bersih Simpanan
+              </span>
+            </div>
+            <div style={{
+              fontSize: 22, fontWeight: 800,
+              color: monthlyStats.net >= 0 ? '#4F46E5' : '#DC2626',
+              lineHeight: 1.1
+            }}>
+              {monthlyStats.net >= 0 ? '+' : ''}{formatCurrency(monthlyStats.net)}
+            </div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-secondary)', marginTop: 6 }}>
+              {monthlyStats.net >= 0 ? 'Surplus tabungan bulan ini' : 'Penarikan lebih besar dari setoran'}
             </div>
           </div>
         </div>
 
-        {/* ─── SECTION 1: POS / KANTONG TABUNGAN ─── */}
+        {/* ─── KANTONG TABUNGAN SECTION ─── */}
         <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 14
+          }}>
             <div>
-              <h2 style={{ fontSize: 18, fontWeight: 700, color: '#0F172A', margin: 0 }}>Pos Tabungan Keluarga</h2>
-              <p style={{ fontSize: 12, color: '#64748B', margin: '4px 0 0 0' }}>Alokasi simpanan untuk kebutuhan dan impian masa depan</p>
+              <h2 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Kantong Tabungan ({goals.length})
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                Alokasi pos simpanan keluarga bebas tanpa tekanan target
+              </p>
             </div>
             <button
               onClick={() => { setEditTarget(undefined); setShowModal(true); }}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                background: '#4F46E5',
-                color: '#FFFFFF',
-                border: 'none',
-                borderRadius: 12,
-                padding: '10px 16px',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(79, 70, 229, 0.25)'
-              }}
+              className="btn btn-primary btn-sm"
+              style={{ background: '#059669', borderColor: '#059669' }}
             >
-              <Plus size={16} /> Buka Pos Tabungan
+              <Plus size={15} />
+              <span>Tambah Kantong</span>
             </button>
           </div>
 
           {goals.length === 0 ? (
-            <div style={{
-              background: '#FFFFFF',
-              border: '2px dashed #CBD5E1',
-              borderRadius: 20,
-              padding: '48px 24px',
-              textAlign: 'center'
-            }}>
-              <div style={{ fontSize: 42, marginBottom: 12 }}>🏦</div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', marginBottom: 6 }}>Belum Ada Pos Tabungan</h3>
-              <p style={{ fontSize: 13, color: '#64748B', maxWidth: 400, margin: '0 auto 18px' }}>
-                Buat pos tabungan baru seperti <b>Dana Darurat</b>, <b>Pendidikan Anak</b>, atau <b>Liburan Keluarga</b> untuk mulai mengalokasikan tabungan.
+            <div className="card" style={{ padding: '36px 20px', textAlign: 'center' }}>
+              <div style={{
+                width: 56, height: 56, borderRadius: '50%',
+                background: '#ECFDF5', color: '#059669',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 14px'
+              }}>
+                <PiggyBank size={28} />
+              </div>
+              <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>
+                Belum ada kantong tabungan
+              </h3>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 400, margin: '0 auto 16px' }}>
+                Buat kantong seperti Dana Darurat, Tabungan Pendidikan, atau Uang Dingin untuk mulai memisahkan simpanan keluarga.
               </p>
               <button
                 onClick={() => { setEditTarget(undefined); setShowModal(true); }}
-                style={{
-                  background: '#4F46E5',
-                  color: '#FFFFFF',
-                  border: 'none',
-                  borderRadius: 12,
-                  padding: '10px 20px',
-                  fontSize: 13,
-                  fontWeight: 600,
-                  cursor: 'pointer'
-                }}
+                className="btn btn-primary"
+                style={{ background: '#059669', borderColor: '#059669' }}
               >
-                + Buka Pos Pertama
+                <Plus size={15} /> Buat Kantong Pertama
               </button>
             </div>
           ) : (
             <div style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
-              gap: 16
+              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+              gap: 14,
             }}>
               {goals.map(goal => {
-                const progress = getGoalProgress(goal.id, currentSpace);
-                const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
-                const remaining = Math.max(0, goal.targetAmount - progress);
-                const isComplete = progress >= goal.targetAmount;
+                const balance = getGoalProgress(goal.id, currentSpace);
+                const pocketTxns = savingsTxns.filter(t => t.goalId === goal.id);
 
                 return (
                   <div
                     key={goal.id}
                     style={{
-                      background: '#FFFFFF',
-                      border: isComplete ? '1px solid #A7F3D0' : '1px solid #E2E8F0',
-                      borderRadius: 20,
-                      padding: 20,
+                      background: 'var(--card)',
+                      borderRadius: 'var(--radius-md)',
+                      border: '1px solid var(--border)',
+                      padding: '18px 20px',
                       display: 'flex',
                       flexDirection: 'column',
                       justifyContent: 'space-between',
+                      boxShadow: 'var(--shadow)',
                       position: 'relative',
-                      boxShadow: isComplete ? '0 4px 14px rgba(16, 185, 129, 0.08)' : 'none',
-                      transition: 'transform 0.15s ease, box-shadow 0.15s ease'
                     }}
                   >
                     <div>
-                      {/* Top Header of Card */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                      {/* Pocket Header */}
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 12,
-                            background: isComplete ? '#ECFDF5' : '#EEF2FF',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
+                            width: 40, height: 40, borderRadius: 12,
+                            background: '#ECFDF5', color: '#059669',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 18, flexShrink: 0
                           }}>
-                            {isComplete ? (
-                              <CheckCircle2 size={20} color="#059669" />
-                            ) : (
-                              <ShieldCheck size={20} color="#4F46E5" />
-                            )}
+                            💰
                           </div>
                           <div>
-                            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#0F172A', margin: 0 }}>{goal.name}</h3>
-                            <span style={{ fontSize: 11, color: isComplete ? '#059669' : '#64748B', fontWeight: 600 }}>
-                              {isComplete ? 'Target Tercapai 🎉' : `${pct.toFixed(0)}% terkumpul`}
-                            </span>
+                            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                              {goal.name}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                              {pocketTxns.length} mutasi tercatat
+                            </div>
                           </div>
                         </div>
 
-                        {/* Three Dots Menu */}
+                        {/* Pocket Menu */}
                         <div style={{ position: 'relative' }}>
                           <button
                             onClick={() => setActiveMenuId(activeMenuId === goal.id ? null : goal.id)}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#94A3B8',
-                              cursor: 'pointer',
-                              padding: 4,
-                              borderRadius: 6
-                            }}
+                            className="btn btn-ghost btn-icon btn-sm"
+                            aria-label="Menu"
                           >
                             <MoreVertical size={16} />
                           </button>
-
                           {activeMenuId === goal.id && (
                             <div style={{
-                              position: 'absolute',
-                              right: 0,
-                              top: '100%',
-                              marginTop: 4,
-                              background: '#FFFFFF',
-                              border: '1px solid #E2E8F0',
-                              borderRadius: 12,
-                              boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
-                              zIndex: 50,
-                              minWidth: 130,
-                              overflow: 'hidden'
+                              position: 'absolute', right: 0, top: '100%',
+                              background: 'var(--card)', border: '1px solid var(--border)',
+                              borderRadius: 10, boxShadow: 'var(--shadow-md)',
+                              zIndex: 20, minWidth: 130, overflow: 'hidden',
                             }}>
                               <button
-                                onClick={() => { handleEdit(goal); setActiveMenuId(null); }}
-                                style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', color: '#0F172A', display: 'flex', alignItems: 'center', gap: 8 }}
+                                onClick={() => handleEdit(goal)}
+                                style={{
+                                  width: '100%', padding: '9px 12px', border: 'none', background: 'none',
+                                  textAlign: 'left', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6,
+                                  cursor: 'pointer', color: 'var(--text-primary)'
+                                }}
                               >
-                                Edit Target
+                                <Pencil size={13} /> Edit Nama
                               </button>
                               <button
-                                onClick={() => { setWithdrawGoal(goal); setActiveMenuId(null); }}
-                                style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', color: '#D97706', display: 'flex', alignItems: 'center', gap: 8 }}
+                                onClick={() => handleDelete(goal.id)}
+                                style={{
+                                  width: '100%', padding: '9px 12px', border: 'none', background: 'none',
+                                  textAlign: 'left', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6,
+                                  cursor: 'pointer', color: 'var(--danger)'
+                                }}
                               >
-                                Tarik Saldo
-                              </button>
-                              <div style={{ height: 1, background: '#F1F5F9' }} />
-                              <button
-                                onClick={() => { handleDelete(goal.id); setActiveMenuId(null); }}
-                                style={{ width: '100%', padding: '10px 14px', border: 'none', background: 'none', textAlign: 'left', fontSize: 13, cursor: 'pointer', color: '#EF4444', display: 'flex', alignItems: 'center', gap: 8 }}
-                              >
-                                Hapus Pos
+                                <Trash2 size={13} /> Hapus Kantong
                               </button>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      {/* Amounts Display */}
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                          <span style={{ fontSize: 20, fontWeight: 800, color: '#0F172A' }}>{formatCurrency(progress)}</span>
-                          <span style={{ fontSize: 12, color: '#64748B' }}>Target {formatCurrency(goal.targetAmount)}</span>
+                      {/* Pocket Balance */}
+                      <div style={{
+                        background: '#F8FAFC',
+                        borderRadius: 12,
+                        padding: '12px 14px',
+                        marginBottom: 14,
+                        border: '1px solid #F1F5F9',
+                      }}>
+                        <div style={{ fontSize: 11, color: '#64748B', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Saldo Terkumpul
                         </div>
-                        <div style={{ height: 8, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
-                          <div style={{
-                            height: '100%',
-                            width: `${pct}%`,
-                            background: isComplete ? 'linear-gradient(90deg, #10B981, #059669)' : 'linear-gradient(90deg, #4F46E5, #818CF8)',
-                            borderRadius: 9999
-                          }} />
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94A3B8', marginTop: 6 }}>
-                          <span>{pct.toFixed(0)}%</span>
-                          <span>{remaining > 0 ? `Kurang ${formatCurrency(remaining)}` : 'Selesai'}</span>
+                        <div style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', marginTop: 2 }}>
+                          {formatCurrency(balance)}
                         </div>
                       </div>
                     </div>
 
-                    {/* Bottom Action Buttons */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8 }}>
+                    {/* Pocket Actions */}
+                    <div style={{ display: 'flex', gap: 8 }}>
                       <button
                         onClick={() => setDepositGoal(goal)}
                         style={{
-                          background: '#ECFDF5',
-                          color: '#059669',
-                          border: '1px solid #A7F3D0',
-                          borderRadius: 10,
+                          flex: 1,
                           padding: '9px 12px',
-                          fontSize: 12,
+                          borderRadius: 8,
+                          border: 'none',
+                          background: '#059669',
+                          color: '#FFFFFF',
+                          fontSize: 12.5,
                           fontWeight: 700,
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: 6
+                          gap: 6,
                         }}
                       >
                         <ArrowUpRight size={14} /> Setor
                       </button>
                       <button
                         onClick={() => setWithdrawGoal(goal)}
+                        disabled={balance <= 0}
                         style={{
-                          background: '#FFFBEB',
-                          color: '#D97706',
-                          border: '1px solid #FDE68A',
-                          borderRadius: 10,
+                          flex: 1,
                           padding: '9px 12px',
-                          fontSize: 12,
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          background: balance <= 0 ? 'var(--bg-secondary)' : 'var(--card)',
+                          color: balance <= 0 ? 'var(--text-secondary)' : '#DC2626',
+                          fontSize: 12.5,
                           fontWeight: 700,
-                          cursor: 'pointer',
+                          cursor: balance <= 0 ? 'not-allowed' : 'pointer',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: 6
+                          gap: 6,
+                          opacity: balance <= 0 ? 0.6 : 1,
                         }}
                       >
                         <ArrowDownLeft size={14} /> Tarik
@@ -481,27 +470,32 @@ export default function SavingsPage() {
           )}
         </div>
 
-        {/* ─── SECTION 2: RIWAYAT MUTASI TABUNGAN ─── */}
+        {/* ─── RIWAYAT MUTASI TABUNGAN ─── */}
         <div style={{
-          background: '#FFFFFF',
-          border: '1px solid #E2E8F0',
-          borderRadius: 20,
-          padding: '24px 20px',
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          borderRadius: 18,
+          padding: '20px 22px',
+          boxShadow: 'var(--shadow)',
         }}>
           <div style={{
             display: 'flex',
             flexWrap: 'wrap',
-            justifyContent: 'space-between',
             alignItems: 'center',
+            justifyContent: 'space-between',
             gap: 12,
-            marginBottom: 20
+            marginBottom: 16
           }}>
             <div>
-              <h3 style={{ fontSize: 16, fontWeight: 700, color: '#0F172A', margin: 0 }}>Riwayat Mutasi Tabungan</h3>
-              <p style={{ fontSize: 12, color: '#64748B', margin: '4px 0 0 0' }}>Catatan arus masuk & keluar pos simpanan keluarga</p>
+              <h2 style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
+                Riwayat Mutasi Tabungan
+              </h2>
+              <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                Catatan setoran dan penarikan yang terhubung langsung dengan saldo Kas Bersama
+              </p>
             </div>
 
-            {/* Filter by Goal */}
+            {/* Filter by Pocket */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Filter size={15} color="#64748B" />
               <select
@@ -509,16 +503,16 @@ export default function SavingsPage() {
                 onChange={e => setSelectedGoalFilter(e.target.value)}
                 style={{
                   padding: '7px 12px',
-                  borderRadius: 10,
-                  border: '1px solid #CBD5E1',
-                  background: '#F8FAFC',
-                  fontSize: 12,
+                  borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  background: 'var(--card)',
+                  fontSize: 12.5,
                   fontWeight: 600,
-                  color: '#0F172A',
+                  color: 'var(--text-primary)',
                   cursor: 'pointer'
                 }}
               >
-                <option value="all">Semua Pos Tabungan ({savingsTxns.length})</option>
+                <option value="all">Semua Kantong ({savingsTxns.length})</option>
                 {goals.map(g => (
                   <option key={g.id} value={g.id}>{g.name}</option>
                 ))}
@@ -527,16 +521,16 @@ export default function SavingsPage() {
           </div>
 
           {filteredTxns.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '36px 0', color: '#94A3B8' }}>
-              <Coins size={32} style={{ marginBottom: 8, opacity: 0.6 }} />
-              <div style={{ fontSize: 14, fontWeight: 600, color: '#475569' }}>Belum ada mutasi tabungan</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>Klik tombol "Setor" pada pos tabungan untuk mulai menabung</div>
+            <div style={{ textAlign: 'center', padding: '36px 0', color: 'var(--text-secondary)' }}>
+              <Coins size={32} style={{ marginBottom: 8, opacity: 0.5 }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>Belum ada mutasi tabungan</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>Klik tombol "Setor" pada kantong tabungan untuk mulai menabung</div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {filteredTxns.map(t => {
                 const isDeposit = t.type === 'keluar'; // Keluar dari kas operasional masuk ke tabungan
-                const posName = t.goalId ? goalNameMap.get(t.goalId) || 'Tabungan' : 'Tabungan Umum';
+                const pocketName = t.goalId ? goalNameMap.get(t.goalId) || 'Tabungan' : 'Tabungan Umum';
 
                 return (
                   <div
@@ -546,9 +540,9 @@ export default function SavingsPage() {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '12px 14px',
-                      background: '#F8FAFC',
-                      borderRadius: 14,
-                      border: '1px solid #F1F5F9',
+                      background: 'var(--bg-secondary)',
+                      borderRadius: 12,
+                      border: '1px solid var(--border)',
                       gap: 12
                     }}
                   >
@@ -570,23 +564,23 @@ export default function SavingsPage() {
                         )}
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {t.note || (isDeposit ? `Setor ke ${posName}` : `Tarik dari ${posName}`)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+                            {t.note || (isDeposit ? `Setor ke ${pocketName}` : `Tarik dari ${pocketName}`)}
                           </span>
                           <span style={{
                             background: '#EEF2FF',
                             color: '#4F46E5',
-                            fontSize: 10,
+                            fontSize: 10.5,
                             fontWeight: 700,
                             padding: '2px 8px',
                             borderRadius: 6,
                             flexShrink: 0
                           }}>
-                            {posName}
+                            {pocketName}
                           </span>
                         </div>
-                        <div style={{ fontSize: 11, color: '#94A3B8', marginTop: 2 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
                           {formatDate(t.date)}
                         </div>
                       </div>
@@ -598,7 +592,6 @@ export default function SavingsPage() {
                       color: isDeposit ? '#059669' : '#DC2626',
                       textAlign: 'right',
                       flexShrink: 0,
-                      fontVariantNumeric: 'tabular-nums'
                     }}>
                       {isDeposit ? '+' : '-'}{formatCurrency(t.amount)}
                     </div>

@@ -25,8 +25,9 @@ export default function SavingGoalsList({ goals, onEdit, onDelete }: SavingGoals
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {goals.map(goal => {
         const progress = getGoalProgress(goal.id, goal.spaceId);
-        const pct = clamp((progress / goal.targetAmount) * 100, 0, 100);
-        const progressColor = pct >= 100 ? 'var(--success)' : 'var(--primary)';
+        const hasTarget = goal.targetAmount > 0;
+        const pct = hasTarget ? clamp((progress / goal.targetAmount) * 100, 0, 100) : 100;
+        const progressColor = '#059669';
 
         return (
           <div key={goal.id} className="goal-item" style={{ overflow: 'hidden' }}>
@@ -35,8 +36,8 @@ export default function SavingGoalsList({ goals, onEdit, onDelete }: SavingGoals
                 {goal.name}
               </span>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                <span className="goal-target" style={{ fontSize: 13, fontWeight: 700 }}>
-                  {formatCurrency(goal.targetAmount)}
+                <span className="goal-target" style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>
+                  {formatCurrency(progress)}
                 </span>
                 {onEdit && (
                   <button className="btn btn-ghost btn-icon btn-sm" style={{ padding: 4, width: 26, height: 26, minHeight: 'unset' }} onClick={() => onEdit(goal)} title="Edit">
@@ -51,21 +52,28 @@ export default function SavingGoalsList({ goals, onEdit, onDelete }: SavingGoals
               </div>
             </div>
 
-            <div className="progress-bar" style={{ height: 6, margin: '6px 0' }}>
-              <div
-                className="progress-fill"
-                style={{ width: `${pct}%`, background: progressColor }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 0 }}>
-              <span className="text-xs text-muted" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {formatCurrency(progress)} terkumpul
-              </span>
-              <span className="goal-percent" style={{ color: progressColor, fontWeight: 700, fontSize: 12, flexShrink: 0, marginLeft: 6 }}>
-                {pct.toFixed(0)}%
-              </span>
-            </div>
+            {hasTarget ? (
+              <>
+                <div className="progress-bar" style={{ height: 6, margin: '6px 0' }}>
+                  <div
+                    className="progress-fill"
+                    style={{ width: `${pct}%`, background: progressColor }}
+                  />
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 0 }}>
+                  <span className="text-xs text-muted" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {formatCurrency(progress)} dari {formatCurrency(goal.targetAmount)}
+                  </span>
+                  <span className="goal-percent" style={{ color: progressColor, fontWeight: 700, fontSize: 12, flexShrink: 0, marginLeft: 6 }}>
+                    {pct.toFixed(0)}%
+                  </span>
+                </div>
+              </>
+            ) : (
+              <div style={{ fontSize: 11.5, color: '#64748B', marginTop: 4 }}>
+                Saldo kantong simpanan
+              </div>
+            )}
           </div>
         );
       })}
