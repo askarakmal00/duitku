@@ -103,20 +103,30 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
         datasets: [{
           data: data.map(d => d.value),
           backgroundColor: data.map((_, i) => CHART_COLORS[i % CHART_COLORS.length]),
-          borderWidth: 3,
-          borderColor: 'transparent',
+          borderWidth: 2,
+          borderColor: '#ffffff',
           hoverBorderColor: '#ffffff',
-          hoverOffset: 6,
+          hoverBorderWidth: 3,
+          hoverOffset: 8,
         }],
       },
       options: {
         responsive: true,
-        maintainAspectRatio: true,
-        aspectRatio: 1,
-        cutout: '70%',
+        maintainAspectRatio: false,
+        cutout: '68%',
+        animation: { animateRotate: true, animateScale: false },
         plugins: {
           legend: {
-            display: false,
+            display: true,
+            position: 'bottom',
+            labels: {
+              usePointStyle: true,
+              pointStyle: 'circle',
+              font: { family: 'Inter', size: 12 },
+              color: '#6B7280',
+              padding: 16,
+              boxWidth: 10,
+            },
           },
           tooltip: {
             backgroundColor: '#1E1B4B',
@@ -135,14 +145,23 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
   }, [data]);
 
   return (
-    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '16px 0' }}>
-      <div className="donut-wrap" style={{ position: 'relative', width: 200, height: 200 }}>
-        <canvas ref={ref} />
-        <div className="donut-center">
-          <div className="donut-center-value" style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>
+    <div style={{ width: '100%', padding: '8px 0' }}>
+      <div style={{ position: 'relative', width: '100%', maxWidth: 260, margin: '0 auto' }}>
+        <div style={{ position: 'relative', paddingBottom: '75%' }}>
+          <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100% !important', height: '100% !important' }} />
+        </div>
+        <div style={{
+          position: 'absolute',
+          top: '38%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          textAlign: 'center',
+          pointerEvents: 'none',
+        }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
             {formatCurrency(total)}
           </div>
-          <div className="donut-center-label" style={{ fontSize: 10, color: 'var(--text-muted)' }}>Total Keluar</div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Total Keluar</div>
         </div>
       </div>
     </div>

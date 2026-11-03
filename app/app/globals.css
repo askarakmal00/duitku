@@ -2,13 +2,13 @@
 
 /* ─── Design Tokens ─────────────────────────────────────── */
 :root {
-  --primary: #7C3AED;
-  --primary-hover: #6D28D9;
-  --primary-light: #8B5CF6;
-  --primary-50: #F5F3FF;
-  --primary-100: #EDE9FE;
-  --primary-200: #DDD6FE;
-  --primary-300: #C4B5FD;
+  --primary: #6366F1;
+  --primary-hover: #4F46E5;
+  --primary-light: #818CF8;
+  --primary-50: #EEF2FF;
+  --primary-100: #E0E7FF;
+  --primary-200: #C7D2FE;
+  --primary-300: #A5B4FC;
 
   --success: #059669;
   --success-light: #10B981;
@@ -23,55 +23,55 @@
   --warning-bg: #FEF3C7;
   --amber: #B45309;
 
-  --bg: #EDE9FE;
-  --bg-secondary: #F5F3FF;
+  --bg: #F8FAFC;
+  --bg-secondary: #F1F5F9;
   --card: #FFFFFF;
   --sidebar: #FFFFFF;
-  --sidebar-width: 240px;
+  --sidebar-width: 260px;
 
-  --text-primary: #1E1B4B;
-  --text-secondary: #6B7280;
-  --text-muted: #9CA3AF;
+  --text-primary: #0F172A;
+  --text-secondary: #475569;
+  --text-muted: #94A3B8;
   --text-inverse: #FFFFFF;
 
-  --border: #E9D5FF;
-  --border-light: #F3E8FF;
-  --divider: #F3F4F6;
+  --border: #E2E8F0;
+  --border-light: #F1F5F9;
+  --divider: #F1F5F9;
 
-  --radius: 20px;
-  --radius-md: 14px;
-  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
   --radius-xs: 6px;
 
-  --shadow-sm: 0 1px 4px rgba(124,58,237,0.06);
-  --shadow: 0 2px 12px rgba(124,58,237,0.08), 0 1px 3px rgba(0,0,0,0.04);
-  --shadow-md: 0 4px 20px rgba(124,58,237,0.12);
-  --shadow-lg: 0 8px 40px rgba(124,58,237,0.18);
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.05);
+  --shadow: 0 1px 3px rgba(0,0,0,0.05), 0 4px 16px rgba(0,0,0,0.04);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.12), 0 4px 16px rgba(0,0,0,0.06);
 
   --transition: 0.2s ease;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
 .dark {
-  --bg: #0D0720;
-  --bg-secondary: #130A2D;
-  --card: #1A1030;
-  --sidebar: #150D2B;
-  --primary-50: #1E1040;
-  --primary-100: #2D1B5E;
-  --primary-200: #3D2070;
+  --bg: #0B1120;
+  --bg-secondary: #111827;
+  --card: #1E293B;
+  --sidebar: #1E293B;
+  --primary-50: #1E1B4B;
+  --primary-100: #312E81;
+  --primary-200: #3730A3;
 
-  --text-primary: #F0EEFF;
-  --text-secondary: #A78BFA;
-  --text-muted: #6D28D9;
-  --border: #2D1B69;
-  --border-light: #1E1040;
-  --divider: #1E1040;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --border: #334155;
+  --border-light: #1E293B;
+  --divider: #1E293B;
 
-  --shadow-sm: 0 1px 4px rgba(0,0,0,0.3);
-  --shadow: 0 2px 12px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 20px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 40px rgba(0,0,0,0.6);
+  --shadow-sm: 0 1px 4px rgba(0,0,0,0.4);
+  --shadow: 0 2px 12px rgba(0,0,0,0.5);
+  --shadow-md: 0 4px 20px rgba(0,0,0,0.6);
+  --shadow-lg: 0 8px 40px rgba(0,0,0,0.7);
 }
 
 /* ─── Reset & Base ───────────────────────────────────────── */
@@ -195,9 +195,10 @@ body {
 }
 
 .nav-item.active {
-  background: var(--primary);
-  color: white;
-  box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+  background: var(--primary-50);
+  color: var(--primary);
+  font-weight: 600;
+  box-shadow: none;
 }
 
 .nav-item:active {
@@ -395,9 +396,9 @@ body {
 
 /* Hero card — Total Saldo */
 .summary-card.variant-hero {
-  background: linear-gradient(135deg, #4C1D95 0%, #7C3AED 55%, #8B5CF6 100%);
+  background: linear-gradient(135deg, #312E81 0%, #4F46E5 55%, #6366F1 100%);
   color: white;
-  box-shadow: 0 8px 32px rgba(124,58,237,0.35);
+  box-shadow: 0 8px 32px rgba(99,102,241,0.35);
 }
 .summary-card.variant-hero::before {
   content: '';
@@ -601,11 +602,11 @@ body {
 .btn-primary {
   background: var(--primary);
   color: white;
-  box-shadow: 0 4px 14px rgba(124,58,237,0.3);
+  box-shadow: 0 4px 14px rgba(99,102,241,0.3);
 }
 .btn-primary:hover {
   background: var(--primary-hover);
-  box-shadow: 0 6px 20px rgba(124,58,237,0.4);
+  box-shadow: 0 6px 20px rgba(99,102,241,0.4);
   transform: translateY(-1px);
 }
 

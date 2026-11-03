@@ -71,7 +71,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       <aside className={`sidebar${open ? ' sidebar-open' : ''}`}>
         <div className="sidebar-logo">
-          <div className="logo-icon">D</div>
+          <div className="logo-icon">💰</div>
           <span className="logo-text">Duitku</span>
           {/* Close button on mobile */}
           <button
