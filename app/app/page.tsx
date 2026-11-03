@@ -213,7 +213,7 @@ export default function DashboardPage() {
               <div className="mobile-section" style={{ marginTop: 20 }}>
                 <div className="mobile-section-header">
                   <span className="mobile-section-title">Transaksi kas terbaru</span>
-                  <Link href="/transactions" className="mobile-section-action">Lihat semua</Link>
+                  <Link href="/transactions" prefetch={true} className="mobile-section-action">Lihat semua</Link>
                 </div>
 
                 {recentTxns.length === 0 ? (
@@ -320,7 +320,7 @@ export default function DashboardPage() {
               <div className="mobile-section">
                 <div className="mobile-section-header">
                   <span className="mobile-section-title">Transaksi terbaru</span>
-                  <Link href="/transactions" className="mobile-section-action">Lihat semua</Link>
+                  <Link href="/transactions" prefetch={true} className="mobile-section-action">Lihat semua</Link>
                 </div>
 
                 {recentTxns.length === 0 ? (

@@ -200,6 +200,11 @@ body {
   box-shadow: 0 4px 14px rgba(124,58,237,0.3);
 }
 
+.nav-item:active {
+  transform: scale(0.98);
+  opacity: 0.85;
+}
+
 .nav-item svg { flex-shrink: 0; }
 
 .sidebar-footer {
@@ -1602,6 +1607,11 @@ tr:hover td { background: var(--primary-50); }
 
 .bottom-nav-item.active {
   color: var(--primary);
+}
+
+.bottom-nav-item:active {
+  transform: scale(0.92);
+  opacity: 0.8;
 }
 
 .bottom-nav-item.active svg {

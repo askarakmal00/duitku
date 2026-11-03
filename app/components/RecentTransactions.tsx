@@ -141,7 +141,7 @@ export default function RecentTransactions({
 
       {!showAll && transactions.length > limit && (
         <div style={{ textAlign: 'center', marginTop: 16 }}>
-          <Link href="/transactions" className="btn btn-secondary btn-sm">
+          <Link href="/transactions" prefetch={true} className="btn btn-secondary btn-sm">
             Lihat semua ({transactions.length}) →
           </Link>
         </div>

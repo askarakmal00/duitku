@@ -94,6 +94,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <Link
               key={href}
               href={href}
+              prefetch={true}
               className={`nav-item ${pathname === href ? 'active' : ''}`}
               onClick={onClose}
             >
@@ -108,7 +109,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             {darkMode ? 'Light Mode' : 'Dark Mode'}
           </button>
-          <Link href="/settings" className="nav-item" onClick={onClose}>
+          <Link href="/settings" prefetch={true} className="nav-item" onClick={onClose}>
             <HelpCircle size={18} />
             Bantuan
           </Link>
@@ -121,6 +122,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
           <Link
             key={href}
             href={href}
+            prefetch={true}
             className={`bottom-nav-item ${pathname === href ? 'active' : ''}`}
           >
             <Icon size={20} />
@@ -195,6 +197,7 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
                   <Link
                     key={href}
                     href={href}
+                    prefetch={true}
                     onClick={() => setShowMoreSheet(false)}
                     style={{
                       display: 'flex',

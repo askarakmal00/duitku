@@ -606,7 +606,7 @@ export default function FamilyDashboardRedesign({
         <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 20, padding: '18px 16px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>Transaksi Terbaru</span>
-            <Link href="/transactions" style={{ fontSize: 11, color: '#6366F1', fontWeight: 600, textDecoration: 'none' }}>Lihat Semua →</Link>
+            <Link href="/transactions" prefetch={true} style={{ fontSize: 11, color: '#6366F1', fontWeight: 600, textDecoration: 'none' }}>Lihat Semua →</Link>
           </div>
           {recentTxns.length === 0 ? (
             <div style={{ textAlign: 'center', color: '#94A3B8', fontSize: 12, padding: '16px 0' }}>Belum ada transaksi</div>
@@ -749,6 +749,7 @@ export default function FamilyDashboardRedesign({
             </button>
             <Link
               href="/transactions"
+              prefetch={true}
               style={{
                 background: '#F8FAFC', color: '#64748B', border: '1px solid #E2E8F0', borderRadius: 10,
                 padding: '9px 12px', cursor: 'pointer', fontSize: 13, display: 'flex', alignItems: 'center',
@@ -984,6 +985,7 @@ export default function FamilyDashboardRedesign({
               {talanganSummary.pendingCount > 5 && (
                 <Link
                   href="/transactions"
+                  prefetch={true}
                   style={{ fontSize: 12, color: '#4F46E5', fontWeight: 600, textAlign: 'center', marginTop: 4, textDecoration: 'none' }}
                 >
                   +{talanganSummary.pendingCount - 5} transaksi talangan lainnya → Lihat di Transaksi
@@ -1162,7 +1164,7 @@ export default function FamilyDashboardRedesign({
         <div style={{ background: '#fff', borderRadius: 20, padding: '20px 22px', border: '1px solid #E2E8F0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <span style={{ fontSize: 14, fontWeight: 700, color: '#0F172A' }}>Transaksi Terbaru</span>
-            <Link href="/transactions" style={{ fontSize: 12, color: '#6366F1', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <Link href="/transactions" prefetch={true} style={{ fontSize: 12, color: '#6366F1', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
               Lihat Semua <ArrowRight size={12} />
             </Link>
           </div>

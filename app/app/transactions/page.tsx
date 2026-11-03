@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import {
   Plus, Search, ChevronLeft, ChevronRight, X, SlidersHorizontal,
   Wallet, MoreHorizontal, Pencil, Trash2, Bell, FileSpreadsheet,
@@ -9,9 +10,10 @@ import {
   Zap, ShoppingBasket, ArrowDownLeft, CheckCircle2
 } from 'lucide-react';
 import SpaceSwitcher from '@/components/SpaceSwitcher';
-import TransactionModal from '@/components/TransactionModal';
-import BulkImportModal from '@/components/BulkImportModal';
-import ConfirmDeleteModal from '@/components/ConfirmDeleteModal';
+
+const TransactionModal = dynamic(() => import('@/components/TransactionModal'), { ssr: false });
+const BulkImportModal = dynamic(() => import('@/components/BulkImportModal'), { ssr: false });
+const ConfirmDeleteModal = dynamic(() => import('@/components/ConfirmDeleteModal'), { ssr: false });
 import {
   getTransactions, addTransaction, updateTransaction, deleteTransaction,
   getCategories, getBudgetPos, getSavingGoals, getDashboardFinanceSummary,
