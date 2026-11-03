@@ -47,34 +47,42 @@ export async function ensureDatabaseSchema(): Promise<void> {
         amount NUMERIC(15,2) NOT NULL DEFAULT 0,
         note TEXT DEFAULT '',
         date DATE NOT NULL DEFAULT CURRENT_DATE,
-        space_id TEXT DEFAULT 'pribadi',
+        space_id TEXT DEFAULT 'keluarga',
         paid_by TEXT DEFAULT 'bersama',
         reimbursed BOOLEAN DEFAULT false,
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
 
-      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+      ALTER TABLE transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
+      ALTER TABLE transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS debt_txn_id UUID;
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS paid_by TEXT DEFAULT 'bersama';
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS reimbursed BOOLEAN DEFAULT false;
+
+      -- Automatically migrate all transactions to keluarga
+      UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS budget_pos (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         monthly_allocation NUMERIC(15,2) NOT NULL DEFAULT 0,
         rollover BOOLEAN DEFAULT false,
-        space_id TEXT DEFAULT 'pribadi',
+        space_id TEXT DEFAULT 'keluarga',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-      ALTER TABLE budget_pos ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+      ALTER TABLE budget_pos ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
+      ALTER TABLE budget_pos ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS debt_parties (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
-        space_id TEXT DEFAULT 'pribadi',
+        space_id TEXT DEFAULT 'keluarga',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-      ALTER TABLE debt_parties ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+      ALTER TABLE debt_parties ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
+      ALTER TABLE debt_parties ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      UPDATE debt_parties SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS debt_transactions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -84,20 +92,24 @@ export async function ensureDatabaseSchema(): Promise<void> {
         amount NUMERIC(15,2) NOT NULL DEFAULT 0,
         note TEXT DEFAULT '',
         date DATE NOT NULL DEFAULT CURRENT_DATE,
-        space_id TEXT DEFAULT 'pribadi',
+        space_id TEXT DEFAULT 'keluarga',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
       ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS txn_id UUID;
-      ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+      ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
+      ALTER TABLE debt_transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      UPDATE debt_transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS saving_goals (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
         target_amount NUMERIC(15,2) NOT NULL DEFAULT 0,
-        space_id TEXT DEFAULT 'pribadi',
+        space_id TEXT DEFAULT 'keluarga',
         created_at TIMESTAMPTZ DEFAULT NOW()
       );
-      ALTER TABLE saving_goals ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'pribadi';
+      ALTER TABLE saving_goals ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
+      ALTER TABLE saving_goals ALTER COLUMN space_id SET DEFAULT 'keluarga';
+      UPDATE saving_goals SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS categories (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -117,9 +129,9 @@ export async function ensureDatabaseSchema(): Promise<void> {
       VALUES (1, 'Pengguna', false)
       ON CONFLICT (id) DO NOTHING;
 
-      -- Purge personal (pribadi) financial records so DuitKu operates 100% as family finance
-      DELETE FROM transactions WHERE space_id = 'pribadi';
-      DELETE FROM budget_pos WHERE space_id = 'pribadi';
+      -- Ensure everything is tagged as keluarga
+      UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
+      UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
       DELETE FROM debt_parties WHERE space_id = 'pribadi';
       DELETE FROM debt_transactions WHERE space_id = 'pribadi';
       DELETE FROM saving_goals WHERE space_id = 'pribadi';

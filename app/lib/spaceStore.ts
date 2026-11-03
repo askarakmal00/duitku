@@ -78,7 +78,7 @@ export function migrateExistingData(): void {
       const arr: any[] = JSON.parse(raw);
       if (!Array.isArray(arr)) continue;
       const migrated = arr.map(item =>
-        item.spaceId ? item : { ...item, spaceId: 'pribadi' }
+        item.spaceId === 'keluarga' ? item : { ...item, spaceId: 'keluarga' }
       );
       localStorage.setItem(key, JSON.stringify(migrated));
     } catch {

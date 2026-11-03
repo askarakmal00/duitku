@@ -91,17 +91,7 @@ export function fixSpaceAssignments(): void {
     let txnsChanged = false;
     const updatedTxns = txns.map(t => {
       const cleanNote = (t.note || '').replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
-      let spaceId = t.spaceId || 'pribadi';
-
-      // Self-healing recovery: If user created a "makan / minum" transaction in October 2026
-      // that was accidentally forced to 'pribadi' by the old partition script, restore it to 'keluarga'
-      const cat = (t.category || '').toLowerCase();
-      const note = cleanNote.toLowerCase();
-      const isMakanMinum = cat.includes('makan') || cat.includes('minum') || note.includes('makan') || note.includes('minum');
-      const isOct2026 = (t.date || '').slice(0, 7) >= '2026-10';
-      if (spaceId === 'pribadi' && isOct2026 && isMakanMinum) {
-        spaceId = 'keluarga';
-      }
+      const spaceId: SpaceId = 'keluarga';
 
       if (t.spaceId !== spaceId || t.note !== cleanNote) {
         txnsChanged = true;
@@ -120,9 +110,9 @@ export function fixSpaceAssignments(): void {
     const goals = load<SavingGoal[]>(KEYS.savingGoals, []);
     let goalsChanged = false;
     const updatedGoals = goals.map(g => {
-      if (!g.spaceId) {
+      if (g.spaceId !== 'keluarga') {
         goalsChanged = true;
-        return { ...g, spaceId: 'pribadi' as SpaceId };
+        return { ...g, spaceId: 'keluarga' as SpaceId };
       }
       return g;
     });
@@ -131,9 +121,9 @@ export function fixSpaceAssignments(): void {
     const budgets = load<BudgetPos[]>(KEYS.budgetPos, []);
     let budgetsChanged = false;
     const updatedBudgets = budgets.map(b => {
-      if (!b.spaceId) {
+      if (b.spaceId !== 'keluarga') {
         budgetsChanged = true;
-        return { ...b, spaceId: 'pribadi' as SpaceId };
+        return { ...b, spaceId: 'keluarga' as SpaceId };
       }
       return b;
     });
@@ -142,9 +132,9 @@ export function fixSpaceAssignments(): void {
     const parties = load<DebtParty[]>(KEYS.debtParties, []);
     let partiesChanged = false;
     const updatedParties = parties.map(p => {
-      if (!p.spaceId) {
+      if (p.spaceId !== 'keluarga') {
         partiesChanged = true;
-        return { ...p, spaceId: 'pribadi' as SpaceId };
+        return { ...p, spaceId: 'keluarga' as SpaceId };
       }
       return p;
     });
@@ -153,9 +143,9 @@ export function fixSpaceAssignments(): void {
     const debtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
     let debtTxnsChanged = false;
     const updatedDebtTxns = debtTxns.map(dt => {
-      if (!dt.spaceId) {
+      if (dt.spaceId !== 'keluarga') {
         debtTxnsChanged = true;
-        return { ...dt, spaceId: 'pribadi' as SpaceId };
+        return { ...dt, spaceId: 'keluarga' as SpaceId };
       }
       return dt;
     });
@@ -249,7 +239,7 @@ async function safeInsertTransaction(t: Transaction): Promise<void> {
     note: cleanNote,
     date: t.date,
     created_at: t.createdAt,
-    space_id: t.spaceId || 'pribadi',
+    space_id: 'keluarga',
   };
   if (t.debtTxnId) payload.debt_txn_id = t.debtTxnId;
   if (t.paidBy) payload.paid_by = t.paidBy;
@@ -353,35 +343,38 @@ export async function syncWithDb(): Promise<void> {
   });
 
   const remoteTxns: Transaction[] = (txnsRes.data || [])
-    .filter((t: any) => t.space_id !== 'pribadi')
     .map((t: any) => {
       const rawNote = t.note || '';
       const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
       const assignedSpace: SpaceId = 'keluarga';
 
-    if (t.space_id !== assignedSpace) {
-      try {
-        db.from('transactions').update({ space_id: assignedSpace, note: cleanNote }).eq('id', t.id).then();
-      } catch {}
-    }
+      if (t.space_id !== assignedSpace) {
+        try {
+          db.from('transactions').update({ space_id: assignedSpace, note: cleanNote }).eq('id', t.id).then();
+        } catch {}
+      }
 
-    return {
-      id: t.id,
-      spaceId: assignedSpace,
-      type: t.type,
-      category: t.category,
-      subCategory: t.sub_category || undefined,
-      budgetPosId: t.budget_pos_id || undefined,
-      goalId: t.goal_id || undefined,
-      debtTxnId: t.debt_txn_id || undefined,
-      amount: Number(t.amount),
-      note: cleanNote,
-      paidBy: t.paid_by || undefined,
-      reimbursed: t.reimbursed || false,
-      date: t.date,
-      createdAt: t.created_at,
-    };
-  });
+      const dateStr = typeof t.date === 'string'
+        ? t.date.slice(0, 10)
+        : new Date(t.date).toISOString().slice(0, 10);
+
+      return {
+        id: t.id,
+        spaceId: assignedSpace,
+        type: t.type,
+        category: t.category,
+        subCategory: t.sub_category || undefined,
+        budgetPosId: t.budget_pos_id || undefined,
+        goalId: t.goal_id || undefined,
+        debtTxnId: t.debt_txn_id || undefined,
+        amount: Number(t.amount),
+        note: cleanNote,
+        paidBy: t.paid_by || undefined,
+        reimbursed: t.reimbursed || false,
+        date: dateStr,
+        createdAt: t.created_at,
+      };
+    });
 
   const pendingTxnIds = getPending(PENDING_KEYS.transactions);
 
@@ -401,8 +394,16 @@ export async function syncWithDb(): Promise<void> {
   }
 
   const remoteTxnIds = new Set(remoteTxns.map(t => t.id));
-  const stillPendingTxns = localTxns.filter(t => pendingTxnIds.has(t.id) && !remoteTxnIds.has(t.id));
-  const finalTxnsList = sortTransactions([...remoteTxns, ...stillPendingTxns]);
+  // Preserve any local transactions not yet present on remote (never discard user data!)
+  const unsyncedLocalTxns: Transaction[] = [];
+  for (const lt of localTxns) {
+    if (!remoteTxnIds.has(lt.id)) {
+      const rescued = { ...lt, spaceId: 'keluarga' as SpaceId };
+      unsyncedLocalTxns.push(rescued);
+      safeInsertTransaction(rescued).catch(() => {});
+    }
+  }
+  const finalTxnsList = sortTransactions([...remoteTxns, ...unsyncedLocalTxns]);
   save(KEYS.transactions, finalTxnsList);
 
   // 2. Budget Pos Sync
@@ -412,7 +413,6 @@ export async function syncWithDb(): Promise<void> {
     if (b.spaceId) localBudgetSpaceMap.set(b.id, b.spaceId);
   });
   const remoteBudgets: BudgetPos[] = (budgetRes.data || [])
-    .filter((b: any) => b.space_id !== 'pribadi')
     .map((b: any) => ({
       id: b.id,
       spaceId: 'keluarga',
@@ -432,7 +432,7 @@ export async function syncWithDb(): Promise<void> {
           monthly_allocation: b.monthlyAllocation,
           rollover: b.rollover,
           created_at: b.createdAt,
-          space_id: b.spaceId || 'pribadi',
+          space_id: 'keluarga',
         };
         try {
           const { error } = await db.from('budget_pos').upsert(bPayload);
@@ -448,7 +448,7 @@ export async function syncWithDb(): Promise<void> {
     }
   }
   const remoteBudgetIds = new Set(remoteBudgets.map(b => b.id));
-  const stillPendingBudgets = localBudgets.filter(b => pendingBudgetIds.has(b.id) && !remoteBudgetIds.has(b.id));
+  const stillPendingBudgets = localBudgets.filter(b => !remoteBudgetIds.has(b.id)).map(b => ({ ...b, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.budgetPos, [...remoteBudgets, ...stillPendingBudgets]);
 
   // 3. Debt Parties Sync
@@ -458,7 +458,6 @@ export async function syncWithDb(): Promise<void> {
     if (p.spaceId) localPartySpaceMap.set(p.id, p.spaceId);
   });
   const remoteParties: DebtParty[] = (partiesRes.data || [])
-    .filter((p: any) => p.space_id !== 'pribadi')
     .map((p: any) => ({
       id: p.id,
       spaceId: 'keluarga',
@@ -474,7 +473,7 @@ export async function syncWithDb(): Promise<void> {
           id: p.id,
           name: p.name,
           created_at: p.createdAt,
-          space_id: p.spaceId || 'pribadi',
+          space_id: 'keluarga',
         };
         try {
           const { error } = await db.from('debt_parties').upsert(pPayload);
@@ -490,7 +489,7 @@ export async function syncWithDb(): Promise<void> {
     }
   }
   const remotePartyIds = new Set(remoteParties.map((p: any) => p.id));
-  const stillPendingParties = localParties.filter(p => pendingPartyIds.has(p.id) && !remotePartyIds.has(p.id));
+  const stillPendingParties = localParties.filter(p => !remotePartyIds.has(p.id)).map(p => ({ ...p, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.debtParties, [...remoteParties, ...stillPendingParties]);
 
   // 4. Debt Transactions Sync
@@ -500,7 +499,6 @@ export async function syncWithDb(): Promise<void> {
     if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
   });
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || [])
-    .filter((dt: any) => dt.space_id !== 'pribadi')
     .map((dt: any) => {
       const rawNote = dt.note || '';
       const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
@@ -532,7 +530,7 @@ export async function syncWithDb(): Promise<void> {
     }
   }
   const remoteDebtTxnIds = new Set(remoteDebtTxns.map((dt: any) => dt.id));
-  const stillPendingDebtTxns = localDebtTxns.filter(dt => pendingDebtTxnIds.has(dt.id) && !remoteDebtTxnIds.has(dt.id));
+  const stillPendingDebtTxns = localDebtTxns.filter(dt => !remoteDebtTxnIds.has(dt.id)).map(dt => ({ ...dt, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.debtTransactions, [...remoteDebtTxns, ...stillPendingDebtTxns]);
 
   // 5. Saving Goals Sync
@@ -542,7 +540,6 @@ export async function syncWithDb(): Promise<void> {
     if (g.spaceId) localGoalSpaceMap.set(g.id, g.spaceId);
   });
   const remoteGoals: SavingGoal[] = (goalsRes.data || [])
-    .filter((g: any) => g.space_id !== 'pribadi')
     .map((g: any) => ({
       id: g.id,
       spaceId: 'keluarga',
@@ -560,7 +557,7 @@ export async function syncWithDb(): Promise<void> {
           name: g.name,
           target_amount: g.targetAmount,
           created_at: g.createdAt,
-          space_id: g.spaceId || 'pribadi',
+          space_id: 'keluarga',
         };
         try {
           const { error } = await db.from('saving_goals').upsert(gPayload);
@@ -576,7 +573,7 @@ export async function syncWithDb(): Promise<void> {
     }
   }
   const remoteGoalIds = new Set(remoteGoals.map((g: any) => g.id));
-  const stillPendingGoals = localGoals.filter(g => pendingGoalIds.has(g.id) && !remoteGoalIds.has(g.id));
+  const stillPendingGoals = localGoals.filter(g => !remoteGoalIds.has(g.id)).map(g => ({ ...g, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.savingGoals, [...remoteGoals, ...stillPendingGoals]);
 
   // 6. Categories - Merge remote categories with local custom categories
@@ -609,10 +606,9 @@ export async function syncWithDb(): Promise<void> {
 
 
 // ─── Transactions ─────────────────────────────────────────────
-export function getTransactions(spaceId?: SpaceId): Transaction[] {
+export function getTransactions(_spaceId?: SpaceId): Transaction[] {
   const all = sortTransactions(load<Transaction[]>(KEYS.transactions, []));
-  const space = spaceId || getActiveSpaceId();
-  return all.filter(t => (t.spaceId || 'pribadi') === space);
+  return all.map(t => ({ ...t, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {

@@ -26,12 +26,40 @@ import { useSpace } from '@/lib/useSpace';
 
 type TypeFilter = 'semua' | 'masuk' | 'keluar' | 'talangan';
 
+const MONTH_NAMES_ID = [
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+];
+
+const MONTH_SHORT_ID = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+];
+
+function parseTxnDate(dateStr?: string): { year: number; month: number; day: number } {
+  if (!dateStr) return { year: 2026, month: 11, day: 1 };
+  const clean = dateStr.slice(0, 10);
+  const parts = clean.split('-');
+  if (parts.length === 3) {
+    const y = parseInt(parts[0], 10);
+    const m = parseInt(parts[1], 10);
+    const d = parseInt(parts[2], 10);
+    if (!isNaN(y) && !isNaN(m) && !isNaN(d)) {
+      return { year: y, month: m, day: d };
+    }
+  }
+  const dt = new Date(dateStr);
+  return {
+    year: dt.getFullYear() || 2026,
+    month: dt.getMonth() + 1 || 11,
+    day: dt.getDate() || 1,
+  };
+}
+
 function formatDesktopDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, '0');
-  const monthNames = ['Okt', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
-  const m = monthNames[d.getMonth() + 1] || 'Okt';
-  return `${day} ${m} ${d.getFullYear()}`;
+  const { year, month, day } = parseTxnDate(dateStr);
+  const m = MONTH_SHORT_ID[month - 1] || 'Nov';
+  return `${String(day).padStart(2, '0')} ${m} ${year}`;
 }
 
 function formatTime(createdAt?: string): string {
@@ -46,21 +74,10 @@ function formatTime(createdAt?: string): string {
   return '12:00';
 }
 
-const MONTH_NAMES_ID = [
-  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-];
-
-const MONTH_SHORT_ID = [
-  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
-];
-
 function formatMobileDateHeader(dateStr: string): string {
-  const d = new Date(dateStr);
-  const day = String(d.getDate()).padStart(2, '0');
-  const monthName = MONTH_NAMES_ID[d.getMonth()] || 'Oktober';
-  return `${day} ${monthName} ${d.getFullYear()}`;
+  const { year, month, day } = parseTxnDate(dateStr);
+  const monthName = MONTH_NAMES_ID[month - 1] || 'November';
+  return `${String(day).padStart(2, '0')} ${monthName} ${year}`;
 }
 
 // ─── Dynamic Icon & Color Helper matching the screenshot ─────────────────
@@ -276,8 +293,8 @@ export default function TransactionsPage() {
 
     const monthTxns = transactions.filter(t => {
       if (showAllMonths) return true;
-      const d = new Date(t.date);
-      return d.getFullYear() === selectedYear && d.getMonth() + 1 === selectedMonth;
+      const { year, month } = parseTxnDate(t.date);
+      return year === selectedYear && month === selectedMonth;
     });
 
     // Chronological ascending sort to compute running balance
@@ -325,8 +342,8 @@ export default function TransactionsPage() {
     return transactions
       .filter(t => {
         if (!showAllMonths) {
-          const d = new Date(t.date);
-          if (d.getFullYear() !== selectedYear || d.getMonth() + 1 !== selectedMonth) return false;
+          const { year, month } = parseTxnDate(t.date);
+          if (year !== selectedYear || month !== selectedMonth) return false;
         }
         if (typeFilter === 'masuk' && t.type !== 'masuk') return false;
         if (typeFilter === 'keluar' && t.type !== 'keluar') return false;
@@ -1092,8 +1109,33 @@ export default function TransactionsPage() {
                 position: 'absolute', top: '100%', right: 0, marginTop: 6,
                 background: '#FFFFFF', border: '1px solid #E2E8F0', borderRadius: 14,
                 boxShadow: '0 10px 25px -5px rgba(0,0,0,0.15)', padding: 12, zIndex: 40,
-                minWidth: 180
+                minWidth: 200
               }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                  <button
+                    onClick={() => {
+                      if (selectedMonth === 1) { setSelectedMonth(12); setSelectedYear(y => y - 1); }
+                      else { setSelectedMonth(m => m - 1); }
+                      setShowAllMonths(false);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 4, cursor: 'pointer' }}
+                  >
+                    <ChevronLeft size={16} />
+                  </button>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#0F172A' }}>{selectedYear}</span>
+                  <button
+                    onClick={() => {
+                      if (selectedMonth === 12) { setSelectedMonth(1); setSelectedYear(y => y + 1); }
+                      else { setSelectedMonth(m => m + 1); }
+                      setShowAllMonths(false);
+                      setCurrentPage(1);
+                    }}
+                    style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 8, padding: 4, cursor: 'pointer' }}
+                  >
+                    <ChevronRight size={16} />
+                  </button>
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
                   {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => (
                     <button
@@ -1102,6 +1144,7 @@ export default function TransactionsPage() {
                         setSelectedMonth(m);
                         setShowAllMonths(false);
                         setShowMonthDropdown(false);
+                        setCurrentPage(1);
                       }}
                       style={{
                         padding: '6px 8px', borderRadius: 8, border: 'none',
@@ -1114,6 +1157,20 @@ export default function TransactionsPage() {
                     </button>
                   ))}
                 </div>
+                <button
+                  onClick={() => {
+                    setShowAllMonths(true);
+                    setShowMonthDropdown(false);
+                    setCurrentPage(1);
+                  }}
+                  style={{
+                    width: '100%', marginTop: 8, padding: '7px 0', borderRadius: 8,
+                    border: '1px dashed #CBD5E1', background: showAllMonths ? '#EEF2FF' : '#FFFFFF',
+                    color: showAllMonths ? '#4F46E5' : '#64748B', fontSize: 12, fontWeight: 600, cursor: 'pointer'
+                  }}
+                >
+                  Semua Waktu
+                </button>
               </div>
             )}
           </div>
