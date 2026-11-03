@@ -335,14 +335,22 @@ export async function syncWithDb(): Promise<void> {
     throw new Error('SCHEMA_MISSING');
   }
 
-  // 1. Transactions Sync
-  const localTxns = load<Transaction[]>(KEYS.transactions, []);
+  // 1. Transactions Sync (Only retain October 2026 onwards for family finance)
+  const rawLocalTxns = load<Transaction[]>(KEYS.transactions, []);
+  const localTxns = rawLocalTxns.filter(t => (t.date || '').slice(0, 10) >= '2026-10-01');
+  if (rawLocalTxns.length !== localTxns.length) {
+    save(KEYS.transactions, localTxns);
+  }
   const localSpaceMap = new Map<string, SpaceId>();
   localTxns.forEach(t => {
     if (t.spaceId) localSpaceMap.set(t.id, t.spaceId);
   });
 
   const remoteTxns: Transaction[] = (txnsRes.data || [])
+    .filter((t: any) => {
+      const d = typeof t.date === 'string' ? t.date.slice(0, 10) : new Date(t.date).toISOString().slice(0, 10);
+      return d >= '2026-10-01';
+    })
     .map((t: any) => {
       const rawNote = t.note || '';
       const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
@@ -398,12 +406,13 @@ export async function syncWithDb(): Promise<void> {
   const unsyncedLocalTxns: Transaction[] = [];
   for (const lt of localTxns) {
     if (!remoteTxnIds.has(lt.id)) {
+      if ((lt.date || '').slice(0, 10) < '2026-10-01') continue;
       const rescued = { ...lt, spaceId: 'keluarga' as SpaceId };
       unsyncedLocalTxns.push(rescued);
       safeInsertTransaction(rescued).catch(() => {});
     }
   }
-  const finalTxnsList = sortTransactions([...remoteTxns, ...unsyncedLocalTxns]);
+  const finalTxnsList = sortTransactions([...remoteTxns, ...unsyncedLocalTxns]).filter(t => (t.date || '').slice(0, 10) >= '2026-10-01');
   save(KEYS.transactions, finalTxnsList);
 
   // 2. Budget Pos Sync
@@ -492,13 +501,21 @@ export async function syncWithDb(): Promise<void> {
   const stillPendingParties = localParties.filter(p => !remotePartyIds.has(p.id)).map(p => ({ ...p, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.debtParties, [...remoteParties, ...stillPendingParties]);
 
-  // 4. Debt Transactions Sync
-  const localDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  // 4. Debt Transactions Sync (Only retain October 2026 onwards)
+  const rawLocalDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
+  const localDebtTxns = rawLocalDebtTxns.filter(dt => (dt.date || '').slice(0, 10) >= '2026-10-01');
+  if (rawLocalDebtTxns.length !== localDebtTxns.length) {
+    save(KEYS.debtTransactions, localDebtTxns);
+  }
   const localDebtTxnSpaceMap = new Map<string, SpaceId>();
   localDebtTxns.forEach(dt => {
     if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
   });
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || [])
+    .filter((dt: any) => {
+      const d = typeof dt.date === 'string' ? dt.date.slice(0, 10) : new Date(dt.date).toISOString().slice(0, 10);
+      return d >= '2026-10-01';
+    })
     .map((dt: any) => {
       const rawNote = dt.note || '';
       const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
@@ -530,7 +547,9 @@ export async function syncWithDb(): Promise<void> {
     }
   }
   const remoteDebtTxnIds = new Set(remoteDebtTxns.map((dt: any) => dt.id));
-  const stillPendingDebtTxns = localDebtTxns.filter(dt => !remoteDebtTxnIds.has(dt.id)).map(dt => ({ ...dt, spaceId: 'keluarga' as SpaceId }));
+  const stillPendingDebtTxns = localDebtTxns
+    .filter(dt => !remoteDebtTxnIds.has(dt.id) && (dt.date || '').slice(0, 10) >= '2026-10-01')
+    .map(dt => ({ ...dt, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.debtTransactions, [...remoteDebtTxns, ...stillPendingDebtTxns]);
 
   // 5. Saving Goals Sync
@@ -608,7 +627,9 @@ export async function syncWithDb(): Promise<void> {
 // ─── Transactions ─────────────────────────────────────────────
 export function getTransactions(_spaceId?: SpaceId): Transaction[] {
   const all = sortTransactions(load<Transaction[]>(KEYS.transactions, []));
-  return all.map(t => ({ ...t, spaceId: 'keluarga' as SpaceId }));
+  return all
+    .filter(t => (t.date || '').slice(0, 10) >= '2026-10-01')
+    .map(t => ({ ...t, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
@@ -916,10 +937,11 @@ export async function deleteDebtParty(id: string): Promise<void> {
 }
 
 
-export function getDebtTransactions(spaceId?: SpaceId): DebtTransaction[] {
+export function getDebtTransactions(_spaceId?: SpaceId): DebtTransaction[] {
   const all = load<DebtTransaction[]>(KEYS.debtTransactions, []);
-  const space = spaceId || getActiveSpaceId();
-  return all.filter(t => (t.spaceId || 'pribadi') === space);
+  return all
+    .filter(t => (t.date || '').slice(0, 10) >= '2026-10-01')
+    .map(t => ({ ...t, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addDebtTransaction(data: Omit<DebtTransaction, 'id' | 'createdAt'>): Promise<DebtTransaction> {
@@ -1078,6 +1100,15 @@ export function getGoalProgress(goalId: string, spaceId?: SpaceId): number {
   return getTransactions(spaceId)
     .filter(t => t.goalId === goalId)
     .reduce((sum, t) => sum + (t.type === 'keluar' ? t.amount : -t.amount), 0);
+}
+
+export function getSavingsTransactions(goalId?: string, spaceId?: SpaceId): Transaction[] {
+  return getTransactions(spaceId).filter(t => {
+    const isSaving = t.category === 'Tabungan' || Boolean(t.goalId);
+    if (!isSaving) return false;
+    if (goalId) return t.goalId === goalId;
+    return true;
+  });
 }
 
 // ─── Categories ────────────────────────────────────────────────

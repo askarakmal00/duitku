@@ -18,6 +18,7 @@ import {
   ChevronDown,
   BarChart2,
   Target,
+  PiggyBank,
   CreditCard,
   ArrowRight,
   Receipt,
@@ -553,9 +554,9 @@ export default function FamilyDashboardRedesign({
             </div>
           </Link>
           {/* Tabungan */}
-          <Link href="/goals" style={{ textDecoration: 'none' }}>
+          <Link href="/savings" style={{ textDecoration: 'none' }}>
             <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: '14px 12px', textAlign: 'center' }}>
-              <Target size={20} color="#10B981" style={{ marginBottom: 6 }} />
+              <PiggyBank size={20} color="#10B981" style={{ marginBottom: 6 }} />
               <div style={{ fontSize: 11, fontWeight: 700, color: '#0F172A', marginBottom: 4 }}>Tabungan</div>
               <div style={{ fontSize: 10, color: '#64748B', marginBottom: 6 }}>{compactRp(totalGoalProgress)}</div>
               <div style={{ height: 4, background: '#F1F5F9', borderRadius: 9999, overflow: 'hidden' }}>
@@ -791,7 +792,7 @@ export default function FamilyDashboardRedesign({
           </div>
 
           <button
-            onClick={() => router.push('/goals')}
+            onClick={() => router.push('/savings')}
             style={{ background: '#10B981', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', fontSize: 13, fontWeight: 600, cursor: 'pointer', alignSelf: 'flex-start', marginTop: 16 }}
           >
             Lihat Detail →

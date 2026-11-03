@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import {
-  LayoutDashboard, ArrowLeftRight, Target,
+  LayoutDashboard, ArrowLeftRight, PiggyBank,
   PieChart, BarChart2, Settings, HelpCircle,
   Moon, Sun, X, CreditCard, CalendarDays, LayoutGrid, Lock
 } from 'lucide-react';
@@ -16,7 +16,7 @@ const navItems = [
   { href: '/transactions', icon: ArrowLeftRight, label: 'Transaksi' },
   { href: '/budget', icon: PieChart, label: 'Anggaran' },
   { href: '/wallet', icon: CreditCard, label: 'Hutang' },
-  { href: '/goals', icon: Target, label: 'Goals' },
+  { href: '/savings', icon: PiggyBank, label: 'Tabungan' },
   { href: '/calendar', icon: CalendarDays, label: 'Kalender' },
   { href: '/analytics', icon: BarChart2, label: 'Analitik' },
   { href: '/settings', icon: Settings, label: 'Pengaturan' },
@@ -27,7 +27,7 @@ const bottomNavItems = [
   { href: '/transactions', icon: ArrowLeftRight, label: 'Transaksi' },
   { href: '/budget', icon: PieChart, label: 'Anggaran' },
   { href: '/wallet', icon: CreditCard, label: 'Hutang' },
-  { href: '/goals', icon: Target, label: 'Goals' },
+  { href: '/savings', icon: PiggyBank, label: 'Tabungan' },
 ];
 
 interface SidebarProps {
@@ -90,18 +90,21 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
         <nav className="sidebar-nav">
           <span className="nav-label">Menu Utama</span>
-          {navItems.map(({ href, icon: Icon, label }) => (
-            <Link
-              key={href}
-              href={href}
-              prefetch={true}
-              className={`nav-item ${pathname === href ? 'active' : ''}`}
-              onClick={onClose}
-            >
-              <Icon size={18} />
-              {label}
-            </Link>
-          ))}
+          {navItems.map(({ href, icon: Icon, label }) => {
+            const isActive = href === '/savings' ? (pathname === '/savings' || pathname === '/goals') : pathname === href;
+            return (
+              <Link
+                key={href}
+                href={href}
+                prefetch={true}
+                className={`nav-item ${isActive ? 'active' : ''}`}
+                onClick={onClose}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            );
+          })}
         </nav>
 
         <div className="sidebar-footer">
@@ -118,17 +121,20 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
 
       {/* Bottom Navigation (mobile only) */}
       <nav className="bottom-nav">
-        {bottomNavItems.map(({ href, icon: Icon, label }) => (
-          <Link
-            key={href}
-            href={href}
-            prefetch={true}
-            className={`bottom-nav-item ${pathname === href ? 'active' : ''}`}
-          >
-            <Icon size={20} />
-            <span>{label}</span>
-          </Link>
-        ))}
+        {bottomNavItems.map(({ href, icon: Icon, label }) => {
+          const isActive = href === '/savings' ? (pathname === '/savings' || pathname === '/goals') : pathname === href;
+          return (
+            <Link
+              key={href}
+              href={href}
+              prefetch={true}
+              className={`bottom-nav-item ${isActive ? 'active' : ''}`}
+            >
+              <Icon size={20} />
+              <span>{label}</span>
+            </Link>
+          );
+        })}
 
         <button
           className={`bottom-nav-item ${isMoreActive ? 'active' : ''}`}
