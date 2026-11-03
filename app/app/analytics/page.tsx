@@ -31,7 +31,7 @@ function BarChart({ months, spaceId }: { months: number; spaceId?: SpaceId }) {
           {
             label: 'Pemasukan',
             data: data.income,
-            backgroundColor: '#7C3AED',
+            backgroundColor: '#6366F1',
             borderRadius: 8,
             borderSkipped: false,
             barPercentage: 0.6,
@@ -40,7 +40,7 @@ function BarChart({ months, spaceId }: { months: number; spaceId?: SpaceId }) {
           {
             label: 'Pengeluaran',
             data: data.expense,
-            backgroundColor: '#C4B5FD',
+            backgroundColor: '#A5B4FC',
             borderRadius: 8,
             borderSkipped: false,
             barPercentage: 0.6,
@@ -59,7 +59,7 @@ function BarChart({ months, spaceId }: { months: number; spaceId?: SpaceId }) {
             labels: { usePointStyle: true, pointStyle: 'circle', font: { family: 'Inter', size: 12 }, color: '#6B7280', padding: 12 },
           },
           tooltip: {
-            backgroundColor: '#1E1B4B',
+            backgroundColor: '#1E293B',
             titleFont: { family: 'Inter', size: 13, weight: 600 },
             bodyFont: { family: 'Inter', size: 12 },
             padding: 12,
@@ -71,7 +71,7 @@ function BarChart({ months, spaceId }: { months: number; spaceId?: SpaceId }) {
           x: { grid: { display: false }, border: { display: false }, ticks: { font: { family: 'Inter', size: 11 }, color: '#9CA3AF', maxRotation: 0 } },
           y: {
             border: { display: false },
-            grid: { color: 'rgba(124,58,237,0.06)' },
+            grid: { color: 'rgba(99,102,241,0.06)' },
             ticks: { font: { family: 'Inter', size: 11 }, color: '#9CA3AF', callback: (val) => 'Rp ' + (Number(val) / 1_000_000 >= 1 ? (Number(val) / 1_000_000).toFixed(0) + 'jt' : (Number(val) / 1000).toFixed(0) + 'rb') },
           },
         },
@@ -80,14 +80,12 @@ function BarChart({ months, spaceId }: { months: number; spaceId?: SpaceId }) {
     return () => { inst.current?.destroy(); };
   }, [months, spaceId]);
 
-  // Use chart-responsive-wrap for consistent responsive behavior
   return <div className="chart-responsive-wrap"><canvas ref={ref} /></div>;
 }
 
-function PieChart({ data }: { data: { label: string; value: number }[] }) {
+function DonutChart({ data }: { data: { label: string; value: number }[] }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const inst = useRef<Chart | null>(null);
-
   const total = useMemo(() => data.reduce((sum, d) => sum + d.value, 0), [data]);
 
   useEffect(() => {
@@ -112,24 +110,16 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
       },
       options: {
         responsive: true,
-        maintainAspectRatio: false,
-        cutout: '68%',
+        maintainAspectRatio: true,
+        aspectRatio: 1.6,
+        cutout: '70%',
         animation: { animateRotate: true, animateScale: false },
         plugins: {
           legend: {
-            display: true,
-            position: 'bottom',
-            labels: {
-              usePointStyle: true,
-              pointStyle: 'circle',
-              font: { family: 'Inter', size: 12 },
-              color: '#6B7280',
-              padding: 16,
-              boxWidth: 10,
-            },
+            display: false,
           },
           tooltip: {
-            backgroundColor: '#1E1B4B',
+            backgroundColor: '#1E293B',
             titleFont: { family: 'Inter', size: 12, weight: 600 as const },
             bodyFont: { family: 'Inter', size: 12 },
             padding: 10,
@@ -145,14 +135,12 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
   }, [data]);
 
   return (
-    <div style={{ width: '100%', padding: '8px 0' }}>
-      <div style={{ position: 'relative', width: '100%', maxWidth: 260, margin: '0 auto' }}>
-        <div style={{ position: 'relative', paddingBottom: '75%' }}>
-          <canvas ref={ref} style={{ position: 'absolute', inset: 0, width: '100% !important', height: '100% !important' }} />
-        </div>
+    <div style={{ position: 'relative', width: '100%' }}>
+      <canvas ref={ref} />
+      {total > 0 && (
         <div style={{
           position: 'absolute',
-          top: '38%',
+          top: '42%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
           textAlign: 'center',
@@ -161,9 +149,9 @@ function PieChart({ data }: { data: { label: string; value: number }[] }) {
           <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
             {formatCurrency(total)}
           </div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Total Keluar</div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>Total</div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
@@ -208,54 +196,46 @@ export default function AnalyticsPage() {
   const savingRate = totalIncome > 0 ? ((totalIncome - totalExpense) / totalIncome) * 100 : 0;
 
   const stats = [
-    { label: 'Total Pemasukan', value: formatCurrency(totalIncome), icon: <TrendingUp size={16} />, color: '#0F766E' },
-    { label: 'Total Pengeluaran', value: formatCurrency(totalExpense), icon: <TrendingDown size={16} />, color: '#0F766E' },
-    { label: 'Rata-rata / Bulan', value: formatCurrency(avgIncome), icon: <BarChart2 size={16} />, color: '#0F766E' },
-    { label: `Saving Rate ${period}bln`, value: `${savingRate.toFixed(1)}%`, icon: <Percent size={16} />, color: savingRate >= 20 ? 'var(--success)' : 'var(--warning)' },
+    { label: 'Total Pemasukan', value: formatCurrency(totalIncome), icon: <TrendingUp size={16} />, bg: '#ECFDF5', color: '#059669' },
+    { label: 'Total Pengeluaran', value: formatCurrency(totalExpense), icon: <TrendingDown size={16} />, bg: '#FEE2E2', color: '#DC2626' },
+    { label: 'Rata-rata / Bulan', value: formatCurrency(avgIncome), icon: <BarChart2 size={16} />, bg: '#EEF2FF', color: '#6366F1' },
+    { label: `Saving Rate ${period}bln`, value: `${savingRate.toFixed(1)}%`, icon: <Percent size={16} />, bg: savingRate >= 20 ? '#ECFDF5' : '#FEF3C7', color: savingRate >= 20 ? '#059669' : '#D97706' },
   ];
 
   return (
     <>
-      <Header title="Analitik" subtitle="Tren keuangan jangka panjang" />
+      <Header title="Analitik" subtitle="Tren keuangan jangka panjang keluarga" />
 
       <div className="page-container">
-        {/* Active Space Indicator */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '4px 12px',
-            borderRadius: 20,
-            fontSize: 12,
-            fontWeight: 700,
-            background: activeSpace === 'keluarga' ? '#ECFDF5' : '#EEF2FF',
-            color: activeSpace === 'keluarga' ? '#047857' : '#4338CA',
-            border: `1px solid ${activeSpace === 'keluarga' ? '#A7F3D0' : '#C7D2FE'}`
-          }}>
-            <span>{activeSpace === 'keluarga' ? '🏠' : '👤'}</span>
-            <span>{activeSpace === 'keluarga' ? 'Analitik Keuangan Keluarga' : 'Analitik Keuangan Pribadi (Asykar)'}</span>
-          </div>
-          <span className="text-xs text-muted">Data otomatis terpisah antar ruang</span>
-        </div>
-
-        {/* Unified Analytics Stat Card — 2x2 grid */}
-        <div className="page-stat-card analytics-grid" style={{ marginBottom: 24, padding: 0, border: '1px solid #99F6E4', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow)', overflow: 'hidden' }}>
+        {/* Stats Row */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
           {stats.map((item, i) => (
-            <div key={i} className="psc-grid-item">
-              <div className="psc-header">
-                <div className="psc-icon" style={{ background: 'rgba(13,148,136,0.12)', color: '#0D9488' }}>
+            <div key={i} style={{
+              background: 'var(--card)',
+              borderRadius: 'var(--radius)',
+              padding: '18px 20px',
+              border: '1px solid var(--border)',
+              boxShadow: 'var(--shadow-sm)',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+                <div style={{
+                  width: 34, height: 34, borderRadius: 'var(--radius-sm)',
+                  background: item.bg, color: item.color,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center'
+                }}>
                   {item.icon}
                 </div>
-                <span className="psc-label" style={{ color: '#0F766E' }}>{item.label}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{item.label}</span>
               </div>
-              <div className="psc-value" style={{ color: item.color, fontSize: 16 }}>{item.value}</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+                {item.value}
+              </div>
             </div>
           ))}
         </div>
 
         <div className="analytics-grid">
-          {/* Main Chart */}
+          {/* Main Chart Left */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20, minWidth: 0 }}>
             <div className="card" style={{ overflow: 'hidden' }}>
               <div className="card-header">
@@ -324,8 +304,12 @@ export default function AnalyticsPage() {
               </div>
               {catData.length > 0 ? (
                 <>
-                  <PieChart data={catData} />
-                  <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {/* Donut chart with relative aspect ratio */}
+                  <div style={{ padding: '8px 16px 0' }}>
+                    <DonutChart data={catData} />
+                  </div>
+                  {/* Legend */}
+                  <div style={{ padding: '12px 4px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     {catData.slice(0, 6).map((d, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, flex: 1, overflow: 'hidden' }}>
@@ -341,7 +325,7 @@ export default function AnalyticsPage() {
                 <div className="empty-state">
                   <span style={{ fontSize: 32 }}>📊</span>
                   <h3>Belum ada data</h3>
-                  <p>Tambahkan transaksi keluar untuk melihat breakdown</p>
+                  <p>Tambahkan transaksi keluar untuk melihat breakdown kategori</p>
                 </div>
               )}
             </div>
