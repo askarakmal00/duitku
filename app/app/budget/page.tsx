@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, AlertTriangle, Wallet, BarChart2, Coins } from 'lucide-react';
+import { Plus, Pencil, Trash2, AlertTriangle, Coins, PieChart, TrendingUp, Target } from 'lucide-react';
 import Header from '@/components/Header';
 import BudgetDonut from '@/components/BudgetDonut';
 import BudgetModal from '@/components/BudgetModal';
@@ -9,7 +9,6 @@ import {
 } from '@/lib/store';
 import { BudgetPos } from '@/lib/types';
 import { formatCurrency, getCurrentMonth, clamp } from '@/lib/helpers';
-
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import { useCallback } from 'react';
 import { useSpace } from '@/lib/useSpace';
@@ -57,263 +56,249 @@ export default function BudgetPage() {
   const totalAllocation = posList.reduce((s, p) => s + p.monthlyAllocation, 0);
   const totalUsed = posWithUsage.reduce((s, p) => s + p.used, 0);
   const totalRemaining = totalAllocation - totalUsed;
+  const overBudgetCount = posWithUsage.filter(p => p.pct >= 100).length;
+  const overallPct = totalAllocation > 0 ? clamp((totalUsed / totalAllocation) * 100, 0, 200) : 0;
 
   return (
     <>
-      {/* ─── MOBILE VIEW (Image 2) ─── */}
-      <div className="mobile-only-view page-container" style={{ flexDirection: 'column', gap: 14 }}>
-        <div className="mobile-page-header">
-          <div className="mobile-page-title">Anggaran</div>
-          <div className="mobile-page-subtitle">Kelola pos anggaran dan pantau pemakaian</div>
-        </div>
+      <Header title="Anggaran" subtitle="Kelola pos anggaran dan pantau pemakaian" />
 
-        {/* Grid 2: Total alokasi & Total terpakai */}
-        <div className="mobile-grid-2">
-          <div className="mobile-stat-card">
-            <div className="mobile-stat-label">Total alokasi</div>
-            <div className="mobile-stat-val">{formatCurrency(totalAllocation)}</div>
-          </div>
-          <div className="mobile-stat-card">
-            <div className="mobile-stat-label">Total terpakai</div>
-            <div className="mobile-stat-val expense">{formatCurrency(totalUsed)}</div>
-          </div>
-        </div>
-
-        {/* Alert/Status Card: Total sisa */}
-        <div className={`mobile-alert-card ${totalRemaining < 0 ? 'danger' : ''}`} style={totalRemaining >= 0 ? { background: '#ECFDF5', border: '1px solid #A7F3D0' } : undefined}>
-          <div>
-            <div className="mobile-alert-label" style={totalRemaining >= 0 ? { color: '#047857' } : undefined}>
-              Total sisa
+      <div className="page-container">
+        {/* ─── Stat Cards Row ─── */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
+          gap: 12,
+          marginBottom: 4,
+        }}>
+          {[
+            {
+              label: 'Total Alokasi',
+              value: formatCurrency(totalAllocation),
+              sub: `${posList.length} pos anggaran`,
+              icon: <Target size={16} />,
+              color: '#6366F1',
+              bg: '#EEF2FF',
+            },
+            {
+              label: 'Total Terpakai',
+              value: formatCurrency(totalUsed),
+              sub: `${overallPct.toFixed(0)}% dari alokasi`,
+              icon: <TrendingUp size={16} />,
+              color: overallPct >= 100 ? '#DC2626' : overallPct >= 80 ? '#D97706' : '#059669',
+              bg: overallPct >= 100 ? '#FEF2F2' : overallPct >= 80 ? '#FFFBEB' : '#ECFDF5',
+            },
+            {
+              label: 'Sisa Anggaran',
+              value: `${totalRemaining < 0 ? '-' : ''}${formatCurrency(Math.abs(totalRemaining))}`,
+              sub: totalRemaining < 0 ? 'Melebihi alokasi' : 'Masih tersedia',
+              icon: <Coins size={16} />,
+              color: totalRemaining < 0 ? '#DC2626' : '#059669',
+              bg: totalRemaining < 0 ? '#FEF2F2' : '#ECFDF5',
+            },
+            {
+              label: 'Pos Melebihi',
+              value: `${overBudgetCount}`,
+              sub: overBudgetCount > 0 ? 'Pos over-budget' : 'Semua dalam batas',
+              icon: <AlertTriangle size={16} />,
+              color: overBudgetCount > 0 ? '#DC2626' : '#059669',
+              bg: overBudgetCount > 0 ? '#FEF2F2' : '#ECFDF5',
+            },
+          ].map((card, i) => (
+            <div key={i} style={{
+              background: 'var(--card)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)',
+              padding: '14px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              boxShadow: 'var(--shadow)',
+            }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: 10,
+                background: card.bg, color: card.color,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                {card.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', fontWeight: 500, marginBottom: 2 }}>{card.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: card.color, lineHeight: 1.1 }}>{card.value}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{card.sub}</div>
+              </div>
             </div>
-            <div className="mobile-alert-val" style={totalRemaining >= 0 ? { color: '#065F46' } : undefined}>
-              {totalRemaining < 0 ? '-' : ''}{formatCurrency(Math.abs(totalRemaining))}{totalRemaining < 0 ? ' (minus)' : ''}
-            </div>
-          </div>
-          {totalRemaining < 0 ? (
-            <AlertTriangle size={24} className="mobile-alert-icon" />
-          ) : (
-            <Coins size={24} style={{ color: '#059669', flexShrink: 0 }} />
-          )}
+          ))}
         </div>
 
-        {/* Section: Pos anggaran */}
-        <div className="mobile-sec-header">
-          <span className="mobile-sec-title">Pos anggaran ({posList.length})</span>
-          <button
-            className="mobile-sec-action"
-            onClick={() => { setEditTarget(undefined); setShowModal(true); }}
-          >
-            + Tambah
-          </button>
-        </div>
-
-        {/* Pos List */}
-        {posWithUsage.length === 0 ? (
-          <div className="empty-state" style={{ padding: '24px 0' }}>
-            <div className="empty-state-icon">📊</div>
-            <h3>Belum ada pos anggaran</h3>
-            <p>Buat pos anggaran pertama untuk memantau pengeluaran.</p>
-          </div>
-        ) : (
+        {/* ─── Main Grid: List + Donut ─── */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr) 300px',
+          gap: 16,
+          alignItems: 'start',
+        }} className="budget-main-grid">
+          {/* LEFT: Pos List */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {posWithUsage.map(p => {
-              const isOver = p.remaining < 0 || p.pct >= 100;
-              const isWarn = !isOver && p.pct >= 80;
-              const barColor = isOver ? '#DC2626' : isWarn ? '#F59E0B' : '#3B82F6';
-
-              return (
-                <div key={p.id} className="mobile-card-item" onClick={() => handleEdit(p)} style={{ cursor: 'pointer' }}>
-                  <div className="mobile-card-item-top">
-                    <span className="mobile-card-item-name">{p.name}</span>
-                    {isOver ? (
-                      <span className="badge-kontras-melebihi">Melebihi</span>
-                    ) : isWarn ? (
-                      <span className="badge-kontras-hampir">Hampir habis</span>
-                    ) : (
-                      <span className="badge-kontras-aman">Aman</span>
-                    )}
-                  </div>
-
-                  <div className="mobile-progress-bar-wrap" style={{ height: 8 }}>
-                    <div
-                      className="mobile-progress-bar-fill"
-                      style={{ width: `${Math.min(100, p.pct)}%`, background: barColor }}
-                    />
-                  </div>
-
-                  <div className="mobile-card-item-subrow">
-                    <span>Terpakai {formatCurrency(p.used, true)}</span>
-                    {isOver ? (
-                      <span style={{ color: '#DC2626', fontWeight: 700 }}>
-                        Lebih {formatCurrency(Math.abs(p.remaining), true)}
-                      </span>
-                    ) : (
-                      <span>Sisa {formatCurrency(p.remaining, true)}</span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* ─── DESKTOP VIEW ─── */}
-      <div className="desktop-only-view">
-        <Header title="Anggaran" subtitle="Kelola pos anggaran dan pantau penggunaannya" />
-
-        <div className="page-container">
-          {/* Unified Stat Card — Budget (amber accent) */}
-          <div className="page-stat-card budget">
-          <div className="psc-item">
-            <div className="psc-header">
-              <div className="psc-icon"><Wallet size={16} /></div>
-              <span className="psc-label">Total Alokasi</span>
-            </div>
-            <div className="psc-value">{formatCurrency(posList.reduce((s, p) => s + p.monthlyAllocation, 0))}</div>
-            <div className="psc-sub">{posList.length} pos anggaran aktif</div>
-          </div>
-
-          <div className="psc-divider" />
-
-          <div className="psc-item">
-            <div className="psc-header">
-              <div className="psc-icon"><BarChart2 size={16} /></div>
-              <span className="psc-label">Total Terpakai</span>
-            </div>
-            <div className="psc-value" style={{ color: 'var(--danger)' }}>
-              {formatCurrency(posWithUsage.reduce((s, p) => s + p.used, 0))}
-            </div>
-            <div className="psc-sub">
-              {posList.reduce((s, p) => s + p.monthlyAllocation, 0) > 0
-                ? `${((posWithUsage.reduce((s, p) => s + p.used, 0) / posList.reduce((s, p) => s + p.monthlyAllocation, 0)) * 100).toFixed(0)}% dari alokasi`
-                : 'Belum ada pengeluaran'}
-            </div>
-          </div>
-
-          <div className="psc-divider" />
-
-          <div className="psc-item">
-            <div className="psc-header">
-              <div className="psc-icon"><Coins size={16} /></div>
-              <span className="psc-label">Total Sisa</span>
-            </div>
-            <div className="psc-value" style={{ color: posWithUsage.reduce((s, p) => s + p.remaining, 0) >= 0 ? 'var(--success)' : 'var(--danger)' }}>
-              {formatCurrency(Math.abs(posWithUsage.reduce((s, p) => s + p.remaining, 0)))}{posWithUsage.reduce((s, p) => s + p.remaining, 0) < 0 ? ' (minus)' : ''}
-            </div>
-            <div className="psc-sub">Sisa anggaran bulan ini</div>
-          </div>
-        </div>
-
-        <div className="dashboard-grid">
-          {/* Left: Budget Pos List */}
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ fontSize: 17, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Pos Anggaran ({posList.length})</h2>
-              <button className="btn btn-primary btn-sm" style={{ flexShrink: 0 }} onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
-                <Plus size={16} /> Tambah
+            {/* Section header with add button */}
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '0 2px',
+            }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+                Pos Anggaran ({posList.length})
+              </span>
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => { setEditTarget(undefined); setShowModal(true); }}
+                style={{ gap: 6 }}
+              >
+                <Plus size={14} /> Tambah Pos
               </button>
             </div>
 
-            {posList.length === 0 ? (
+            {/* Pos cards */}
+            {posWithUsage.length === 0 ? (
               <div className="card">
                 <div className="empty-state">
-                  <div className="empty-state-icon"><span style={{ fontSize: 28 }}>📊</span></div>
+                  <div className="empty-state-icon"><PieChart size={32} /></div>
                   <h3>Belum ada pos anggaran</h3>
                   <p>Buat pos anggaran untuk memantau pengeluaran per kategori</p>
-                  <button className="btn btn-primary" onClick={() => setShowModal(true)}>
+                  <button className="btn btn-primary" onClick={() => { setEditTarget(undefined); setShowModal(true); }}>
                     <Plus size={16} /> Buat Pos Pertama
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="budget-pos-list">
-                {posWithUsage.map(p => {
-                  const isOver = p.pct >= 100;
-                  const isWarn = p.pct >= 80 && p.pct < 100;
-                  const barColor = isOver ? 'var(--danger)' : isWarn ? 'var(--warning)' : 'var(--primary)';
+              posWithUsage.map(p => {
+                const isOver = p.pct >= 100;
+                const isWarn = p.pct >= 80 && p.pct < 100;
+                const barColor = isOver ? 'var(--danger)' : isWarn ? 'var(--warning)' : 'var(--primary)';
+                const barBg = isOver ? '#FEF2F2' : isWarn ? '#FFFBEB' : '#EEF2FF';
 
-                  return (
-                    <div key={p.id} className="budget-pos-card">
-                      <div className="budget-pos-header">
-                        <div>
-                          <div className="budget-pos-name">{p.name}</div>
+                return (
+                  <div key={p.id} style={{
+                    background: 'var(--card)',
+                    borderRadius: 'var(--radius-md)',
+                    border: `1px solid ${isOver ? '#FECACA' : isWarn ? '#FDE68A' : 'var(--border)'}`,
+                    padding: '16px 18px',
+                    boxShadow: 'var(--shadow)',
+                    transition: 'box-shadow 0.15s ease',
+                  }}>
+                    {/* Card Header */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{p.name}</span>
                           {p.rollover && (
-                            <span className="chip" style={{ fontSize: 11, padding: '2px 8px', marginTop: 4, display: 'inline-block' }}>
-                              Rollover aktif
-                            </span>
+                            <span className="chip" style={{ fontSize: 10, padding: '2px 7px' }}>Rollover</span>
                           )}
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
                           {isOver && (
-                            <span className="chip chip-danger" style={{ fontSize: 11 }}>
-                              <AlertTriangle size={11} /> Melebihi
+                            <span className="chip chip-danger" style={{ fontSize: 10, padding: '2px 7px', display: 'flex', alignItems: 'center', gap: 3 }}>
+                              <AlertTriangle size={10} /> Over
                             </span>
                           )}
-                          {isWarn && (
-                            <span className="chip chip-warning" style={{ fontSize: 11 }}>
-                              ⚠ Hampir habis
-                            </span>
+                          {isWarn && !isOver && (
+                            <span className="chip chip-warning" style={{ fontSize: 10, padding: '2px 7px' }}>⚠ Hampir habis</span>
                           )}
-                          <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleEdit(p)}>
-                            <Pencil size={14} />
-                          </button>
-                          <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleDelete(p.id)}>
-                            <Trash2 size={14} />
-                          </button>
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>
+                          Alokasi {formatCurrency(p.monthlyAllocation)} / bulan
                         </div>
                       </div>
-
-                      <div className="progress-bar" style={{ height: 10 }}>
-                        <div
-                          className="progress-fill"
-                          style={{ width: `${Math.min(p.pct, 100)}%`, background: barColor }}
-                        />
-                      </div>
-
-                      <div className="budget-pos-amounts">
-                        <span>Terpakai: <strong style={{ color: barColor }}>{formatCurrency(p.used)}</strong></span>
-                        <span>{p.pct.toFixed(0)}%</span>
-                        <span>Sisa: <strong style={{ color: p.remaining < 0 ? 'var(--danger)' : 'var(--success)' }}>
-                          {formatCurrency(Math.abs(p.remaining))}{p.remaining < 0 ? ' (minus)' : ''}
-                        </strong></span>
-                      </div>
-
-                      <div style={{ marginTop: 6, textAlign: 'right' }}>
-                        <span className="text-xs text-muted">
-                          Alokasi: {formatCurrency(p.monthlyAllocation)} / bulan
-                        </span>
+                      <div style={{ display: 'flex', gap: 4, marginLeft: 8 }}>
+                        <button className="btn btn-ghost btn-icon btn-sm" onClick={() => handleEdit(p)} title="Edit">
+                          <Pencil size={13} />
+                        </button>
+                        <button className="btn btn-danger btn-icon btn-sm" onClick={() => handleDelete(p.id)} title="Hapus">
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
+
+                    {/* Progress Bar */}
+                    <div style={{
+                      height: 8, borderRadius: 99,
+                      background: barBg,
+                      overflow: 'hidden',
+                      marginBottom: 10,
+                    }}>
+                      <div style={{
+                        height: '100%',
+                        width: `${Math.min(p.pct, 100)}%`,
+                        borderRadius: 99,
+                        background: barColor,
+                        transition: 'width 0.4s ease',
+                      }} />
+                    </div>
+
+                    {/* Amount Row */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', gap: 16 }}>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 1 }}>Terpakai</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: barColor }}>{formatCurrency(p.used)}</div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginBottom: 1 }}>Sisa</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: p.remaining < 0 ? 'var(--danger)' : 'var(--success)' }}>
+                            {p.remaining < 0 ? '-' : ''}{formatCurrency(Math.abs(p.remaining))}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{
+                        fontSize: 18, fontWeight: 800,
+                        color: barColor,
+                      }}>
+                        {p.pct.toFixed(0)}%
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
 
-          {/* Right: Summary Donut */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Ringkasan Anggaran</span>
+          {/* RIGHT: Donut + Stats */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{
+              background: 'var(--card)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)',
+              padding: '16px',
+              boxShadow: 'var(--shadow)',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+                Ringkasan Anggaran
               </div>
               <BudgetDonut items={budgetItems} />
             </div>
 
-            <div className="card">
-              <div className="card-header">
-                <span className="card-title">Statistik</span>
+            <div style={{
+              background: 'var(--card)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--border)',
+              padding: '16px',
+              boxShadow: 'var(--shadow)',
+            }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12 }}>
+                Statistik Bulan Ini
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {[
-                  { label: 'Total Alokasi', value: posList.reduce((s, p) => s + p.monthlyAllocation, 0) },
-                  { label: 'Total Terpakai', value: posWithUsage.reduce((s, p) => s + p.used, 0) },
-                  { label: 'Total Sisa', value: posWithUsage.reduce((s, p) => s + p.remaining, 0) },
-                ].map(({ label, value }, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: i < 2 ? '1px solid var(--divider)' : 'none' }}>
-                    <span className="text-sm text-secondary">{label}</span>
-                    <span className="font-600" style={{ color: i === 2 && value < 0 ? 'var(--danger)' : 'var(--text-primary)' }}>
-                      {formatCurrency(value)}
+                  { label: 'Total Alokasi', value: totalAllocation, color: 'var(--text-primary)' },
+                  { label: 'Total Terpakai', value: totalUsed, color: overallPct >= 100 ? 'var(--danger)' : 'var(--text-primary)' },
+                  { label: 'Total Sisa', value: totalRemaining, color: totalRemaining < 0 ? 'var(--danger)' : 'var(--success)' },
+                ].map(({ label, value, color }, i) => (
+                  <div key={i} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '10px 0',
+                    borderBottom: i < 2 ? '1px solid var(--border)' : 'none',
+                  }}>
+                    <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color }}>
+                      {value < 0 ? '-' : ''}{formatCurrency(Math.abs(value))}
                     </span>
                   </div>
                 ))}
@@ -322,7 +307,15 @@ export default function BudgetPage() {
           </div>
         </div>
       </div>
-      </div>
+
+      {/* ─── Responsive CSS for budget-main-grid ─── */}
+      <style>{`
+        @media (max-width: 768px) {
+          .budget-main-grid {
+            grid-template-columns: 1fr !important;
+          }
+        }
+      `}</style>
 
       {showModal && (
         <BudgetModal

@@ -65,10 +65,9 @@ export function getMonthName(year: number, month: number): string {
 }
 
 export const CHART_COLORS = [
-  '#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD',
-  '#10B981', '#34D399', '#6EE7B7',
-  '#F59E0B', '#FBBF24', '#FCD34D',
-  '#EF4444', '#F87171',
+  '#6366F1', '#8B5CF6', '#10B981', '#F59E0B',
+  '#EF4444', '#3B82F6', '#EC4899', '#14B8A6',
+  '#F97316', '#84CC16', '#06B6D4', '#A78BFA',
 ];
 
 export const CATEGORY_EMOJI: Record<string, string> = {
