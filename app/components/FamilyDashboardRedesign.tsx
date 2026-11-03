@@ -1122,8 +1122,8 @@ export default function FamilyDashboardRedesign({
         <div style={{ background: '#fff', borderRadius: 20, padding: '20px 22px', border: '1px solid #E2E8F0', boxShadow: '0 1px 4px rgba(0,0,0,0.04)', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {/* Header without redundant month button */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#EDE9FE', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <BarChart2 size={15} color="#7C3AED" />
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: '#EEF2FF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <BarChart2 size={15} color="#6366F1" />
             </div>
             <span style={{ fontSize: 12, fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Anggaran Bulan Ini</span>
           </div>

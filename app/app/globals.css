@@ -1740,7 +1740,7 @@ tr:hover td { background: var(--primary-50); }
 .quick-action-icon.income { background: #ECFDF5; color: #10B981; }
 .quick-action-icon.expense { background: #FEF2F2; color: #EF4444; }
 .quick-action-icon.debt { background: #EEF2FF; color: #6366F1; }
-.quick-action-icon.goal { background: #F5F3FF; color: #8B5CF6; }
+.quick-action-icon.goal { background: #EEF2FF; color: #6366F1; }
 
 .dark .quick-action-icon.income { background: rgba(16, 185, 129, 0.15); }
 .dark .quick-action-icon.expense { background: rgba(239, 68, 68, 0.15); }
@@ -1905,14 +1905,14 @@ canvas {
   border-radius: 4px 0 0 4px;
 }
 
-/* Goals — violet/purple accent */
+/* Goals — indigo accent */
 .page-stat-card.goals {
-  background: linear-gradient(135deg, #F5F3FF 0%, #EDE9FE 100%);
-  border: 1px solid #DDD6FE;
+  background: linear-gradient(135deg, #EEF2FF 0%, #E0E7FF 100%);
+  border: 1px solid #C7D2FE;
 }
-.page-stat-card.goals::before { background: #7C3AED; }
-.page-stat-card.goals .psc-icon { background: rgba(124,58,237,0.12); color: #7C3AED; }
-.page-stat-card.goals .psc-value { color: #6D28D9; }
+.page-stat-card.goals::before { background: #6366F1; }
+.page-stat-card.goals .psc-icon { background: rgba(99,102,241,0.12); color: #6366F1; }
+.page-stat-card.goals .psc-value { color: #4F46E5; }
 
 /* Budget — amber/orange accent */
 .page-stat-card.budget {
@@ -2811,29 +2811,29 @@ canvas {
 .calendar-cell.heat-0 .calendar-cell-amount { color: var(--text-muted); }
 
 .calendar-cell.heat-1 {
-  background: #F5F3FF;
-  border-color: #DDD6FE;
+  background: #EEF2FF;
+  border-color: #C7D2FE;
 }
-.calendar-cell.heat-1 .calendar-date-num { color: #6D28D9; }
-.calendar-cell.heat-1 .calendar-cell-amount { color: #7C3AED; }
+.calendar-cell.heat-1 .calendar-date-num { color: #4F46E5; }
+.calendar-cell.heat-1 .calendar-cell-amount { color: #6366F1; }
 
 .calendar-cell.heat-2 {
-  background: #EDE9FE;
-  border-color: #C4B5FD;
+  background: #E0E7FF;
+  border-color: #A5B4FC;
 }
-.calendar-cell.heat-2 .calendar-date-num { color: #5B21B6; }
-.calendar-cell.heat-2 .calendar-cell-amount { color: #6D28D9; }
+.calendar-cell.heat-2 .calendar-date-num { color: #4338CA; }
+.calendar-cell.heat-2 .calendar-cell-amount { color: #4F46E5; }
 
 .calendar-cell.heat-3 {
-  background: #7C3AED;
-  border-color: #6D28D9;
+  background: #6366F1;
+  border-color: #4F46E5;
 }
 .calendar-cell.heat-3 .calendar-date-num { color: white; }
 .calendar-cell.heat-3 .calendar-cell-amount { color: rgba(255,255,255,0.85); }
 
-.dark .calendar-cell.heat-1 { background: rgba(124,58,237,0.12); border-color: rgba(124,58,237,0.2); }
-.dark .calendar-cell.heat-2 { background: rgba(124,58,237,0.25); border-color: rgba(124,58,237,0.35); }
-.dark .calendar-cell.heat-3 { background: #6D28D9; border-color: #7C3AED; }
+.dark .calendar-cell.heat-1 { background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.2); }
+.dark .calendar-cell.heat-2 { background: rgba(99,102,241,0.25); border-color: rgba(99,102,241,0.35); }
+.dark .calendar-cell.heat-3 { background: #4F46E5; border-color: #6366F1; }
 
 .calendar-cell-amount.is-positive {
   color: #059669;

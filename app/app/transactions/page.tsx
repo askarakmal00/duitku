@@ -133,7 +133,7 @@ function getTransactionVisual(t: Transaction) {
   if (cat.includes('bensin') || note.includes('bensin') || cat.includes('transport') || cat.includes('bbm')) {
     return {
       Icon: Car,
-      iconBg: '#EDE9FE',
+      iconBg: '#EEF2FF',
       iconColor: '#6366F1',
       badgeBg: '#F1F5F9',
       badgeColor: '#475569',
@@ -171,8 +171,8 @@ function getTransactionVisual(t: Transaction) {
       Icon: ArrowDownLeft,
       iconBg: '#DCFCE7',
       iconColor: '#16A34A',
-      badgeBg: '#EDE9FE',
-      badgeColor: '#7C3AED',
+      badgeBg: '#EEF2FF',
+      badgeColor: '#6366F1',
     };
   }
   if (cat.includes('anak')) {

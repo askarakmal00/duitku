@@ -40,7 +40,7 @@ export default function MoneyFlowChart({ months = 7 }: MoneyFlowChartProps) {
           {
             label: 'Pemasukan',
             data: data.income,
-            backgroundColor: '#7C3AED',
+            backgroundColor: '#6366F1',
             borderRadius: 8,
             borderSkipped: false,
             barPercentage: 0.6,
