@@ -24,6 +24,10 @@ export function getDbPool(): Pool | null {
   return pool;
 }
 
+// In-memory flag — reset on each cold start. The schema init SQL uses
+// CREATE TABLE IF NOT EXISTS and ALTER ... ADD COLUMN IF NOT EXISTS,
+// so it is safe to run multiple times. The only destructive operations
+// (DELETE + UPDATE) are idempotent and keluarga-safe.
 let isInitialized = false;
 
 export async function ensureDatabaseSchema(): Promise<void> {
@@ -33,6 +37,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
 
   const client = await p.connect();
   try {
+    // ── Step 1: Create / alter tables (safe to run many times) ──────────────
     await client.query(`
       CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -59,9 +64,6 @@ export async function ensureDatabaseSchema(): Promise<void> {
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS paid_by TEXT DEFAULT 'bersama';
       ALTER TABLE transactions ADD COLUMN IF NOT EXISTS reimbursed BOOLEAN DEFAULT false;
 
-      -- Automatically migrate all transactions to keluarga
-      UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
-
       CREATE TABLE IF NOT EXISTS budget_pos (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         name TEXT NOT NULL,
@@ -72,7 +74,6 @@ export async function ensureDatabaseSchema(): Promise<void> {
       );
       ALTER TABLE budget_pos ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
       ALTER TABLE budget_pos ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS debt_parties (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -82,7 +83,6 @@ export async function ensureDatabaseSchema(): Promise<void> {
       );
       ALTER TABLE debt_parties ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
       ALTER TABLE debt_parties ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      UPDATE debt_parties SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS debt_transactions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -98,7 +98,6 @@ export async function ensureDatabaseSchema(): Promise<void> {
       ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS txn_id UUID;
       ALTER TABLE debt_transactions ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
       ALTER TABLE debt_transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      UPDATE debt_transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS saving_goals (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -109,7 +108,6 @@ export async function ensureDatabaseSchema(): Promise<void> {
       );
       ALTER TABLE saving_goals ADD COLUMN IF NOT EXISTS space_id TEXT DEFAULT 'keluarga';
       ALTER TABLE saving_goals ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      UPDATE saving_goals SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
 
       CREATE TABLE IF NOT EXISTS categories (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -128,32 +126,19 @@ export async function ensureDatabaseSchema(): Promise<void> {
       INSERT INTO app_settings (id, user_name, dark_mode)
       VALUES (1, 'Pengguna', false)
       ON CONFLICT (id) DO NOTHING;
+    `);
 
-      -- Ensure everything is tagged as keluarga
-      UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
-      UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id = 'pribadi';
-      DELETE FROM debt_parties WHERE space_id = 'pribadi';
-      DELETE FROM debt_transactions WHERE space_id = 'pribadi';
-      DELETE FROM saving_goals WHERE space_id = 'pribadi';
-
-      -- Retain only October 2026 onwards for family finance; purge older transactions
-      DELETE FROM transactions WHERE date < '2026-10-01';
-      DELETE FROM debt_transactions WHERE date < '2026-10-01';
-
-      -- Ensure all existing and new records default to keluarga
+    // ── Step 2: Migrate all data to keluarga (safe UPDATE only — no DELETE of user data) ──
+    await client.query(`
       UPDATE transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
       UPDATE budget_pos SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
       UPDATE debt_parties SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
       UPDATE debt_transactions SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
       UPDATE saving_goals SET space_id = 'keluarga' WHERE space_id IS NULL OR space_id != 'keluarga';
+    `);
 
-      ALTER TABLE transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      ALTER TABLE budget_pos ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      ALTER TABLE debt_parties ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      ALTER TABLE debt_transactions ALTER COLUMN space_id SET DEFAULT 'keluarga';
-      ALTER TABLE saving_goals ALTER COLUMN space_id SET DEFAULT 'keluarga';
-
-      -- Seed default categories if empty
+    // ── Step 3: Seed default categories if table is empty ───────────────────
+    await client.query(`
       INSERT INTO categories (name, type, is_default)
       SELECT * FROM (VALUES
         ('Gaji', 'masuk', true),
@@ -172,6 +157,7 @@ export async function ensureDatabaseSchema(): Promise<void> {
       ) AS def(n, t, d)
       WHERE NOT EXISTS (SELECT 1 FROM categories LIMIT 1);
     `);
+
     isInitialized = true;
   } catch (err) {
     console.error('Failed to initialize database schema:', err);
@@ -179,4 +165,3 @@ export async function ensureDatabaseSchema(): Promise<void> {
     client.release();
   }
 }
-

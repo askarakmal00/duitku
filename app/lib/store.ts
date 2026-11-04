@@ -278,7 +278,7 @@ async function safeInsertDebtTransaction(dt: DebtTransaction): Promise<void> {
     note: dt.note || '',
     date: dt.date,
     created_at: dt.createdAt,
-    space_id: dt.spaceId || 'pribadi',
+    space_id: 'keluarga',
   };
   if (dt.txnId) payload.txn_id = dt.txnId;
 
@@ -335,22 +335,16 @@ export async function syncWithDb(): Promise<void> {
     throw new Error('SCHEMA_MISSING');
   }
 
-  // 1. Transactions Sync (Only retain October 2026 onwards for family finance)
+  // 1. Transactions Sync — load ALL transactions from DB (no date filter to avoid data loss)
   const rawLocalTxns = load<Transaction[]>(KEYS.transactions, []);
-  const localTxns = rawLocalTxns.filter(t => (t.date || '').slice(0, 10) >= '2026-10-01');
-  if (rawLocalTxns.length !== localTxns.length) {
-    save(KEYS.transactions, localTxns);
-  }
+  // Keep all local transactions — do NOT filter by date here to prevent data loss
+  const localTxns = rawLocalTxns;
   const localSpaceMap = new Map<string, SpaceId>();
   localTxns.forEach(t => {
     if (t.spaceId) localSpaceMap.set(t.id, t.spaceId);
   });
 
   const remoteTxns: Transaction[] = (txnsRes.data || [])
-    .filter((t: any) => {
-      const d = typeof t.date === 'string' ? t.date.slice(0, 10) : new Date(t.date).toISOString().slice(0, 10);
-      return d >= '2026-10-01';
-    })
     .map((t: any) => {
       const rawNote = t.note || '';
       const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]/g, '').trim();
@@ -406,13 +400,12 @@ export async function syncWithDb(): Promise<void> {
   const unsyncedLocalTxns: Transaction[] = [];
   for (const lt of localTxns) {
     if (!remoteTxnIds.has(lt.id)) {
-      if ((lt.date || '').slice(0, 10) < '2026-10-01') continue;
       const rescued = { ...lt, spaceId: 'keluarga' as SpaceId };
       unsyncedLocalTxns.push(rescued);
       safeInsertTransaction(rescued).catch(() => {});
     }
   }
-  const finalTxnsList = sortTransactions([...remoteTxns, ...unsyncedLocalTxns]).filter(t => (t.date || '').slice(0, 10) >= '2026-10-01');
+  const finalTxnsList = sortTransactions([...remoteTxns, ...unsyncedLocalTxns]);
   save(KEYS.transactions, finalTxnsList);
 
   // 2. Budget Pos Sync
@@ -501,21 +494,14 @@ export async function syncWithDb(): Promise<void> {
   const stillPendingParties = localParties.filter(p => !remotePartyIds.has(p.id)).map(p => ({ ...p, spaceId: 'keluarga' as SpaceId }));
   save(KEYS.debtParties, [...remoteParties, ...stillPendingParties]);
 
-  // 4. Debt Transactions Sync (Only retain October 2026 onwards)
+  // 4. Debt Transactions Sync — keep ALL debt transactions (no hardcoded date filter)
   const rawLocalDebtTxns = load<DebtTransaction[]>(KEYS.debtTransactions, []);
-  const localDebtTxns = rawLocalDebtTxns.filter(dt => (dt.date || '').slice(0, 10) >= '2026-10-01');
-  if (rawLocalDebtTxns.length !== localDebtTxns.length) {
-    save(KEYS.debtTransactions, localDebtTxns);
-  }
+  const localDebtTxns = rawLocalDebtTxns;
   const localDebtTxnSpaceMap = new Map<string, SpaceId>();
   localDebtTxns.forEach(dt => {
     if (dt.spaceId) localDebtTxnSpaceMap.set(dt.id, dt.spaceId);
   });
   const remoteDebtTxns: DebtTransaction[] = (debtTxnsRes.data || [])
-    .filter((dt: any) => {
-      const d = typeof dt.date === 'string' ? dt.date.slice(0, 10) : new Date(dt.date).toISOString().slice(0, 10);
-      return d >= '2026-10-01';
-    })
     .map((dt: any) => {
       const rawNote = dt.note || '';
       const cleanNote = rawNote.replace(/\s*\[space:(keluarga|pribadi)\]\s*/g, ' ').trim();
@@ -627,9 +613,9 @@ export async function syncWithDb(): Promise<void> {
 // ─── Transactions ─────────────────────────────────────────────
 export function getTransactions(_spaceId?: SpaceId): Transaction[] {
   const all = sortTransactions(load<Transaction[]>(KEYS.transactions, []));
-  return all
-    .filter(t => (t.date || '').slice(0, 10) >= '2026-10-01')
-    .map(t => ({ ...t, spaceId: 'keluarga' as SpaceId }));
+  // Always return ALL keluarga transactions — no hardcoded date gate here
+  // (date filtering is done at display layer per page/component)
+  return all.map(t => ({ ...t, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addTransaction(data: Omit<Transaction, 'id' | 'createdAt'>): Promise<Transaction> {
@@ -785,8 +771,8 @@ export async function deleteTransaction(id: string): Promise<void> {
 // ─── Budget Pos ────────────────────────────────────────────────
 export function getBudgetPos(spaceId?: SpaceId): BudgetPos[] {
   const all = load<BudgetPos[]>(KEYS.budgetPos, []);
-  const space = spaceId || getActiveSpaceId();
-  return all.filter(p => (p.spaceId || 'pribadi') === space);
+  // Always return keluarga data — ignore spaceId filter since app is 100% keluarga
+  return all.map(b => ({ ...b, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): Promise<BudgetPos> {
@@ -807,7 +793,7 @@ export async function addBudgetPos(data: Omit<BudgetPos, 'id' | 'createdAt'>): P
       monthly_allocation: newPos.monthlyAllocation,
       rollover: newPos.rollover,
       created_at: newPos.createdAt,
-      space_id: newPos.spaceId || 'pribadi',
+      space_id: 'keluarga',
     };
     const { error } = await db.from('budget_pos').insert(payload);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {
@@ -874,14 +860,14 @@ export function getBudgetUsed(posId: string, year: number, month: number, spaceI
 // ─── Debt ──────────────────────────────────────────────────────
 export function getDebtParties(spaceId?: SpaceId): DebtParty[] {
   const all = load<DebtParty[]>(KEYS.debtParties, []);
-  const space = spaceId || getActiveSpaceId();
-  return all.filter(p => (p.spaceId || 'pribadi') === space);
+  // Always return keluarga data
+  return all.map(p => ({ ...p, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addDebtParty(name: string, spaceId?: SpaceId): Promise<DebtParty> {
   const all = load<DebtParty[]>(KEYS.debtParties, []);
-  const space = spaceId || getActiveSpaceId();
-  const existing = all.find(p => (p.spaceId || 'pribadi') === space && p.name.toLowerCase() === name.toLowerCase());
+  const space: SpaceId = 'keluarga';
+  const existing = all.find(p => p.name.toLowerCase() === name.toLowerCase());
   if (existing) return existing;
   const newParty: DebtParty = { id: genId(), spaceId: space, name, createdAt: new Date().toISOString() };
   save(KEYS.debtParties, [...all, newParty]);
@@ -1023,8 +1009,8 @@ export function getTotalDebt(spaceId?: SpaceId): number {
 // ─── Saving Goals ──────────────────────────────────────────────
 export function getSavingGoals(spaceId?: SpaceId): SavingGoal[] {
   const all = load<SavingGoal[]>(KEYS.savingGoals, []);
-  const space = spaceId || getActiveSpaceId();
-  return all.filter(g => (g.spaceId || 'pribadi') === space);
+  // Always return keluarga data
+  return all.map(g => ({ ...g, spaceId: 'keluarga' as SpaceId }));
 }
 
 export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>): Promise<SavingGoal> {
@@ -1044,7 +1030,7 @@ export async function addSavingGoal(data: Omit<SavingGoal, 'id' | 'createdAt'>):
       name: newGoal.name,
       target_amount: newGoal.targetAmount,
       created_at: newGoal.createdAt,
-      space_id: newGoal.spaceId || 'pribadi',
+      space_id: 'keluarga',
     };
     const { error } = await db.from('saving_goals').insert(payload);
     if (error && (error.code === '42703' || error.message?.includes('space_id'))) {

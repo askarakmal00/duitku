@@ -79,8 +79,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     sync();
 
-    // Auto-sync when window receives focus or tab becomes visible
+    // Auto-sync when window receives focus or tab becomes visible (pull latest from DB)
+    let syncTimeout: ReturnType<typeof setTimeout> | null = null;
     const handleFocusSync = async () => {
+      // Debounce: only sync once per 10 seconds on focus/visibility
+      if (syncTimeout) return;
+      syncTimeout = setTimeout(() => { syncTimeout = null; }, 10000);
       try {
         await syncWithSupabase();
       } catch (e) {
@@ -96,16 +100,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
     document.addEventListener('visibilitychange', handleVisibility);
 
-    // Auto-sync on local changes
-    const handleLocalChange = () => {
-      handleFocusSync();
-    };
-    window.addEventListener('pf_data_changed', handleLocalChange);
+    // NOTE: Do NOT sync on pf_data_changed — this caused a race condition where
+    // newly added local transactions would be overwritten by a stale DB fetch
+    // before the write to DB completed. Sync only on focus/visibility restore.
 
     return () => {
       window.removeEventListener('focus', handleFocusSync);
       document.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('pf_data_changed', handleLocalChange);
+      if (syncTimeout) clearTimeout(syncTimeout);
     };
   }, []);
 
