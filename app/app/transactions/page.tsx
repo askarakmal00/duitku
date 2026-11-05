@@ -9,7 +9,6 @@ import {
   ShoppingBag, Landmark, Home, Utensils, CreditCard, Car, Banknote,
   Zap, ShoppingBasket, ArrowDownLeft, CheckCircle2
 } from 'lucide-react';
-import SpaceSwitcher from '@/components/SpaceSwitcher';
 
 const TransactionModal = dynamic(() => import('@/components/TransactionModal'), { ssr: false });
 const BulkImportModal = dynamic(() => import('@/components/BulkImportModal'), { ssr: false });
@@ -458,11 +457,10 @@ export default function TransactionsPage() {
             <div className="txn-v2-month-tag">{currentMonthTag}</div>
             <h1 className="txn-v2-page-title">Transaksi</h1>
             <div className="txn-v2-page-subtitle">
-              Duitku {activeSpace === 'keluarga' ? 'Keluarga' : 'Pribadi'}
+              Duitku Keluarga
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <SpaceSwitcher />
             <button
               style={{
                 width: 40, height: 40, borderRadius: '50%', background: '#FFFFFF',
@@ -1082,11 +1080,6 @@ export default function TransactionsPage() {
               {activeSpace === 'keluarga' ? 'K' : 'A'}
             </div>
           </div>
-        </div>
-
-        {/* Space switcher chip */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <SpaceSwitcher />
         </div>
 
         {/* Title & Month Dropdown Row */}

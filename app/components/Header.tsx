@@ -4,7 +4,6 @@ import { Search, Bell, Menu } from 'lucide-react';
 import { getSettings } from '@/lib/store';
 import { getMonthName, getCurrentMonth } from '@/lib/helpers';
 import { useMobileMenu } from '@/components/SupabaseProvider';
-import SpaceSwitcher from '@/components/SpaceSwitcher';
 import { useSpace } from '@/lib/useSpace';
 
 interface HeaderProps {
@@ -43,9 +42,6 @@ export default function Header({ title, subtitle }: HeaderProps) {
         </div>
       </div>
       <div className="header-right">
-        {/* Space Switcher */}
-        <SpaceSwitcher />
-
         <button className="header-btn" title="Cari">
           <Search size={18} />
         </button>

@@ -19,7 +19,6 @@ import { getCurrentMonth, formatCurrency, clamp, formatDate } from '@/lib/helper
 import { useDataRefresh } from '@/lib/useDataRefresh';
 import Link from 'next/link';
 import { useSpace } from '@/lib/useSpace';
-import SpaceSwitcher from '@/components/SpaceSwitcher';
 import FamilyDashboardRedesign from '@/components/FamilyDashboardRedesign';
 
 
@@ -179,7 +178,6 @@ export default function DashboardPage() {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <SpaceSwitcher />
               <div className="mobile-db-avatar">
                 <User size={20} />
               </div>

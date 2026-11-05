@@ -45,7 +45,6 @@ import {
 } from '@/lib/store';
 import { getFamilyContributions, saveFamilyContribution } from '@/lib/spaceStore';
 import { useDataRefresh } from '@/lib/useDataRefresh';
-import SpaceSwitcher from '@/components/SpaceSwitcher';
 import TransactionModal from '@/components/TransactionModal';
 import { Transaction } from '@/lib/types';
 
@@ -388,9 +387,6 @@ export default function FamilyDashboardRedesign({
               {monthLabel} · Ringkasan Keuangan
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <SpaceSwitcher />
-          </div>
         </div>
 
         {/* Hero Card Mobile */}
@@ -628,7 +624,6 @@ export default function FamilyDashboardRedesign({
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <SpaceSwitcher />
           <button
             onClick={() => setShowAddModal(true)}
             className="btn btn-primary"

@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { getSettings, saveSettings } from '@/lib/store';
 import { useSpace } from '@/lib/useSpace';
-import SpaceSwitcher from '@/components/SpaceSwitcher';
 
 const navItems = [
   { href: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -82,11 +81,6 @@ export default function Sidebar({ open, onClose }: SidebarProps) {
             <X size={18} />
           </button>
         </div>
-
-        <div style={{ padding: '0 16px 12px' }}>
-          <SpaceSwitcher />
-        </div>
-
 
         <nav className="sidebar-nav">
           <span className="nav-label">Menu Utama</span>
