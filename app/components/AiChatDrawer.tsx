@@ -123,34 +123,15 @@ export default function AiChatDrawer() {
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating Trigger Button (Revamped for Mobile & Desktop) */}
       <button
         onClick={() => setIsOpen(true)}
-        aria-label="Buka Asisten AI"
-        style={{
-          position: 'fixed',
-          bottom: 24,
-          right: 24,
-          zIndex: 45,
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          background: 'linear-gradient(135deg, #4F46E5 0%, #6366F1 100%)',
-          color: '#FFFFFF',
-          padding: '12px 18px',
-          borderRadius: 999,
-          border: 'none',
-          boxShadow: '0 10px 25px -5px rgba(79, 70, 229, 0.4)',
-          cursor: 'pointer',
-          fontWeight: 600,
-          fontSize: 13.5,
-          transition: 'all 0.2s ease',
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = 'translateY(-2px)')}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = 'translateY(0)')}
+        className="ai-float-btn"
+        aria-label="Tanya AI & Scan Struk"
+        title="Tanya AI & Scan Struk"
       >
-        <Sparkles size={18} />
-        <span>Tanya AI & Scan Struk</span>
+        <Sparkles size={19} />
+        <span className="ai-float-label">Tanya AI & Scan Struk</span>
       </button>
 
       {/* Slide-in Drawer Window */}
@@ -159,9 +140,9 @@ export default function AiChatDrawer() {
           style={{
             position: 'fixed',
             inset: 0,
-            zIndex: 50,
-            background: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(3px)',
+            zIndex: 1000,
+            background: 'rgba(15, 23, 42, 0.45)',
+            backdropFilter: 'blur(4px)',
             display: 'flex',
             justifyContent: 'flex-end',
           }}
